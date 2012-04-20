@@ -1,0 +1,12 @@
+{application, wiggle,
+ [
+  {description, ""},
+  {vsn, "1"},
+  {registered, []},
+  {applications, [
+                  kernel,
+                  stdlib
+                 ]},
+  {mod, { wiggle_app, []}},
+  {env, []}
+ ]}.
