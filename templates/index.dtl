@@ -1,0 +1,30 @@
+{% extends 'base.dtl' %}
+
+{% block page_title %}Index{% endblock %}
+
+{% block body_content %}
+
+<!-- Example row of columns -->
+<div class="span4">
+  <div class="well" style="padding: 8px 0pt;" id="navlist">
+    <ul class="nav nav-list">
+      <li class="nav-header" id="machines">
+	Machines
+      </li>
+      <li class="nav-header" id="packages">
+	Packages
+      </li>
+      <li class="nav-header" id="datasets">
+	Datasets
+      </li>
+    </ul>
+  </div>
+</div>
+<div class="span8">
+  <div  id="center" class="well"></div>
+</div>
+{% endblock %}
+
+{% block script %}
+ui.init();
+{% endblock %}

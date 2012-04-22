@@ -1,3 +1,7 @@
 ebin
 deps
 *~
+.DS_Store
+Mnesia.*
+erl_crash.dump
+*.beam

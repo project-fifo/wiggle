@@ -1,0 +1,28 @@
+{% extends 'base.dtl' %}
+
+{% block page_title %}Account{% endblock %}
+
+{% block body_content %}
+<div class="message" id="test" onclick="$(this).remove(500);">message</div>
+<div class="message ok">ok</div>
+<div class="message warning">warning</div>
+<div class="message error">error</div>
+
+<div style="text-align:right; width:500px;">
+  <form action="/account" method="POST">
+    <label>Old: </label><input type="password" name="old"/></br>
+    <label>New: </label><input type="password" name="new"/></br>      
+    <label>Confirm: </label><input type="password" name="confirm"/></br>      
+    <button type="submit" name="action" value="pass">Save</button>
+  </form>
+</div>
+
+<div style="text-align:right; width:500px;">
+  <form action="/account" method="POST">
+    <label>Key ID: </label><input type="text" name="key_id" value="{{ key_id }}"/></br>
+    <label>Key: </label>(not shown for security reasons)</br>
+    <textarea cols="50" rows="10" name="key"></textarea></br>
+    <button type="submit" name="action" value="key">Save</button>
+  </form>
+</div>
+{% endblock %}
