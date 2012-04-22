@@ -74,17 +74,33 @@ request('POST', [<<"login">>], undefined, Req, State) ->
 	    {ok, Req2, State}
     end;
 
-request('GET', [], Auth, Req, State) ->
-    {ok, {Res, _, _}} = cloudapi:list_machines(Auth),
-    {ok, Page} = tpl_index:render([{vms, Res}]),
+request('GET', [], _Auth, Req, State) ->
+    {ok, Page} = tpl_index:render([]),
+    {ok, Req2} = cowboy_http_req:reply(200, [], Page, Req),
+    {ok, Req2, State};
+
+request('GET', [<<"analytics">>], _Auth, Req, State) ->
+    {ok, Page} = tpl_analytics:render([{page, "analytics"}]),
+    {ok, Req2} = cowboy_http_req:reply(200, [], Page, Req),
+    {ok, Req2, State};
+
+request('GET', [<<"system">>], _Auth, Req, State) ->
+    {ok, Page} = tpl_system:render([{page, "system"}]),
     {ok, Req2} = cowboy_http_req:reply(200, [], Page, Req),
     {ok, Req2, State};
 
 request('GET', [<<"account">>], Auth, Req, State) ->
     {_, _, KeyID, _} = Auth,
-    {ok, Page} = tpl_account:render([{key_id, KeyID}]),
+    {ok, Page} = tpl_account:render([{key_id, KeyID}, {page, "account"}]),
     {ok, Req2} = cowboy_http_req:reply(200, [], Page, Req),
     {ok, Req2, State};
+
+request('GET', [<<"about">>], _Auth, Req, State) ->
+    {ok, Page} = tpl_about:render([{page, "about"}]),
+    {ok, Req2} = cowboy_http_req:reply(200, [], Page, Req),
+    {ok, Req2, State};
+
+
 
 request('POST', [<<"account">>], Auth, Req, State) ->
     {Vals, Req1} = cowboy_http_req:body_qs(Req),
@@ -129,13 +145,6 @@ request('POST', [<<"account">>], Auth, Req, State) ->
 		end
     end;
     
-%    User = proplists:get_value(<<"login">>, Vals),
-%    Pass = proplists:get_value(<<"pass">>, Vals),
-
-%    {ok, Page} = tpl_account:render([{key_id, KeyID}]),
-
-
-
 request('GET', [<<"my">>, <<"machines">>], Auth, Req, State) ->
     {ok, {Res, _, _}} = cloudapi:list_machines(Auth),
     reply_json(Req, Res, State);
@@ -146,11 +155,11 @@ request('GET', [<<"my">>, <<"machines">>, UUID], Auth, Req, State) ->
 
 request('POST', [<<"my">>, <<"machines">>, UUID], Auth, Req, State) ->
     case cowboy_http_req:qs_val(<<"action">>, Req) of
-	<<"start">> ->
+	{<<"start">>, _} ->
 	    cloudapi:start_machine(Auth, binary_to_list(UUID));
-	<<"reboot">> ->
+	{<<"reboot">>, _} ->
 	    cloudapi:reboot_machine(Auth, binary_to_list(UUID));
-	<<"stop">> ->
+	{<<"stop">>, __} ->
 	    cloudapi:stop_machine(Auth, binary_to_list(UUID))
     end,
     {ok, Res} = cloudapi:get_machine(Auth, binary_to_list(UUID)),

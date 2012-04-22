@@ -14,12 +14,14 @@
             <span class="icon-bar"></span>
             <span class="icon-bar"></span>
           </a>
-          <a class="brand" href="#">Wiggle</a>
+          <span class="brand">Wiggle</span>
           <div class="nav-collapse">
             <ul class="nav">
-              <li class="active"><a href="#">Home</a></li>
-              <li><a href="#about">About</a></li>
-              <li><a href="#contact">Contact</a></li>
+              <li{% if not page or page=="home" %} class="active"{% endif %}><a href="/">Home</a></li>
+              <li{% if page=="analytics" %} class="active"{% endif %}><a href="/analytics">Analytics</a></li>
+              <li{% if page=="system" %} class="active"{% endif %}><a href="/system">System</a></li>
+              <li{% if page=="account" %} class="active"{% endif %}><a href="/account">Account</a></li>
+              <li{% if page=="about" %} class="active"{% endif %}><a href="/about">About</a></li>
             </ul>
           </div><!--/.nav-collapse -->
         </div>

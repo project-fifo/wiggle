@@ -21,7 +21,7 @@ var ui = new Object();
 	    "</div>");
 
 
-    function machine_action(uuid, action) {
+    function machine_action(uuid, action, callback) {
 	$.ajax({
 	    url: "/my/machines/"+uuid +"?action=" + action,
 	    type: 'POST',
@@ -45,22 +45,39 @@ var ui = new Object();
 		o.append(", ");
 	    o.append(data.ips[i]);
 	}
+
+	$('#machine-detail-stop').
+	    attr("disabled", true);
+	$('#machine-detail-reboot').
+	    attr("disabled", true);
+	$('#machine-detail-start').
+	    attr("disabled", true);
 	if (data.state == "running") {
 	    $('#machine-detail-stop').
-		attr("disabled", false);
+		attr("disabled", false).
+		click(function (){
+		    machine_action(data.id, "stop", update_machine);
+		});
 	    $('#machine-detail-reboot').
-		attr("disabled", false);
-	    
-	}
-	if (data.state == "stopped") {
-	    $('#machine-detail-stop').
-		attr("disabled", false);
+		attr("disabled", false).
+		click(function (){
+		    machine_action(data.id, "reboot", update_machine);
+		});
+	} else if (data.state == "stopped") {
+	    $('#machine-detail-start').
+		attr("disabled", false).
+		click(function (){
+		    machine_action(data.id, "start", update_machine);
+		});;
 	}
     }
     function show_machine(data) {
 	center.empty();
 	center.append(machine_details);
+	    
 	update_machine(data);
+	$('#machine-detail-start').click(function (){machine_action(data.id, "start")});
+	$('#machine-detail-reboot').click(function (){machine_action(data.id, "reboot")});
     };
     function activate_machien(id) {
 	var navItem = $("#" + id + "-menu");
