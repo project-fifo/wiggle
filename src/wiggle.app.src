@@ -4,6 +4,10 @@
   {vsn, "1"},
   {registered, []},
   {applications, [
+		  erllibcloudapi,
+		  erlydtl,
+		  cowboy,
+		  mnesia,
                   kernel,
                   stdlib
                  ]},

@@ -5,3 +5,4 @@ deps
 Mnesia.*
 erl_crash.dump
 *.beam
+rel/wiggle
