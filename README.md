@@ -2,6 +2,29 @@ This is a web GUI for SmartOS systems, it talks over the CloudAPI, you'll need v
 
 It is pretty much alpha ware so don't expect to much!
 
+
+Features
+========
+
+This reflects to so far implemented features not all possible ones.
+
+* machines
+  * listing
+  * viewing details
+  * starting/stopping/restarting
+* listing packages
+* listing datasets
+* creating users
+* Adjusting CloudAPI Credentials (name, key, key_id)
+
+
+Screenshots
+===========
+
+* Home view: http://s7.directupload.net/file/d/2869/76xkwhil_png.htm
+* Admin view: http://s7.directupload.net/file/d/2869/woghq83k_png.htm
+* Account view: http://s1.directupload.net/file/d/2869/kv3neins_png.htm
+
 Building
 ========
 
