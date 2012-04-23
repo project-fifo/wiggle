@@ -66,7 +66,7 @@ init([]) ->
 		       {[<<"css">>, '...'], cowboy_http_static,
 			[{directory, {priv_dir, wiggle, [<<"css">>]}},
 			 {mimetypes, {fun mimetypes:path_to_mimes/2, default}}]},
-		       {[<<"images">>, '...'], cowboy_http_static,
+		       {[<<"img">>, '...'], cowboy_http_static,
 			[{directory, {priv_dir, wiggle, [<<"images">>]}},
 			 {mimetypes, {fun mimetypes:path_to_mimes/2, default}}]},
 		       {'_', wiggle_handler, []}]}],

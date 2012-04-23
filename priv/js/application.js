@@ -20,7 +20,53 @@ var ui = new Object();
 	    "</div>" +
 	    "</div>");
 
+    var machine_form = $(
+	"<div>" +
+	    "<label>Name</label><input type='text' id='machine-new-name'/></br>" +
+	    "<label>Package</label><select id='machine-new-package' name='package'/></br>" +
+	    "<label>Dataset</label><select id='machine-new-dataset' name='dataset'/></br>" +
+	    "<button class='btn btn-success' id='machine-new-btn'>Create</button>" +
+	"</div>");
 
+    function delete_vm() {
+	var id=$(".machine.active").data("id");
+	$.ajax({
+	    url: "/my/machines/"+id,
+	    type: 'DELETE',
+	    dataType: 'json',
+	    success: function () {
+		$("#" + id + "-menu").remove();
+		activate_machine($(".machine").first().data("id"));
+	    }
+	});
+	
+    }
+    function machine_add_fn() {
+	var pkg = $("#machine-new-package").val();
+	var dataset = $("#machine-new-dataset").val();
+	var name = $("#machine-new-name").val();
+	$.ajax({
+	    url: "/my/machines",
+	    type: 'POST',
+	    dataType: 'json',
+	    data:{
+		"name": name,
+		"package": pkg,
+		"dataset": dataset
+	    },
+	    success: function (vm) {
+		if (vm) {
+		    var new_vm = {}
+		    new_vm.name = vm.zonename
+		    new_vm.id = vm.uuid
+		    alert(JSON.stringify(new_vm));
+		    add_machine(new_vm, true);
+		}
+	    }
+	});
+	
+	
+    }
     function machine_action(uuid, action, callback) {
 	$.ajax({
 	    url: "/my/machines/"+uuid +"?action=" + action,
@@ -40,6 +86,10 @@ var ui = new Object();
 	};
 	var o = $('#machine-detail-ips');
 	o.empty();
+
+	if (!data.ips.length){
+	    o.append("-");
+	}
 	for (var i = 0; i < data.ips.length; i++) {
 	    if (i > 0 )
 		o.append(", ");
@@ -79,7 +129,7 @@ var ui = new Object();
 	$('#machine-detail-start').click(function (){machine_action(data.id, "start")});
 	$('#machine-detail-reboot').click(function (){machine_action(data.id, "reboot")});
     };
-    function activate_machien(id) {
+    function activate_machine(id) {
 	var navItem = $("#" + id + "-menu");
 	if(!navItem.hasClass("active")) {
 	    $("#navlist .active").removeClass("active");
@@ -89,7 +139,7 @@ var ui = new Object();
 
     };
     function machine_click_fn() {
-	activate_machien($(this).data("id"));
+	activate_machine($(this).data("id"));
 
     };
     function get_machine(uuid, callback) {
@@ -99,25 +149,27 @@ var ui = new Object();
 	    success: callback
 	});
     };
+    function add_machine(data, show) {
+	var id = data.id;
+	var name = data.name;
+	var li = $("<li class='machine'></li>").
+	    attr("id", id + "-menu").
+	    append($("<a></a>").
+		   append(name)).
+	    data("id", id).
+	    click(machine_click_fn);
+	$("#machines").after(li);
+	if (show) {
+	    activate_machine(id)
+	}
+    }
     function get_machines() {
 	$.ajax({
 	    url: "/my/machines",
 	    dataType: 'json',
 	    success: function (data) {
 		for (var i = 0; i < data.length; i++) {
-		    var id = data[i].id;
-		    var name = data[i].name;
-		    var li = $("<li></li>").
-			attr("id", id + "-menu").
-			append($("<a></a>").
-			       append(name)).
-			data("id", id).
-			click(machine_click_fn);
-		    if (i == 0) {
-			li.addClass("active");
-			show_machine(data[i]);
-		    }
-		    $("#packages").before(li);
+		    add_machine(data[i], i==0);
 		}
 	    }
 	});
@@ -145,6 +197,47 @@ var ui = new Object();
 	    }
 	});
     };
+
+
+
+    function view_add_vm() {
+	var center = $("#center");
+	center.empty();
+	center.append(machine_form);
+	var datasets = $("#machine-new-dataset");
+	datasets.empty()
+	$.ajax({
+	    url: "/my/datasets",
+	    dataType: 'json',
+	    success: function (data) {
+		for (var i = 0; i < data.length; i++) {
+		    var d = data[i];
+		    var option = $("<option></option>").
+			attr("value", d.id).
+			append(d.name + " v" + d.urn.split(":")[3]);
+		    if (d.default)
+			option.attr("selected", true);
+		    datasets.append(option);
+		};
+	    }
+	});
+	var select = $("#machine-new-package");
+	select.empty()
+	$.ajax({
+	    url: "/my/packages",
+	    dataType: 'json',
+	    success: function (data) {
+		for (var i = 0; i < data.length; i++) {
+		    var d = data[i];
+		    var option = $("<option></option>").
+			attr("value", d.name).
+			append(d.name);
+		    select.append(option);
+		};
+	    }
+	});
+	$("#machine-new-btn").click(machine_add_fn)
+    };
     ui.init = function () {
 	get_machines();
 	get_other("packages");
@@ -154,5 +247,8 @@ var ui = new Object();
 			  " v" + 
 			  data.urn.split(":")[3];
 		  });
+	$("#machines-nav-add").click(view_add_vm);
+	$("#machines-nav-del").click(delete_vm);
+
     };
 }(window.jQuery);

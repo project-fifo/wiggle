@@ -57,6 +57,7 @@ request('GET', [<<"login">>], undefined, Req, State) ->
     {ok, Req1} = cowboy_http_req:reply(200, [], Page, Req),
     {ok, Req1, State};
 
+
 request('POST', [<<"login">>], undefined, Req, State) ->
     {Vals, Req1} = cowboy_http_req:body_qs(Req),
     User = proplists:get_value(<<"login">>, Vals),
@@ -74,12 +75,45 @@ request('POST', [<<"login">>], undefined, Req, State) ->
 	    {ok, Req2, State}
     end;
 
+request('POST', [<<"my">>, <<"machines">>], {_UUID, _Admin, Auth}, Req, State) ->
+    {Vals, Req1} = cowboy_http_req:body_qs(Req),
+    Name = proplists:get_value(<<"name">>, Vals),
+    Package = proplists:get_value(<<"package">>, Vals),
+    Dataset = proplists:get_value(<<"dataset">>, Vals),
+    Obj = [{<<"package">>, Package}, {<<"dataset">>, Dataset}],
+    Obj1 = case Name of
+	       <<>> ->
+		   Obj;
+	       _ ->
+		   [{<<"name">>, Name} | Obj]
+	   end,
+
+    case cloudapi:create_machine(Auth, Obj1) of
+	{ok, Res} ->
+	    io:format("~p~n", [Res]),
+	    reply_json(Req1, Res, State);
+	Error ->
+	    io:format("~p~n", [Error]),
+	    {ok, Req2} = cowboy_http_req:reply(500, [], <<"error">>, Req1),
+	    {ok, Req2, State}
+    end;
+
+request('DELETE', [<<"my">>, <<"machines">>, VMUUID], {_UUID, _Admin, Auth}, Req, State) ->
+    case cloudapi:delete_machine(Auth, VMUUID) of
+	ok ->
+	    {ok, Req1} = cowboy_http_req:reply(200, [], <<"">>, Req),
+	    {ok, Req1, State};
+	Error ->
+	    io:format("~p~n", [Error]),
+	    {ok, Req1} = cowboy_http_req:reply(500, [], <<"error">>, Req),
+	    {ok, Req1, State}
+    end;
+
+
 request('GET', [<<"logout">>], {_UUID, _Admin, _Auth}, Req, State) ->
     {ok, Req1} = wiggle_session:del(Req),
     {ok, Req2} = cowboy_http_req:reply(200, [{<<"Refresh">>, <<"0; url=/login">>}], <<"">>, Req1),
     {ok, Req2, State};
-
-
 
 request('GET', [], {_UUID, Admin, _Auth}, Req, State) ->
     {ok, Page} = tpl_index:render([{admin, Admin}]),
@@ -127,7 +161,6 @@ request('POST', [<<"admin">>], {_, true, _Auth} , Req, State) ->
 
 request('POST', [<<"account">>], {UID,Admin,Auth}, Req, State) ->
     {Vals, Req1} = cowboy_http_req:body_qs(Req),
-    io:format("~p~n", [Vals]),
     {Name, _, _, _} = Auth,
     {ok, {user, UID, Name, Pass, KeyID, Key, Admin}} = wiggle_storage:get_user(UID),
     case proplists:get_value(<<"action">>, Vals) of

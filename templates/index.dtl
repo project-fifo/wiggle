@@ -11,6 +11,13 @@
       <li class="nav-header" id="machines">
 	Machines
       </li>
+      <li class="nav-pills">
+	<div class='btn-group' style='float: right'>
+	  <button class='btn' id='machines-nav-add'>+</button>
+	  <button class='btn' id='machines-nav-del'>-</button>
+	</div>	
+      </li>
+      <hr/>
       <li class="nav-header" id="packages">
 	Packages
       </li>
