@@ -6,7 +6,7 @@
     <link type="text/css" rel="stylesheet" href="/css/application.css" />
   </head>
   <body>
-    <div class="navbar navbar-fixed-top">
+    <div class="navbar">
       <div class="navbar-inner">
         <div class="container">
           <a class="btn btn-navbar" data-toggle="collapse" data-target=".nav-collapse">
@@ -20,9 +20,12 @@
               <li{% if not page or page=="home" %} class="active"{% endif %}><a href="/">Home</a></li>
               <li{% if page=="analytics" %} class="active"{% endif %}><a href="/analytics">Analytics</a></li>
               <li{% if page=="system" %} class="active"{% endif %}><a href="/system">System</a></li>
-              <li{% if page=="account" %} class="active"{% endif %}><a href="/account">Account</a></li>
               <li{% if page=="about" %} class="active"{% endif %}><a href="/about">About</a></li>
             </ul>
+	    <ul class="nav pull-right">
+              <li{% if page=="account" %} class="active"{% endif %}><a href="/account">Account</a></li>
+              <li><a href="/logout">Logout</a></li>
+	    </ul>
           </div><!--/.nav-collapse -->
         </div>
       </div>

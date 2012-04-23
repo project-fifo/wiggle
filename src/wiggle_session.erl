@@ -13,7 +13,7 @@
 -module(wiggle_session).
 
 %% API
--export([get/1, set/2, get_session/3, set_session/4, rem_session/2]).
+-export([get/1, set/2, del/1, get_session/3, set_session/4, rem_session/2]).
 
 %%%===================================================================
 %%% API
@@ -29,6 +29,12 @@ set(Req, Session) ->
     {ok, SessionCookieName} = application:get_env(wiggle, session_name),
     {ok, SessionKey} = application:get_env(wiggle, session_key),
     set_session(SessionCookieName, SessionKey, Req, Session).
+
+
+del(Req) ->
+    {ok, SessionCookieName} = application:get_env(wiggle, session_name),
+    rem_session(SessionCookieName, Req).
+
 
 
 %%--------------------------------------------------------------------

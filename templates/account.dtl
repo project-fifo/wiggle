@@ -6,6 +6,7 @@
 <div class="span6">
   <h2>Key Management</h2>
   <form class="well" action="/account" method="POST">
+    <label>SDC Login Name</label><input type="text" name="name" value="{{ name }}"/></br>
     <label>Key ID</label><input type="text" name="key_id" value="{{ key_id }}"/></br>
     <label>Key</label>(not shown for security reasons)</br>
     <textarea cols="50" rows="10" name="key"></textarea></br>
