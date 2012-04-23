@@ -12,19 +12,18 @@ The following things are required:
 * erlang r15(b01).
 * build environment (gcc/make and freinds).
 
-Making the thing
-----------------
-
-```
-./rebar get-deps
-make shell
-```
-
 Configuring
 -----------
 
 edit the standalone.config to reflect your CloudAPI Host.
 
+Making the thing
+----------------
+
+```
+./rebar get-deps
+make
+```
 
 Running
 -------
@@ -33,10 +32,8 @@ Running
 make shell
 ```
 
-
 ```
 wiggle:start().
 ```
 
-
-then visit: http://<your host>:8080/
+then visit: http://your_host:8080/
