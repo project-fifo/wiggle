@@ -74,39 +74,55 @@ request('POST', [<<"login">>], undefined, Req, State) ->
 	    {ok, Req2, State}
     end;
 
-request('GET', [<<"logout">>], _Session, Req, State) ->
+request('GET', [<<"logout">>], {_UUID, _Admin, _Auth}, Req, State) ->
     {ok, Req1} = wiggle_session:del(Req),
     {ok, Req2} = cowboy_http_req:reply(200, [{<<"Refresh">>, <<"0; url=/login">>}], <<"">>, Req1),
     {ok, Req2, State};
 
 
 
-request('GET', [], _Session, Req, State) ->
-    {ok, Page} = tpl_index:render([]),
+request('GET', [], {_UUID, Admin, _Auth}, Req, State) ->
+    {ok, Page} = tpl_index:render([{admin, Admin}]),
     {ok, Req2} = cowboy_http_req:reply(200, [], Page, Req),
     {ok, Req2, State};
 
-request('GET', [<<"analytics">>], _Session, Req, State) ->
-    {ok, Page} = tpl_analytics:render([{page, "analytics"}]),
+request('GET', [<<"analytics">>], {_UUID, Admin, _Auth}, Req, State) ->
+    {ok, Page} = tpl_analytics:render([{admin, Admin},{page, "analytics"}]),
     {ok, Req2} = cowboy_http_req:reply(200, [], Page, Req),
     {ok, Req2, State};
 
-request('GET', [<<"system">>], _Session, Req, State) ->
-    {ok, Page} = tpl_system:render([{page, "system"}]),
+request('GET', [<<"system">>], {_UUID, Admin, _Auth}, Req, State) ->
+    {ok, Page} = tpl_system:render([{admin, Admin},{page, "system"}]),
     {ok, Req2} = cowboy_http_req:reply(200, [], Page, Req),
     {ok, Req2, State};
 
-request('GET', [<<"account">>], {_, _,Auth}, Req, State) ->
+request('GET', [<<"account">>], {_UUID, Admin, Auth}, Req, State) ->
     {Name, _, KeyID, _} = Auth,
-    {ok, Page} = tpl_account:render([{name, Name}, {key_id, KeyID}, {page, "account"}]),
+    {ok, Page} = tpl_account:render([{admin, Admin}, {name, Name}, {key_id, KeyID}, {page, "account"}]),
     {ok, Req2} = cowboy_http_req:reply(200, [], Page, Req),
     {ok, Req2, State};
 
-request('GET', [<<"about">>], _Session, Req, State) ->
-    {ok, Page} = tpl_about:render([{page, "about"}]),
+request('GET', [<<"about">>], {_UUID, Admin, _Auth}, Req, State) ->
+    {ok, Page} = tpl_about:render([{admin, Admin},
+				   {page, "about"}]),
     {ok, Req2} = cowboy_http_req:reply(200, [], Page, Req),
     {ok, Req2, State};
 
+request('GET', [<<"admin">>], {_, true, _Auth} , Req, State) ->
+    {ok, Page} = tpl_admin:render([{admin, true},
+				   {page, "admin"}]),
+    {ok, Req2} = cowboy_http_req:reply(200, [], Page, Req),
+    {ok, Req2, State};
+
+request('POST', [<<"admin">>], {_, true, _Auth} , Req, State) ->
+    {Vals, Req1} = cowboy_http_req:body_qs(Req),
+    Name =  binary_to_list(proplists:get_value(<<"name">>, Vals)),
+    Pass =  binary_to_list(proplists:get_value(<<"pass">>, Vals)),
+    wiggle_storage:add_user(Name, Pass, false),    
+    {ok, Page} = tpl_admin:render([{admin, true},
+				   {page, "admin"}]),
+    {ok, Req2} = cowboy_http_req:reply(200, [], Page, Req1),
+    {ok, Req2, State};
 
 
 request('POST', [<<"account">>], {UID,Admin,Auth}, Req, State) ->
@@ -125,7 +141,7 @@ request('POST', [<<"account">>], {UID,Admin,Auth}, Req, State) ->
 	    NewKeyID =  binary_to_list(proplists:get_value(<<"key_id">>, Vals)),
 	    NewName =  binary_to_list(proplists:get_value(<<"name">>, Vals)),
 	    wiggle_storage:add_user(UID, NewName, Pass, NewKeyID, NewKey, Admin),
-	    {ok, Page} = tpl_account:render([{name, NewName},
+	    {ok, Page} = tpl_account:render([{admin, Admin},{name, NewName},
 					     {key_id, KeyID}]),
 	    {ok, Session} = wiggle_storage:get_session(UID),
 	    {ok, Req2} = wiggle_session:set(Req1, Session),
@@ -136,34 +152,34 @@ request('POST', [<<"account">>], {UID,Admin,Auth}, Req, State) ->
 		Pass ->
 		    case {proplists:get_value(<<"new">>, Vals), proplists:get_value(<<"confirm">>, Vals)} of
 			{New, New} ->
-			    {ok, Page} = tpl_account:render([{message, <<"Password changed.">>},
+			    {ok, Page} = tpl_account:render([{admin, Admin},{message, <<"Password changed.">>},
 							     {key_id, KeyID}]),
 			    {ok, Req2} = cowboy_http_req:reply(200, [], Page , Req1),
 			    wiggle_storage:add_user(Name, binary_to_list(New), KeyID, Key),
 			    {ok, Req2, State};
 			_ ->
-			    {ok, Page} = tpl_account:render([{message, <<"New passwords do not match!">>},
+			    {ok, Page} = tpl_account:render([{admin, Admin},{message, <<"New passwords do not match!">>},
 							     {key_id, KeyID}]),
 			    {ok, Req2} = cowboy_http_req:reply(200, [], Page , Req1),
 			    {ok, Req2, State}
 			end;
 		_ ->
-		    {ok, Page} = tpl_account:render([{message, <<"Old key did not match">>},
+		    {ok, Page} = tpl_account:render([{admin, Admin},{message, <<"Old key did not match">>},
 						     {key_id, KeyID}]),
 		    {ok, Req2} = cowboy_http_req:reply(200, [], Page , Req1),
 		    {ok, Req2, State}
 		end
     end;
 
-request('GET', [<<"my">>, <<"machines">>], {_,_,Auth}, Req, State) ->
+request('GET', [<<"my">>, <<"machines">>], {_UUID, _Admin, Auth}, Req, State) ->
     {ok, {Res, _, _}} = cloudapi:list_machines(Auth),
     reply_json(Req, Res, State);
 
-request('GET', [<<"my">>, <<"machines">>, UUID], {_,_, Auth}, Req, State) ->
+request('GET', [<<"my">>, <<"machines">>, UUID], {_UUID, _Admin, Auth}, Req, State) ->
     {ok, Res} = cloudapi:get_machine(Auth, binary_to_list(UUID)),
     reply_json(Req, Res, State);
 
-request('POST', [<<"my">>, <<"machines">>, UUID], {_,_,Auth}, Req, State) ->
+request('POST', [<<"my">>, <<"machines">>, UUID], {_UUID, _Admin, Auth}, Req, State) ->
     case cowboy_http_req:qs_val(<<"action">>, Req) of
 	{<<"start">>, _} ->
 	    cloudapi:start_machine(Auth, binary_to_list(UUID));
@@ -175,17 +191,17 @@ request('POST', [<<"my">>, <<"machines">>, UUID], {_,_,Auth}, Req, State) ->
     {ok, Res} = cloudapi:get_machine(Auth, binary_to_list(UUID)),
     reply_json(Req, Res, State);
 
-request('GET', [<<"my">>, <<"datasets">>], {_,_,Auth}, Req, State) ->
+request('GET', [<<"my">>, <<"datasets">>], {_UUID, _Admin, Auth}, Req, State) ->
     {ok, Res} = cloudapi:list_datasets(Auth),
     reply_json(Req, Res, State);
 
-request('GET', [<<"my">>, <<"packages">>], {_,_,Auth}, Req, State) ->
+request('GET', [<<"my">>, <<"packages">>], {_UUID, _Admin, Auth}, Req, State) ->
     {ok, Res} = cloudapi:list_packages(Auth),
     reply_json(Req, Res, State);
 
 
-request('GET', _Path, _Session, Req, State) ->
-    {ok, Req2} = cowboy_http_req:reply(200, [], <<"Hello world!">>, Req),
+request(_, _Path, {_UUID, _Admin, _Auth}, Req, State) ->
+    {ok, Req2} = cowboy_http_req:reply(404, [], <<"not found!">>, Req),
     {ok, Req2, State}.
 
 %%--------------------------------------------------------------------

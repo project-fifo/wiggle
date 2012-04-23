@@ -164,5 +164,6 @@ init_templates() ->
     erlydtl:compile("templates/account.dtl", tpl_account),
     erlydtl:compile("templates/about.dtl", tpl_about),
     erlydtl:compile("templates/system.dtl", tpl_system),
+    erlydtl:compile("templates/admin.dtl", tpl_admin),
     erlydtl:compile("templates/analytics.dtl", tpl_analytics),
     erlydtl:compile("templates/index.dtl", tpl_index).

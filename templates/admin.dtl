@@ -1,0 +1,14 @@
+{% extends 'base.dtl' %}
+
+{% block page_title %}Admin{% endblock %}
+
+{% block body_content %}
+<div class="span12">
+  <h2>Add User</h2>
+  <form class="well" action="/admin" method="POST">
+    <label>Name</label><input type="password" name="name"/></br>
+    <label>Password</label><input type="password" name="pass"/></br> 
+    <button type="submit" name="action" value="pass">Save</button>
+  </form>
+</div>
+{% endblock %}

@@ -18,6 +18,9 @@
           <div class="nav-collapse">
             <ul class="nav">
               <li{% if not page or page=="home" %} class="active"{% endif %}><a href="/">Home</a></li>
+	      {% if admin %}
+              <li{% if page=="admin" %} class="active"{% endif %}><a href="/admin">Admin</a></li>
+	      {% endif %}
               <li{% if page=="analytics" %} class="active"{% endif %}><a href="/analytics">Analytics</a></li>
               <li{% if page=="system" %} class="active"{% endif %}><a href="/system">System</a></li>
               <li{% if page=="about" %} class="active"{% endif %}><a href="/about">About</a></li>
