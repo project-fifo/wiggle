@@ -59,4 +59,4 @@ make shell
 wiggle:start().
 ```
 
-then visit: http://your_host:8080/
+then visit: http://your_host:8080/ you can log in with admin / admin.
