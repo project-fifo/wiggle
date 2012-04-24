@@ -130,12 +130,6 @@ request('GET', [<<"system">>], {_UUID, Admin, _Auth}, Req, State) ->
     {ok, Req2} = cowboy_http_req:reply(200, [], Page, Req),
     {ok, Req2, State};
 
-request('GET', [<<"account">>], {_UUID, Admin, Auth}, Req, State) ->
-    {Name, _, KeyID, _} = Auth,
-    {ok, Page} = tpl_account:render([{admin, Admin}, {name, Name}, {key_id, KeyID}, {page, "account"}]),
-    {ok, Req2} = cowboy_http_req:reply(200, [], Page, Req),
-    {ok, Req2, State};
-
 request('GET', [<<"about">>], {_UUID, Admin, _Auth}, Req, State) ->
     {ok, Page} = tpl_about:render([{admin, Admin},
 				   {page, "about"}]),
@@ -158,37 +152,55 @@ request('POST', [<<"admin">>], {_, true, _Auth} , Req, State) ->
     {ok, Req2} = cowboy_http_req:reply(200, [], Page, Req1),
     {ok, Req2, State};
 
+request('GET', [<<"account">>], {UUID, Admin, Auth}, Req, State) ->
+    {Name, _, _, _} = Auth,
+    {ok, User} = wiggle_storage:get_user(UUID),
+    {ok, Page} = tpl_account:render([{admin, Admin}, 
+				     {name, Name}, 
+				     {priv_key,wiggle_storage:get_user(User, priv_key)},
+				     {pub_key, wiggle_storage:get_user(User, pub_key)},
+				     {page, "account"}]),
+    {ok, Req2} = cowboy_http_req:reply(200, [], Page, Req),
+    {ok, Req2, State};
 
 request('POST', [<<"account">>], {UID,Admin,Auth}, Req, State) ->
     {Vals, Req1} = cowboy_http_req:body_qs(Req),
-    {Name, _, _, _} = Auth,
-    {ok, {user, UID, Name, Pass, KeyID, Key, Admin}} = wiggle_storage:get_user(UID),
+    {Name, _, KeyID, _} = Auth,
+    {ok, User} = wiggle_storage:get_user(UID),
     case proplists:get_value(<<"action">>, Vals) of
-       	<<"key">> ->
-	    NewKey = case proplists:get_value(<<"key">>, Vals) of
-			   <<"">> -> 
-			       Key;
-			   NewKey_ ->
-			     NewKey_
-		     end,
-	    NewKeyID =  binary_to_list(proplists:get_value(<<"key_id">>, Vals)),
+	<<"authenticate">> ->
+	    Pass = binary_to_list(proplists:get_value(<<"password">>, Vals)),
+	    cloudapi:create_key(Auth, Pass, KeyID, wiggle_storage:get_user(User, pub_key)),
+	    {ok, Page} = tpl_account:render([{admin, Admin}, 
+					     {name, Name}, 
+					     {priv_key,wiggle_storage:get_user(User, priv_key)},
+					     {pub_key, wiggle_storage:get_user(User, pub_key)},
+					     {page, "account"}]),
+	    {ok, Req2} = cowboy_http_req:reply(200, [], Page , Req1),
+	    {ok, Req2, State};
+       	<<"name">> ->
 	    NewName =  binary_to_list(proplists:get_value(<<"name">>, Vals)),
-	    wiggle_storage:add_user(UID, NewName, Pass, NewKeyID, NewKey, Admin),
-	    {ok, Page} = tpl_account:render([{admin, Admin},{name, NewName},
-					     {key_id, KeyID}]),
+	    wiggle_storage:set_user(UID, name, NewName),
+	    {ok, User} = wiggle_storage:get_user(UID),
+	    {ok, Page} = tpl_account:render([{admin, Admin}, 
+					     {name, Name}, 
+					     {priv_key,wiggle_storage:get_user(User, priv_key)},
+					     {pub_key, wiggle_storage:get_user(User, pub_key)},
+					     {page, "account"}]),
 	    {ok, Session} = wiggle_storage:get_session(UID),
 	    {ok, Req2} = wiggle_session:set(Req1, Session),
 	    {ok, Req3} = cowboy_http_req:reply(200, [], Page , Req2),
 	    {ok, Req3, State};
 	<<"pass">> ->
-	    case binary_to_list(proplists:get_value(<<"old">>, Vals)) of
+	    Pass = wiggle_storage:get_user(User, passwd),
+	    case crypto:sha265(proplists:get_value(<<"old">>, Vals)) of
 		Pass ->
 		    case {proplists:get_value(<<"new">>, Vals), proplists:get_value(<<"confirm">>, Vals)} of
 			{New, New} ->
 			    {ok, Page} = tpl_account:render([{admin, Admin},{message, <<"Password changed.">>},
 							     {key_id, KeyID}]),
 			    {ok, Req2} = cowboy_http_req:reply(200, [], Page , Req1),
-			    wiggle_storage:add_user(Name, binary_to_list(New), KeyID, Key),
+			    wiggle_storage:set_user(UID, passwd, binary_to_list(New)),
 			    {ok, Req2, State};
 			_ ->
 			    {ok, Page} = tpl_account:render([{admin, Admin},{message, <<"New passwords do not match!">>},

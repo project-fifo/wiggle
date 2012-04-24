@@ -4,13 +4,13 @@ var ui = new Object();
     var center=$("#center");
     var machine_details = $(
 	    "<div class='row'>" +
-	    "<div class='span2'>ID</div><div class='span8' id='machine-detail-id'>-</div>" +
-	    "<div class='span2'>Name</div><div class='span8' id='machine-detail-name'>-</div>" +
-	    "<div class='span2'>Type</div><div class='span8' id='machine-detail-type'>-</div>" +
-	    "<div class='span2'>State</div><div class='span8' id='machine-detail-state'>-</div>" +
-	    "<div class='span2'>Memory</div><div class='span8' id='machine-detail-memory'>-</div>" +
-	    "<div class='span2'>IPs</div><div class='span8' id='machine-detail-ips'>-</div>" +
-	    "<div class='span2'>Created</div><div class='span8' id='machine-detail-create'>-</div>" +
+	    "<div class='span2'>ID</div><div class='span10' id='machine-detail-id'>-</div>" +
+	    "<div class='span2'>Name</div><div class='span10' id='machine-detail-name'>-</div>" +
+	    "<div class='span2'>Type</div><div class='span10' id='machine-detail-type'>-</div>" +
+	    "<div class='span2'>State</div><div class='span10' id='machine-detail-state'>-</div>" +
+	    "<div class='span2'>Memory</div><div class='span10' id='machine-detail-memory'>-</div>" +
+	    "<div class='span2'>IPs</div><div class='span10' id='machine-detail-ips'>-</div>" +
+	    "<div class='span2'>Created</div><div class='span10' id='machine-detail-create'>-</div>" +
 	    "<div class='span10'>" +
 	    "<div class='btn-group' style='float: right'>" + 
 	    "<button class='btn btn-success' id='machine-detail-start' disabled='true'>Start</button>" +

@@ -10,17 +10,27 @@
 -include_lib("stdlib/include/qlc.hrl"). 
 
 
--record(user, {id, name, passwd, key_id, key, admin}).
+
+-record(user, {id, name, passwd, priv_key, pub_key, admin}).
 
 
 %% API
 -export([init/0,
 	 get_user/1,
-	 add_user/6,
+	 get_user/2,
+	 add_user/4,
 	 add_user/3,
+	 set_keys/3,
+	 set_user/3,
 	 get_session/1,
 	 verify/2,
 	 get_auth/1]).
+
+-define(USER_GETTER(F), get_user(#user{F = Res}, F) -> Res).
+-define(USER_SETTER(F), set_user(#user{id = UID} = User, F, Val) ->
+	       {ok, User} = get_user(UID),
+	       write_user(User#user{F = Val})).
+
 
 %%%===================================================================
 %%% API
@@ -42,7 +52,7 @@ init() ->
 			       record_info(fields,user)}]) of
 	{aborted,{already_exists,user}} ->
 	    ok;
-	E ->
+	_ ->
 	    add_user("admin", "admin", true)
     end.
 
@@ -51,21 +61,46 @@ init() ->
 %% @spec
 %% @end
 %%--------------------------------------------------------------------
+
+    
 add_user(UID, Pass, Admin) ->
-    add_user(UID, UID, Pass, "", "", Admin).
+    Res = add_user(UID, UID, Pass, Admin),
+    wiggle_keymanager:create_key(UID),
+    Res.
 
 
-add_user(UID, Name, Pass, KeyID, Key, Admin) ->
-    Fun = fun() ->
-		  mnesia:write(
-		    #user{id = UID,
-			  name = Name,
-			  passwd = Pass,
-			  key_id = KeyID,
-			  key = Key,
-			  admin = Admin})
-	  end,
-    mnesia:transaction(Fun).
+add_user(UID, Name, Pass, Admin) ->
+    write_user(#user{id = UID,
+		     name = Name,
+		     passwd = crypto:sha256(Pass),
+		     admin = Admin}).
+
+set_keys(UID, Priv, Pub) ->
+    {ok, User} = get_user(UID),
+    write_user(User#user{priv_key = Priv, pub_key = Pub}).
+    
+
+
+?USER_SETTER(id);
+
+?USER_SETTER(name);
+
+set_user(#user{id = UID} = User, passwd, Val) ->
+    {ok, User} = get_user(UID),
+    Hash =  crypto:sha256(Val),
+    write_user(User#user{passwd = Hash});
+	
+?USER_SETTER(priv_key);
+
+?USER_SETTER(pub_key);
+
+?USER_SETTER(admin);
+
+
+set_user(_User, _Field, _Val) ->
+    {error, does_not_exist}.
+
+
 
 get_user(ID) ->
     Fun =
@@ -81,7 +116,30 @@ get_user(ID) ->
 	    {error, not_found}
     end.
 
-    
+get_user(UID, Field) when is_list(UID) ->
+    case get_user(UID) of
+	{ok, User} ->
+	    get_user(User, Field);
+	Error ->
+	    Error
+    end;
+
+
+?USER_GETTER(id);
+
+?USER_GETTER(name);
+
+?USER_GETTER(passwd);
+
+?USER_GETTER(priv_key);
+
+?USER_GETTER(pub_key);
+
+?USER_GETTER(admin);
+
+get_user(_User, _Field) ->
+    {error, does_not_exist}.
+
 get_auth(ID) ->
     case get_user(ID) of
 	{ok, User} -> 
@@ -98,12 +156,10 @@ get_session(ID) ->
 	    Error
     end.
 
-
-
 verify(ID, Pass) ->
     Fun =
         fun() ->
-		mnesia:match_object({user, ID, '_', Pass, '_', '_', '_'})
+		mnesia:match_object({user, ID, '_', crypto:sha256(Pass), '_', '_', '_'})
         end,
     case mnesia:transaction(Fun) of
 	{atomic, [User]} -> 
@@ -121,7 +177,14 @@ verify(ID, Pass) ->
 
 user_to_auth(User) ->
     {ok, Host} = application:get_env(wiggle, host),
+    {ok, KeyID} = application:get_env(wiggle, key_id),
     {User#user.name,
      Host,
-     User#user.key_id,
-     User#user.key}.
+     KeyID,
+     User#user.priv_key}.
+
+write_user(User) ->
+    Fun = fun() ->
+		  mnesia:write(User)
+	  end,
+    mnesia:transaction(Fun).
