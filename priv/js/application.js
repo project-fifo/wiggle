@@ -11,7 +11,8 @@ var ui = new Object();
 	    "<div class='span2'>State</div><div class='span7' id='machine-detail-state'>-</div>" +
 	    "<div class='span2'>Memory</div><div class='span7' id='machine-detail-memory'>-</div>" +
 	    "<div class='span2'>IPs</div><div class='span7' id='machine-detail-ips'>-</div>" +
-	    "<div class='span2'>Created</div><div class='span7' id='machine-detail-create'>-</div>" +
+	    "<div class='span2'>Dataset</div><div class='span7' id='machine-detail-dataset'>-</div>" +
+	    "<div class='span2'>Created</div><div class='span7' id='machine-detail-created'>-</div>" +
 	    "<div class='span10'>" +
 	    "<div class='btn-group' style='float: right'>" + 
 	    "<button class='btn btn-success' id='machine-detail-start' disabled='true'>Start</button>" +
@@ -78,7 +79,7 @@ var ui = new Object();
 
     }
     function update_machine(data) {
-	var keys = ["id", "name", "type", "state", "memory", "create"];
+	var keys = ["id", "name", "type", "state", "memory", "created", "dataset"];
 	for (var i = 0; i < keys.length; i++) {
 	    var key = keys[i];
 	    var o = $('#machine-detail-' + key);
