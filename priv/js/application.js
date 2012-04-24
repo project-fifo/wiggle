@@ -3,14 +3,15 @@ var ui = new Object();
 !function ($) {
     var center=$("#center");
     var machine_details = $(
+	    "<h3>Machine Details</h3>" +
 	    "<div class='row'>" +
-	    "<div class='span2'>ID</div><div class='span10' id='machine-detail-id'>-</div>" +
-	    "<div class='span2'>Name</div><div class='span10' id='machine-detail-name'>-</div>" +
-	    "<div class='span2'>Type</div><div class='span10' id='machine-detail-type'>-</div>" +
-	    "<div class='span2'>State</div><div class='span10' id='machine-detail-state'>-</div>" +
-	    "<div class='span2'>Memory</div><div class='span10' id='machine-detail-memory'>-</div>" +
-	    "<div class='span2'>IPs</div><div class='span10' id='machine-detail-ips'>-</div>" +
-	    "<div class='span2'>Created</div><div class='span10' id='machine-detail-create'>-</div>" +
+	    "<div class='span2'>ID</div><div class='span7' id='machine-detail-id'>-</div>" +
+	    "<div class='span2'>Name</div><div class='span7' id='machine-detail-name'>-</div>" +
+	    "<div class='span2'>Type</div><div class='span7' id='machine-detail-type'>-</div>" +
+	    "<div class='span2'>State</div><div class='span7' id='machine-detail-state'>-</div>" +
+	    "<div class='span2'>Memory</div><div class='span7' id='machine-detail-memory'>-</div>" +
+	    "<div class='span2'>IPs</div><div class='span7' id='machine-detail-ips'>-</div>" +
+	    "<div class='span2'>Created</div><div class='span7' id='machine-detail-create'>-</div>" +
 	    "<div class='span10'>" +
 	    "<div class='btn-group' style='float: right'>" + 
 	    "<button class='btn btn-success' id='machine-detail-start' disabled='true'>Start</button>" +
@@ -149,16 +150,41 @@ var ui = new Object();
 	    success: callback
 	});
     };
+
+    function update_state(data) {
+	var state = $("#" + data.id + "-state");
+	state.
+	    removeClass("badge-success").
+	    removeClass("badge-warning").
+	    removeClass("badge-important");
+	var disp_state = $("#machine-detail-state");
+
+	if ($("#machine-detail-id").text() == data.id) {
+	    update_machine(data);
+	}
+	if (data.state == "running") {
+	    state.addClass("badge-success");
+	} else if (data.state == "stopped") {
+	    state.addClass("badge-error");
+	} else {
+	    state.addClass("badge-warning");
+	}
+	    
+    };
     function add_machine(data, show) {
 	var id = data.id;
 	var name = data.name;
+	var state = $("<span class='badge'></span>").
+	    attr("id", id + "-state");
 	var li = $("<li class='machine'></li>").
 	    attr("id", id + "-menu").
 	    append($("<a></a>").
-		   append(name)).
+		   append(state).
+		   append("&nbsp;" + name)).
 	    data("id", id).
 	    click(machine_click_fn);
 	$("#machines").after(li);
+	update_state(data);
 	if (show) {
 	    activate_machine(id)
 	}
@@ -251,4 +277,15 @@ var ui = new Object();
 	$("#machines-nav-del").click(delete_vm);
 
     };
+    setInterval(function () {
+	$.ajax({
+	    url: "/my/machines",
+	    dataType: 'json',
+	    success: function (data) {
+		for (var i = 0; i < data.length; i++) {
+		   update_state(data[i]);
+		}
+	    }
+	});
+    }, 1000);
 }(window.jQuery);
