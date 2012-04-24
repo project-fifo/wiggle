@@ -6,10 +6,13 @@ REBAR=./rebar
 
 all: $(OBJ) $(DEPS)
 
-rel:
+rel: all FORCE
 	-rm -r rel/wiggle
 	cd rel; ../rebar generate
-clean:
+
+tar: rel
+	cd rel; tar jcvf wiggle.tar.bz2 wiggle
+clean: FORCE
 	-rm -r *.beam ebin
 	-rm erl_crash.dump
 	-rm rel/wiggle
@@ -32,3 +35,5 @@ ebin/%.beam: src/%.erl
 shell: all
 	$(ERL) -pa $(PA) -config standalone.config
 	rm *.beam
+
+FORCE:

@@ -44,8 +44,14 @@ handle(Req, State) ->
 		_ ->
 		    login(Req3, State)
 	    end;
-	Session ->
-	    request(Method, Path, Session, Req3, State)
+	{UID, _, _} = Session ->
+	    case wiggle_storage:get_user(UID) of
+		{ok, _} ->
+		    request(Method, Path, Session, Req3, State);
+		_ ->
+		    {ok, Req4} = wiggle_session:del(Req3),
+		    login(Req4, State)
+	    end
     end.
 
 login(Req, State) ->
@@ -63,10 +69,21 @@ request('POST', [<<"login">>], undefined, Req, State) ->
     User = proplists:get_value(<<"login">>, Vals),
     Pass = proplists:get_value(<<"pass">>, Vals),
     case wiggle_storage:verify(binary_to_list(User), binary_to_list(Pass)) of
-	{ok, Session} ->
+	{ok, {_, true, _} = Session} ->
 	    {ok, Req2} = wiggle_session:set(Req1, Session),
-	    {ok, Req3} = cowboy_http_req:reply(200, [{<<"Refresh">>, <<"0; url=/">>}], <<"">>, Req2),
+	    {ok, Req3} = cowboy_http_req:reply(200, [{<<"Refresh">>, <<"0; url=/admin">>}], <<"">>, Req2),
 	    {ok, Req3, State};
+	{ok, {_, _, Auth} = Session} ->
+	    case cloudapi:list_keys(Auth) of 
+		{ok, _} ->
+		    {ok, Req2} = wiggle_session:set(Req1, Session),
+		    {ok, Req3} = cowboy_http_req:reply(200, [{<<"Refresh">>, <<"0; url=/">>}], <<"">>, Req2),
+		    {ok, Req3, State};		
+		_ ->
+		    {ok, Req2} = wiggle_session:set(Req1, Session),
+		    {ok, Req3} = cowboy_http_req:reply(200, [{<<"Refresh">>, <<"0; url=/account">>}], <<"">>, Req2),
+		    {ok, Req3, State}
+		end;
 	_ ->
 	    {ok, Page} = tpl_login:render([{<<"messages">>, 
 					    [[{<<"text">>, <<"Login failed">>},

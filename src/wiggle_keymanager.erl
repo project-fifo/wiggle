@@ -88,7 +88,7 @@ handle_call(_Request, _From, State) ->
 handle_cast({create_key, ID}, State) ->
     PrivKeyFile="/tmp/" ++ ID,
     PubKeyFile = PrivKeyFile ++ ".pub",
-    Cmd = "ssh-keygen -b 2048 -t rsa -N \"\" -n wiggle -I wiggle -f " ++ PrivKeyFile,
+    Cmd = "ssh-keygen -b 2048 -t rsa -N \"\" -f " ++ PrivKeyFile,
     os:cmd(Cmd),
     {ok, Priv} = file:read_file(PrivKeyFile),
     file:delete(PrivKeyFile),

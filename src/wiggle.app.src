@@ -10,6 +10,8 @@
 		  lhttpc,
 		  jsx,
                   kernel,
+		  sasl,
+		  alog,
                   stdlib
                  ]},
   {mod, { wiggle_app, []}},

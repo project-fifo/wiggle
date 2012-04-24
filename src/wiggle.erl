@@ -20,13 +20,15 @@ start() ->
     application:start(public_key),
     application:start(ssl),
     application:start(lhttpc),
-    application:start(erllibcloudapi),
     application:start(cowboy),
     application:start(nicedecimal),
     application:start(jsx),
     application:start(compiler),
     application:start(syntax_tools),
     application:start(erlydtl),
+    application:start(sasl),
+    application:start(alog),
+    application:start(erllibcloudapi),
     application:start(wiggle).
     
 
