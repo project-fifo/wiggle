@@ -6,6 +6,9 @@ REBAR=./rebar
 
 all: $(OBJ) $(DEPS)
 
+rel:
+	-rm -r rel/wiggle
+	cd rel; ../rebar generate
 clean:
 	-rm -r *.beam ebin
 
