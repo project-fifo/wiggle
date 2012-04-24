@@ -33,15 +33,16 @@
 %%--------------------------------------------------------------------
 
 init() ->
-    mnesia:create_schema([node()]),
+    N = node(),
+    mnesia:create_schema([N]),
     mnesia:start(),
     case mnesia:create_table(user,
-			     [{disc_copies, [node()]},
+			     [{disc_copies, [N]},
 			      {attributes,
 			       record_info(fields,user)}]) of
 	{aborted,{already_exists,user}} ->
 	    ok;
-	_ ->
+	E ->
 	    add_user("admin", "admin", true)
     end.
 

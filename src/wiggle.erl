@@ -22,6 +22,11 @@ start() ->
     application:start(lhttpc),
     application:start(erllibcloudapi),
     application:start(cowboy),
+    application:start(nicedecimal),
+    application:start(jsx),
+    application:start(compiler),
+    application:start(syntax_tools),
+    application:start(erlydtl),
     application:start(wiggle).
     
 
