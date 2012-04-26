@@ -20,7 +20,7 @@
     <div class="span12">
       <h3>Configuration</h3></br>
       <form class="well" action="/account" method="POST">
-	<label>SDC Login Name</label><input type="text" name="name" value="{{ name }}"/></br>
+	<label>API Login Name</label><input type="text" name="name" value="{{ name }}"/></br>
 	<button type="submit" name="action" value="name">Save</button></br>
 	<label>cloudAPI password</label><input type="password" name="password"/></br><button type="submit" name="action" value="authenticate">Authenticate with cloudAPI provider</button>
       </form>
@@ -36,4 +36,8 @@
   </div>
 </div>
 
+
+{% endblock %}
+
+{% block script %}
 {% endblock %}

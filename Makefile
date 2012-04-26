@@ -12,6 +12,7 @@ rel: all FORCE
 
 tar: rel
 	cd rel; tar jcvf wiggle.tar.bz2 wiggle
+
 clean: FORCE
 	-rm -r *.beam ebin
 	-rm erl_crash.dump

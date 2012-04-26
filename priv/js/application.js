@@ -4,7 +4,14 @@ var ui = new Object();
     var center=$("#center");
     var machine_details = $(
 	    "<h3>Machine Details</h3>" +
-	    "<div class='row'>" +
+	    "<div class='row-fluid'>" +
+	    "<div class='span10'>" +
+	    "<div class='btn-group' style='float: right'>" + 
+	    "<button class='btn btn-success' id='machine-detail-start' disabled='true'>Start</button>" +
+	    "<button class='btn btn-warning' id='machine-detail-reboot' disabled='true'>Reboot</button>" +
+	    "<button class='btn btn-danger' id='machine-detail-stop' disabled='true'>Stop</button>" +
+	    "</div>" +
+	    "</div>" +
 	    "<div class='span2'>ID</div><div class='span7' id='machine-detail-id'>-</div>" +
 	    "<div class='span2'>Name</div><div class='span7' id='machine-detail-name'>-</div>" +
 	    "<div class='span2'>Type</div><div class='span7' id='machine-detail-type'>-</div>" +
@@ -13,13 +20,6 @@ var ui = new Object();
 	    "<div class='span2'>IPs</div><div class='span7' id='machine-detail-ips'>-</div>" +
 	    "<div class='span2'>Dataset</div><div class='span7' id='machine-detail-dataset'>-</div>" +
 	    "<div class='span2'>Created</div><div class='span7' id='machine-detail-created'>-</div>" +
-	    "<div class='span10'>" +
-	    "<div class='btn-group' style='float: right'>" + 
-	    "<button class='btn btn-success' id='machine-detail-start' disabled='true'>Start</button>" +
-	    "<button class='btn btn-warning' id='machine-detail-reboot' disabled='true'>Reboot</button>" +
-	    "<button class='btn btn-danger' id='machine-detail-stop' disabled='true'>Stop</button>" +
-	    "</div>" +
-	    "</div>" +
 	    "</div>");
 
     var machine_form = $(
@@ -58,10 +58,9 @@ var ui = new Object();
 	    },
 	    success: function (vm) {
 		if (vm) {
-		    var new_vm = {}
-		    new_vm.name = vm.zonename
-		    new_vm.id = vm.uuid
-		    alert(JSON.stringify(new_vm));
+		    var new_vm = {};
+		    new_vm.name = vm.zonename;
+		    new_vm.id = vm.uuid;
 		    add_machine(new_vm, true);
 		}
 	    }
@@ -276,17 +275,16 @@ var ui = new Object();
 		  });
 	$("#machines-nav-add").click(view_add_vm);
 	$("#machines-nav-del").click(delete_vm);
-
-    };
-    setInterval(function () {
-	$.ajax({
-	    url: "/my/machines",
-	    dataType: 'json',
-	    success: function (data) {
-		for (var i = 0; i < data.length; i++) {
-		   update_state(data[i]);
+	setInterval(function () {
+	    $.ajax({
+		url: "/my/machines",
+		dataType: 'json',
+		success: function (data) {
+		    for (var i = 0; i < data.length; i++) {
+			update_state(data[i]);
+		    }
 		}
-	    }
-	});
-    }, 1000);
+	    });
+	}, 1000);
+    };
 }(window.jQuery);

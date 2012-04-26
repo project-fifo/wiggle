@@ -38,9 +38,10 @@
     <br/>
     {% if messages %}
     {% for message in messages %}
-    <div class="message {%if message.class %}{{message.class}}{%endif%}" onclick="$(this).remove(500);">
+    <div class="alert alert-block{%if message.class %} alert-{{message.class}}{%endif%}" onclick="$(this).remove(500);">
       {{ message.text }}
     </div>
+    {% empty %}
     {% endfor %}
     {% endif %}
     <div class="container-fluid">

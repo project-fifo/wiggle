@@ -172,8 +172,15 @@ request('POST', [<<"admin">>], {_, true, _Auth} , Req, State) ->
 request('GET', [<<"account">>], {UUID, Admin, Auth}, Req, State) ->
     {Name, _, _, _} = Auth,
     {ok, User} = wiggle_storage:get_user(UUID),
+    Messages = case cloudapi:list_keys(Auth) of 
+			{ok, _} ->
+			    undefined;
+			_ ->
+			    [[{text, <<"You are not authenticated with the API backend.">>}, {class, <<"error">>}]]
+		    end,
     {ok, Page} = tpl_account:render([{admin, Admin}, 
 				     {name, Name}, 
+				     {messages, Messages},
 				     {priv_key,wiggle_storage:get_user(User, priv_key)},
 				     {pub_key, wiggle_storage:get_user(User, pub_key)},
 				     {page, "account"}]),
@@ -184,12 +191,25 @@ request('POST', [<<"account">>], {UID,Admin,Auth}, Req, State) ->
     {Vals, Req1} = cowboy_http_req:body_qs(Req),
     {Name, _, KeyID, _} = Auth,
     {ok, User} = wiggle_storage:get_user(UID),
+    Messages = case cloudapi:list_keys(Auth) of 
+			{ok, _} ->
+			    undefined;
+			_ ->
+			    [[{text, <<"You are not authenticated with the API backend.">>}, {class, <<"error">>}]]
+		    end,
     case proplists:get_value(<<"action">>, Vals) of
 	<<"authenticate">> ->
 	    Pass = binary_to_list(proplists:get_value(<<"password">>, Vals)),
 	    cloudapi:create_key(Auth, Pass, KeyID, wiggle_storage:get_user(User, pub_key)),
+	    Messages1 = case cloudapi:list_keys(Auth) of 
+			   {ok, _} ->
+			       [[{text, <<"Authentication succeeded.">>}, {class, <<"success">>}]];
+			   _ ->
+			       [[{text, <<"You are not authenticated with the API backend.">>}, {class, <<"error">>}]]
+		       end,
 	    {ok, Page} = tpl_account:render([{admin, Admin}, 
 					     {name, Name}, 
+					     {messages, Messages1},
 					     {priv_key,wiggle_storage:get_user(User, priv_key)},
 					     {pub_key, wiggle_storage:get_user(User, pub_key)},
 					     {page, "account"}]),
@@ -199,8 +219,16 @@ request('POST', [<<"account">>], {UID,Admin,Auth}, Req, State) ->
 	    NewName =  binary_to_list(proplists:get_value(<<"name">>, Vals)),
 	    wiggle_storage:set_user(UID, name, NewName),
 	    {ok, User} = wiggle_storage:get_user(UID),
+	    {ok, Auth1} = wiggle_storage:get_auth(UID),
+	    Messages1 = case cloudapi:list_keys(Auth1) of 
+			    {ok, _} ->
+				undefined;
+			    _ ->
+				[[{text, <<"You are not authenticated with the API backend.">>}, {class, <<"error">>}]]
+			end,
 	    {ok, Page} = tpl_account:render([{admin, Admin}, 
 					     {name, Name}, 
+					     {messages, Messages1},
 					     {priv_key,wiggle_storage:get_user(User, priv_key)},
 					     {pub_key, wiggle_storage:get_user(User, pub_key)},
 					     {page, "account"}]),
@@ -214,20 +242,40 @@ request('POST', [<<"account">>], {UID,Admin,Auth}, Req, State) ->
 		Pass ->
 		    case {proplists:get_value(<<"new">>, Vals), proplists:get_value(<<"confirm">>, Vals)} of
 			{New, New} ->
-			    {ok, Page} = tpl_account:render([{admin, Admin},{message, <<"Password changed.">>},
-							     {key_id, KeyID}]),
+			    {ok, Page} = tpl_account:render([{admin, Admin},
+							     {messages, 
+							      [Messages| [{text, <<"Password changed.">>},
+									  {class, <<"success">>}]]},
+							     {name, Name}, 
+							     {priv_key,wiggle_storage:get_user(User, priv_key)},
+							     {pub_key, wiggle_storage:get_user(User, pub_key)},
+							     {page, "account"}]),
 			    {ok, Req2} = cowboy_http_req:reply(200, [], Page , Req1),
 			    wiggle_storage:set_user(UID, passwd, binary_to_list(New)),
 			    {ok, Req2, State};
 			_ ->
-			    {ok, Page} = tpl_account:render([{admin, Admin},{message, <<"New passwords do not match!">>},
-							     {key_id, KeyID}]),
+			    {ok, Page} = tpl_account:render([{admin, Admin},
+							     {messages, 
+							      [Messages|
+							       [{text, <<"Passwords did not match.">>},
+								{class, <<"error">>}]]},
+							     {name, Name}, 
+							     {priv_key,wiggle_storage:get_user(User, priv_key)},
+							     {pub_key, wiggle_storage:get_user(User, pub_key)},
+							     {page, "account"}]),
 			    {ok, Req2} = cowboy_http_req:reply(200, [], Page , Req1),
 			    {ok, Req2, State}
 			end;
 		_ ->
-		    {ok, Page} = tpl_account:render([{admin, Admin},{message, <<"Old key did not match">>},
-						     {key_id, KeyID}]),
+		    {ok, Page} = tpl_account:render([{admin, Admin},
+						     {messages, 
+						      [Messages|
+						       [{text, <<"Old passwords did not match.">>},
+							{class, <<"error">>}]]},
+						     {name, Name}, 
+						     {priv_key,wiggle_storage:get_user(User, priv_key)},
+						     {pub_key, wiggle_storage:get_user(User, pub_key)},
+						     {page, "account"}]),
 		    {ok, Req2} = cowboy_http_req:reply(200, [], Page , Req1),
 		    {ok, Req2, State}
 		end
