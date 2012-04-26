@@ -2,6 +2,8 @@ var ui = new Object();
 
 !function ($) {
     var center=$("#center");
+    var confirm = $(
+);
     var machine_details = $(
 	    "<div class='row-fluid'>" +
 	    "<div class='span3'><h3>Machine Details</h3></div>" +
@@ -32,16 +34,28 @@ var ui = new Object();
 
     function delete_vm() {
 	var id=$(".machine.active").data("id");
-	$.ajax({
-	    url: "/my/machines/"+id,
-	    type: 'DELETE',
-	    dataType: 'json',
-	    success: function () {
-		$("#" + id + "-menu").remove();
-		activate_machine($(".machine").first().data("id"));
-	    }
-	});
+	var go = $('<a href="#" class="btn btn-danger" data-dismiss="modal">Delete!</a>');
+	var cancle = $('<a href="#" class="btn" data-dismiss="modal">Cancle</a>');
 	
+	var modal = $("#modal");
+	var btns =  $("#modal .modal-footer");
+	$("#modal .modal-header h3").text("Delete VM");
+	$("#modal .modal-body p").text("You are about to delete a VM, this action can not be reversed! all data willbe lost forever!");
+	go.click(function(){
+	    $.ajax({
+		url: "/my/machines/"+id,
+		type: 'DELETE',
+		dataType: 'json',
+		success: function () {
+		    $("#" + id + "-menu").remove();
+		    activate_machine($(".machine").first().data("id"));
+		}
+	    });
+	});
+	btns.empty().
+	    append(cancle).
+	    append(go);
+	modal.modal();	
     }
     function machine_add_fn() {
 	var pkg = $("#machine-new-package").val();

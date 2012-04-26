@@ -44,6 +44,19 @@
     {% empty %}
     {% endfor %}
     {% endif %}
+    <div class="modal" id="modal">
+      <div class="modal-header">
+	<button class="close" data-dismiss="modal">x</button>
+	<h3>blubber</h3>
+      </div>
+      <div class="modal-body">
+	<p></p>
+      </div>
+      <div class="modal-footer">
+	
+      </div>
+    </div>
+    
     <div class="container-fluid">
       <div class="row-fluid">
       {% block body_content %}{% endblock %}
@@ -58,6 +71,7 @@
     <script type="application/javascript" src="/js/bootstrap.js"></script>
     <script type="application/javascript" src="/js/application.js"></script>
     <script type="application/javascript">
+      $('#modal').hide();
       {% block script %}{% endblock %}
     </script>
   </body>
