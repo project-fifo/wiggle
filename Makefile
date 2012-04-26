@@ -16,7 +16,8 @@ tar: rel
 clean: FORCE
 	-rm -r *.beam ebin
 	-rm erl_crash.dump
-	-rm rel/wiggle
+	-rm -r rel/wiggle
+	-rm rel/wiggle.tar.bz2
 
 deps/jsx:
 	$(REBAR) get-deps
