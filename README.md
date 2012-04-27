@@ -3,6 +3,13 @@ This is a web GUI for SmartOS systems, it talks over the CloudAPI, you'll need v
 It is pretty much alpha ware so don't expect to much!
 
 
+Thanks
+======
+This is long overdue - many thanks to:
+* the folks from Joyent - for making this possible.
+* #smartos - for answering tons of questions
+* and especially Trenster - for good ideas and discussions, tons of testing, and lots of good PR
+
 Features
 ========
 
