@@ -375,16 +375,17 @@ var ui = new Object();
         $D('sendCtrlAltDelButton').onclick = sendCtrlAltDel;
 
         // By default, use the host and port of server that served this file
-        host = WebUtil.getQueryVar('host', window.location.hostname);
-        port = WebUtil.getQueryVar('port', window.location.port);
+        host = window.location.hostname;
+        port = window.location.port;
+	if (port == "")
+	    port = 80;
 	
         path = "machines/" + id + "/vnc"
         rfb = new RFB({'target':       $D('noVNC_canvas'),
-                       'encrypt':      WebUtil.getQueryVar('encrypt',
-							   (window.location.protocol === "https:")),
-                       'true_color':   WebUtil.getQueryVar('true_color', true),
-                       'local_cursor': WebUtil.getQueryVar('cursor', true),
-                       'shared':       WebUtil.getQueryVar('shared', true),
+                       'encrypt':      (window.location.protocol === "https:"),
+                       'true_color':   true,
+                       'local_cursor': true,
+                       'shared':       true,
                        'view_only':    false,
                        'updateState':  updateState});
 	rfb.connect(host, port, password, path);
