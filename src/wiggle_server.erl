@@ -15,7 +15,7 @@
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
-	 terminate/2, code_change/3]).
+	 terminate/2, code_change/3, init_templates/0]).
 
 -define(SERVER, ?MODULE). 
 
@@ -69,6 +69,7 @@ init([]) ->
 		       {[<<"img">>, '...'], cowboy_http_static,
 			[{directory, {priv_dir, wiggle, [<<"images">>]}},
 			 {mimetypes, {fun mimetypes:path_to_mimes/2, default}}]},
+		       {[<<"machines">>, '...', <<"vnc">>], wiggle_wsproxy, []},
 		       {'_', wiggle_handler, []}]}],
     %% Name, NbAcceptors, Transport, TransOpts, Protocol, ProtoOpts
     cowboy:start_listener(my_http_listener, Acceptors,
@@ -166,4 +167,5 @@ init_templates() ->
     erlydtl:compile("templates/system.dtl", tpl_system),
     erlydtl:compile("templates/admin.dtl", tpl_admin),
     erlydtl:compile("templates/analytics.dtl", tpl_analytics),
+    erlydtl:compile("templates/vnc.dtl", tpl_vnc),
     erlydtl:compile("templates/index.dtl", tpl_index).

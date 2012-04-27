@@ -286,7 +286,8 @@ request('GET', [<<"my">>, <<"machines">>], {_UUID, _Admin, Auth}, Req, State) ->
     reply_json(Req, Res, State);
 
 request('GET', [<<"my">>, <<"machines">>, UUID], {_UUID, _Admin, Auth}, Req, State) ->
-    {ok, Res} = cloudapi:get_machine(Auth, binary_to_list(UUID)),
+    LUUID = binary_to_list(UUID),
+    {ok, Res} = cloudapi:get_machine(Auth, LUUID),
     reply_json(Req, Res, State);
 
 request('POST', [<<"my">>, <<"machines">>, UUID], {_UUID, _Admin, Auth}, Req, State) ->

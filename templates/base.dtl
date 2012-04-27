@@ -67,9 +67,12 @@
       </footer>
       
     </div> <!-- /container -->
+    <script type="application/javascript">INCLUDE_URI="/js/vnc/";</script>
     <script type="application/javascript" src="/js/jquery-1.7.2.min.js"></script>
     <script type="application/javascript" src="/js/bootstrap.js"></script>
     <script type="application/javascript" src="/js/application.js"></script>
+    <script type="application/javascript" src="/js/vnc/vnc.js"></script>
+
     <script type="application/javascript">
       $('#modal').hide();
       {% block script %}{% endblock %}

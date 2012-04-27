@@ -1,4 +1,4 @@
-OBJ=ebin/wiggle.app ebin/wiggle_app.beam ebin/wiggle_server.beam ebin/wiggle_sup.beam ebin/wiggle.beam ebin/cowboy_utils.beam ebin/wiggle_handler.beam ebin/wiggle_storage.beam ebin/wiggle_keymanager.beam
+OBJ=ebin/wiggle.app ebin/wiggle_app.beam ebin/wiggle_server.beam ebin/wiggle_sup.beam ebin/wiggle.beam ebin/cowboy_utils.beam ebin/wiggle_handler.beam ebin/wiggle_storage.beam ebin/wiggle_keymanager.beam ebin/wiggle_wsproxy.beam
 DEPS=deps/jsx deps/lhttpc deps/alogger deps/cowboy
 ERL=erl
 PA=ebin deps/*/ebin
