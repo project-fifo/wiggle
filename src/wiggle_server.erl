@@ -18,7 +18,9 @@
 	 terminate/2, code_change/3, init_templates/0]).
 
 -define(SERVER, ?MODULE). 
-
+-define(STATIC(Path), {[Path, '...'], cowboy_http_static,
+		       [{directory, {priv_dir, wiggle, [Path]}},
+			{mimetypes, {fun mimetypes:path_to_mimes/2, default}}]}).
 -record(state, {}).
 
 %%%===================================================================
@@ -57,18 +59,10 @@ init([]) ->
     Acceptors = get_env_default(acceptors, 2),
     application:start(cowboy),
     %% {Host, list({Path, Handler, Opts})}
-    Dispatch = [{'_', [{[<<"static">>, '...'], cowboy_http_static,
-			[{directory, {priv_dir, wiggle, []}},
-			 {mimetypes, {fun mimetypes:path_to_mimes/2, default}}]},
-		       {[<<"js">>, '...'], cowboy_http_static,
-			[{directory, {priv_dir, wiggle, [<<"js">>]}},
-			 {mimetypes, {fun mimetypes:path_to_mimes/2, default}}]},
-		       {[<<"css">>, '...'], cowboy_http_static,
-			[{directory, {priv_dir, wiggle, [<<"css">>]}},
-			 {mimetypes, {fun mimetypes:path_to_mimes/2, default}}]},
-		       {[<<"img">>, '...'], cowboy_http_static,
-			[{directory, {priv_dir, wiggle, [<<"images">>]}},
-			 {mimetypes, {fun mimetypes:path_to_mimes/2, default}}]},
+    Dispatch = [{'_', [?STATIC(<<"js">>),
+		       ?STATIC(<<"css">>),
+		       ?STATIC(<<"img">>),
+		       ?STATIC(<<"tpl">>),
 		       {[<<"machines">>, '...', <<"vnc">>], wiggle_wsproxy, []},
 		       {'_', wiggle_handler, []}]}],
     %% Name, NbAcceptors, Transport, TransOpts, Protocol, ProtoOpts

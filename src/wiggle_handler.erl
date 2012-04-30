@@ -290,17 +290,34 @@ request('GET', [<<"my">>, <<"machines">>, UUID], {_UUID, _Admin, Auth}, Req, Sta
     {ok, Res} = cloudapi:get_machine(Auth, LUUID),
     reply_json(Req, Res, State);
 
-request('POST', [<<"my">>, <<"machines">>, UUID], {_UUID, _Admin, Auth}, Req, State) ->
-    case cowboy_http_req:qs_val(<<"action">>, Req) of
+request('POST', [<<"my">>, <<"machines">>, UUID], {_UUID, _Admin, Auth}, Req, State) ->    
+    {Vals, Req1} = cowboy_http_req:body_qs(Req),
+    io:format("~p~n", [Vals]),
+    case cowboy_http_req:qs_val(<<"action">>, Req1) of
 	{<<"start">>, _} ->
-	    cloudapi:start_machine(Auth, binary_to_list(UUID));
+	    case proplists:get_value(<<"image">>, Vals) of
+		undefined ->
+		    cloudapi:start_machine(Auth, binary_to_list(UUID));
+		<<"">> ->
+		    cloudapi:start_machine(Auth, binary_to_list(UUID));
+		Image ->
+		    io:format("Image: ~p~n", [Image]),
+		    bark:start_machine(Auth, binary_to_list(UUID), binary_to_list(Image))
+	    end;
 	{<<"reboot">>, _} ->
-	    cloudapi:reboot_machine(Auth, binary_to_list(UUID));
+	    case proplists:get_value(<<"image">>, Vals) of
+		undefined ->
+		    cloudapi:reboot_machine(Auth, binary_to_list(UUID));
+		<<"">> ->
+		    cloudapi:reboot_machine(Auth, binary_to_list(UUID));
+		Image ->
+		    bark:reboot_machine(Auth, binary_to_list(UUID), binary_to_list(Image))
+	    end;
 	{<<"stop">>, __} ->
 	    cloudapi:stop_machine(Auth, binary_to_list(UUID))
     end,
     {ok, Res} = cloudapi:get_machine(Auth, binary_to_list(UUID)),
-    reply_json(Req, Res, State);
+    reply_json(Req1, Res, State);
 
 request('GET', [<<"my">>, <<"datasets">>], {_UUID, _Admin, Auth}, Req, State) ->
     {ok, Res} = cloudapi:list_datasets(Auth),
@@ -308,6 +325,10 @@ request('GET', [<<"my">>, <<"datasets">>], {_UUID, _Admin, Auth}, Req, State) ->
 
 request('GET', [<<"my">>, <<"packages">>], {_UUID, _Admin, Auth}, Req, State) ->
     {ok, Res} = cloudapi:list_packages(Auth),
+    reply_json(Req, Res, State);
+
+request('GET', [<<"my">>, <<"images">>], {_UUID, _Admin, Auth}, Req, State) ->
+    {ok, Res} = bark:list_images(Auth),
     reply_json(Req, Res, State);
 
 

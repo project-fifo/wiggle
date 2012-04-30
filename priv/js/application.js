@@ -3,48 +3,6 @@ var ui = new Object();
 !function ($) {
     var rfb;
     var center=$("#center");
-    var machine_details = $(
-	"<div class='row-fluid'>" +
-	    "<div class='span3'><h3>Machine Details</h3></div>" +
-	    "<div class='span9'>" +
-	    "<div class='btn-group' style='float: right'>" + 
-	    "<button class='btn btn-success' id='machine-detail-start' disabled='true'>Start</button>" +
-	    "<button class='btn btn-warning' id='machine-detail-reboot' disabled='true'>Reboot</button>" +
-	    "<button class='btn btn-danger' id='machine-detail-stop' disabled='true'>Stop</button>" +
-	    "</div>" +
-	    "</div>" +
-	    "<div class='span2'>ID</div><div class='span9' id='machine-detail-id'>-</div>" +
-	    "<div class='span2'>Name</div><div class='span9' id='machine-detail-name'>-</div>" +
-	    "<div class='span2'>Type</div><div class='span9' id='machine-detail-type'>-</div>" +
-	    "<div class='span2'>State</div><div class='span9' id='machine-detail-state'>-</div>" +
-	    "<div class='span2'>Memory</div><div class='span9' id='machine-detail-memory'>-</div>" +
-	    "<div class='span2'>IPs</div><div class='span9' id='machine-detail-ips'>-</div>" +
-	    "<div class='span2'>Dataset</div><div class='span9' id='machine-detail-dataset'>-</div>" +
-	    "<div class='span2'>Created</div><div class='span9' id='machine-detail-created'>-</div>" +
-	    "</div>");
-    var vnc_view = $(
-	'<ul class="nav nav-tabs" id="detail-tabs">' +
-	    '<li class="active"><a href="#tab-details" id="details-btn" data-toggle="tab">Details</a></li>' +
-	    '<li><a href="#tab-vnc" id="vnc-btn" data-toggle="tab">vnc</a></li>' +
-	    '</ul>' +
-	    '<div class="tab-content">' +
-	    '<div class="tab-pane active" id="tab-details"></div>' +
-	    '<div class="tab-pane" id="tab-vnc">' +
-	    '<div id="noVNC_screen">' +
-	    '<div id="noVNC_status_bar" class="noVNC_status_bar" style="margin-top: 0px;">' +
-	    '<table border=0 width="100%"><tr>' +
-	    '<td><div id="noVNC_status">Loading</div></td>' +
-	    '<td width="1%"><div id="noVNC_buttons">' +
-	    '<input type=button value="Send CtrlAltDel" id="sendCtrlAltDelButton">' +
-	    '</div></td>' +
-	    '</tr></table>' +
-	    '</div>' +
-	    '<canvas id="noVNC_canvas" width="640px" height="20px">' +
-	    'Canvas not supported.' +
-	    '</canvas>' +
-	    '</div>' +
-	    '</div>' +
-	    '</div>');
     
     var machine_form = $(
 	"<div>" +
@@ -108,32 +66,48 @@ var ui = new Object();
 	
     }
     function machine_action(uuid, action, callback) {
+	var data = {"action": action};
+	var image = $("#boot-image").val();
+	if (image != "") {
+	    data.image = image;
+	}
 	$.ajax({
 	    url: "/my/machines/"+uuid +"?action=" + action,
 	    type: 'POST',
 	    dataType: 'json',
+	    data: data,
 	    success: callback
 	});
 
     }
     function update_machine(data) {
-	var keys = ["id", "name", "type", "state", "memory", "created", "dataset"];
-	for (var i = 0; i < keys.length; i++) {
-	    var key = keys[i];
-	    var o = $('#machine-detail-' + key);
-	    o.empty();
-	    o.append(data[key]);
-	};
-	var o = $('#machine-detail-ips');
-	o.empty();
-
-	if (!data.ips.length){
-	    o.append("-");
-	}
+	var c = center;
+	c.empty();
+	var new_ips = "";
 	for (var i = 0; i < data.ips.length; i++) {
 	    if (i > 0 )
-		o.append(", ");
-	    o.append(data.ips[i]);
+		new_ips = new_ips + ", ";
+	    new_ips = new_ips + data.ips[i];
+	}
+	data.ips = new_ips;
+	if (data.type == "kvm")
+	    data.kvm = true;
+	else
+	    data.zone = true;
+	    
+	c.append(ich.details(data))
+	if (data.kvm) {
+	    $("#vnc-btn").click(function () {
+		init_vnc(data.id);
+	    });
+	    $.getJSON("/my/images", function (images) {
+		var select = $("#boot-image").
+		    empty().
+		    append($("<option></option>"));
+		for (var i=0; i < images.length; i++) {
+		    select.append($("<option/>").append(images[i]));
+		}
+	    });
 	}
 
 	$('#machine-detail-stop').
@@ -166,23 +140,8 @@ var ui = new Object();
 	    rfb.disconnect();
     }
     function show_machine(data) {
-	var c = center;
-	c.empty();
 	disconnect_vnc();
-	if (data.type == "kvm") {
-	    //we have VNC
-	    c.append(vnc_view);
-	    $('#detail-tabs a:first').tab('show')
-	    c = $("#tab-details");
-	    $("#vnc-btn").click(function () {
-		init_vnc(data.id)
-	    });
-	    $("#details-btn").click(disconnect_vnc);
-	};
-	c.append(machine_details);
 	update_machine(data);
-	$('#machine-detail-start').click(function (){machine_action(data.id, "start")});
-	$('#machine-detail-reboot').click(function (){machine_action(data.id, "reboot")});
     };
     function activate_machine(id) {
 	var navItem = $("#" + id + "-menu");
@@ -193,127 +152,96 @@ var ui = new Object();
 	get_machine(id,show_machine);
 
     };
+
     function machine_click_fn() {
 	activate_machine($(this).data("id"));
 
     };
     function get_machine(uuid, callback) {
-	$.ajax({
-	    url: "/my/machines/"+uuid,
-	    dataType: 'json',
-	    success: callback
-	});
+	$.getJSON("/my/machines/"+uuid, callback);
     };
 
     function update_state(data) {
 	var state = $("#" + data.id + "-state");
-	state.
-	    removeClass("badge-success").
-	    removeClass("badge-warning").
-	    removeClass("badge-important");
-	var disp_state = $("#machine-detail-state");
+	state.attr("class","badge");
 
-	if ($("#machine-detail-id").text() == data.id) {
+	if ($("#machine-detail-id").text() == data.id)
 	    update_machine(data);
-	}
-	if (data.state == "running") {
+
+	if (data.state == "running")
 	    state.addClass("badge-success");
-	} else if (data.state == "stopped") {
+	else if (data.state == "stopped")
 	    state.addClass("badge-error");
-	} else {
+	else
 	    state.addClass("badge-warning");
-	}
 	    
     };
+
     function add_machine(data, show) {
-	var id = data.id;
-	var name = data.name;
-	var state = $("<span class='badge'></span>").
-	    attr("id", id + "-state");
-	var li = $("<li class='machine'></li>").
-	    attr("id", id + "-menu").
-	    append($("<a></a>").
-		   append(state).
-		   append("&nbsp;" + name)).
-	    data("id", id).
+	var li = ich.machine_list_item(data).
+	    data("id", data.id).
 	    click(machine_click_fn);
 	$("#machines").after(li);
 	update_state(data);
-	if (show) {
-	    activate_machine(id)
-	}
+	if (show)
+	    activate_machine(data.id)
     }
+
     function get_machines() {
-	$.ajax({
-	    url: "/my/machines",
-	    dataType: 'json',
-	    success: function (data) {
-		for (var i = 0; i < data.length; i++) {
-		    add_machine(data[i], i==0);
-		}
+	$.getJSON("/my/machines", function (data) {
+	    for (var i = 0; i < data.length; i++) {
+		add_machine(data[i], i==0);
 	    }
 	});
     };
+
+    
     function get_other(name, fmtr, click_fn) {
 	var parent = $("#" + name);
 	var f = fmtr || function (data) { return data.name; };
-	$.ajax({
-	    url: "/my/" + name,
-	    dataType: 'json',
-	    success: function (data) {
-		for (var i = 0; i < data.length; i++) {
-		    var id = data[i].id;
-		    var name = data[i].name;
-		    var li = $("<li></li>").
-			attr("id", id + "-menu").
-			append($("<a></a>").
-			       append(f(data[i]))).
-			data("id", id);
-		    if (click_fn) {
-			click(click_fn);
-		    }
-		    parent.after(li);
-		};
-	    }
+	$.getJSON("/my/" + name, function (data) {
+	    for (var i = 0; i < data.length; i++) {
+		var li = ich.other_list_item({"id": data[i].id,
+					      "name": f(data[i])}).
+		    data("id", data[i].id);
+		if (click_fn) {
+		    li.click(click_fn);
+			  }
+		parent.after(li);
+	    };
 	});
     };
 
 
     function view_add_vm() {
-	var center = $("#center");
 	center.empty();
 	center.append(machine_form);
 	var datasets = $("#machine-new-dataset");
-	datasets.empty()
-	$.ajax({
-	    url: "/my/datasets",
-	    dataType: 'json',
-	    success: function (data) {
-		for (var i = 0; i < data.length; i++) {
-		    var d = data[i];
-		    var option = $("<option></option>").
-			attr("value", d.id).
-			append(d.name + " v" + d.urn.split(":")[3]);
-		    if (d.default)
-			option.attr("selected", true);
-		    datasets.append(option);
-		};
-	    }
+	datasets.empty();
+	$.getJSON("/my/datasets", function (data) {
+	    for (var i = 0; i < data.length; i++) {
+		var d = data[i];
+		var option = $("<option></option>").
+		    attr("value", d.id).
+		    append(d.name + " v" + d.urn.split(":")[3]);
+		if (d.default)
+		    option.attr("selected", true);
+		datasets.append(option);
+		
+	    };
 	});
+	
 	var select = $("#machine-new-package");
-	select.empty()
-	$.ajax({
-	    url: "/my/packages",
-	    dataType: 'json',
-	    success: function (data) {
-		for (var i = 0; i < data.length; i++) {
-		    var d = data[i];
-		    var option = $("<option></option>").
-			attr("value", d.name).
-			append(d.name);
-		    select.append(option);
-		};
-	    }
+	select.empty();
+	select.append($("<option></option>"));
+	$.getJSON("/my/packages", function (data) {
+	    for (var i = 0; i < data.length; i++) {
+		var d = data[i];
+		var option = $("<option></option>").
+		    attr("value", d.name).
+		    append(d.name).data("pkg", d);
+		select.append(option);
+	    };
 	});
 	$("#machine-new-btn").click(machine_add_fn)
     };
@@ -328,19 +256,15 @@ var ui = new Object();
 		  });
 	$("#machines-nav-add").click(view_add_vm);
 	$("#machines-nav-del").click(delete_vm);
-/*	ui.refresh = setInterval(function () {
-	    $.ajax({
-		url: "/my/machines",
-		dataType: 'json',
-		success: function (data) {
-		    for (var i = 0; i < data.length; i++) {
-			update_state(data[i]);
-		    }
+	/*ui.refresh = setInterval(function () {
+	    $.getJSON("/my/machines", function (data) {
+		for (var i = 0; i < data.length; i++) {
+		    update_state(data[i]);
 		}
 	    });
 	}, 1000);*/
     };
-
+    
     function updateState(rfb, state, oldstate, msg) {
         var s, sb, cad, level;
         s = $D('noVNC_status');
@@ -349,9 +273,9 @@ var ui = new Object();
         switch (state) {
         case 'failed':       level = "error";  break;
         case 'fatal':        level = "error";  break;
-        case 'normal':       level = "normal"; break;
-        case 'disconnected': level = "normal"; break;
-        case 'loaded':       level = "normal"; break;
+        case 'normal':       level = "info"; break;
+        case 'disconnected': level = "info"; break;
+        case 'loaded':       level = "info"; break;
         default:             level = "warn";   break;
         }
 	
@@ -359,7 +283,7 @@ var ui = new Object();
         else                    { if (cad) cad.disabled = true; }
 	
         if (typeof(msg) !== 'undefined' && sb && s) {
-            sb.setAttribute("class", "noVNC_status_" + level);
+            s.setAttribute("class", "span9 alert alert-" + level);
             s.innerHTML = msg;
         }
     }
@@ -390,6 +314,34 @@ var ui = new Object();
                        'updateState':  updateState});
 	rfb.connect(host, port, password, path);
     };
+
+    function load_template(id) {
+	$.ajax({
+	    url: "/tpl/" + id + ".html",
+	    dataType: 'text',
+	    success: function (data) {
+		ich.addTemplate(id, data);
+	    }
+	});
+    }
+    function load_partial(id) {
+	$.ajax({
+	    url: "/tpl/" + id + ".html",
+	    dataType: 'text',
+	    success: function (data) {
+		ich.addPartial(id, data);
+	    }
+	});
+    }
+    
+    load_template("machine_details");
+    load_template("details");
+    $.getJSON('/tpl/main.json', function (templates) {
+	$.each(templates, function (name) {
+	    var template = templates[name];
+	    ich.addTemplate(name, template);
+	});
+    });
 }(window.jQuery);
 
 

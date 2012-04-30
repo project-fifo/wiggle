@@ -44,7 +44,7 @@
     {% empty %}
     {% endfor %}
     {% endif %}
-    <div class="modal" id="modal">
+    <div class="modal" id="modal" style="display: none;">
       <div class="modal-header">
 	<button class="close" data-dismiss="modal">x</button>
 	<h3>blubber</h3>
@@ -70,12 +70,20 @@
     <script type="application/javascript">INCLUDE_URI="/js/vnc/";</script>
     <script type="application/javascript" src="/js/jquery-1.7.2.min.js"></script>
     <script type="application/javascript" src="/js/bootstrap.js"></script>
-    <script type="application/javascript" src="/js/application.js"></script>
+    <script type="application/javascript" src="/js/ICanHaz.js"></script>
     <script type="application/javascript" src="/js/vnc/vnc.js"></script>
+
+    {% block templates %}{% endblock %}
+
+    <script type="application/javascript" src="/js/application.js"></script>
+    
+
+
 
     <script type="application/javascript">
       $('#modal').hide();
       {% block script %}{% endblock %}
     </script>
+
   </body>
 </html>

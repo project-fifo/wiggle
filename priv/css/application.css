@@ -1,0 +1,12 @@
+a.disabled {
+    color: grey
+}
+
+ul.nav.nav-tabs {
+    margin-bottom: 0px;
+}
+div.tab-content {
+    border: 0px solid grey;
+    padding-top: 5px;
+    border-top: 0px;
+}

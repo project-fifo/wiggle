@@ -1,0 +1,26 @@
+<ul class="nav nav-tabs" id="detail-tabs" >
+  <li class="active"><a href="#tab-details" id="details-btn" data-toggle="tab">Details</a></li>
+  <li><a href="#tab-vnc" id="vnc-btn" {{#kvm}}data-toggle="tab"{{/kvm}}{{#zone}}class="disabled"{{/zone}}>console</a>
+  </li>
+</ul>
+<div class="tab-content">
+  <div class="tab-pane active" id="tab-details">{{>machine_details}}</div>
+  <div class="tab-pane" id="tab-vnc">
+    <div id="noVNC_screen">
+      <div id="noVNC_status_bar">
+	<div class="row-fluid">
+	  <div id="noVNC_status" class="span9 alert alert-info">
+	    Loading
+	  </div>
+	  <div id="noVNC_buttons" class="span2">
+	    <input type=button value="Send CtrlAltDel!" id="sendCtrlAltDelButton">
+	  </div>
+	</div>
+      </div>
+      
+      <canvas id="noVNC_canvas" width="640px" height="20px">
+	Canvas not supported.
+      </canvas>
+    </div>
+  </div>
+</div>

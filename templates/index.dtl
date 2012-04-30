@@ -27,8 +27,7 @@
     </ul>
   </div>
 </div>
-<div class="span8">
-  <div  id="center" class="well"></div>
+<div class="span8" id="center">
 </div>
 {% endblock %}
 
