@@ -256,13 +256,13 @@ var ui = new Object();
 		  });
 	$("#machines-nav-add").click(view_add_vm);
 	$("#machines-nav-del").click(delete_vm);
-	/*ui.refresh = setInterval(function () {
+	ui.refresh = setInterval(function () {
 	    $.getJSON("/my/machines", function (data) {
 		for (var i = 0; i < data.length; i++) {
 		    update_state(data[i]);
 		}
 	    });
-	}, 1000);*/
+	}, 1000);
     };
     
     function updateState(rfb, state, oldstate, msg) {
