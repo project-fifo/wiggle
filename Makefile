@@ -36,6 +36,6 @@ ebin/%.beam: src/%.erl
 
 shell: all
 	$(ERL) -pa $(PA) -config standalone.config
-	rm *.beam
+	-rm *.beam
 
 FORCE:
