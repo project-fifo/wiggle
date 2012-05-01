@@ -165,9 +165,6 @@ var ui = new Object();
 	var state = $("#" + data.id + "-state");
 	state.attr("class","badge");
 
-	if ($("#machine-detail-id").text() == data.id)
-	    update_machine(data);
-
 	if (data.state == "running")
 	    state.addClass("badge-success");
 	else if (data.state == "stopped")

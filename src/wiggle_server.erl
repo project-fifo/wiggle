@@ -18,9 +18,11 @@
 	 terminate/2, code_change/3, init_templates/0]).
 
 -define(SERVER, ?MODULE). 
+
 -define(STATIC(Path), {[Path, '...'], cowboy_http_static,
 		       [{directory, {priv_dir, wiggle, [Path]}},
 			{mimetypes, {fun mimetypes:path_to_mimes/2, default}}]}).
+
 -record(state, {}).
 
 %%%===================================================================
