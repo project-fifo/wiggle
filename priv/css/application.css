@@ -10,3 +10,7 @@ div.tab-content {
     padding-top: 5px;
     border-top: 0px;
 }
+
+div.detail-field {
+    font-weight: bold;
+}
