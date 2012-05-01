@@ -1,6 +1,10 @@
 <div class='row-fluid'>
   <div class='span12'></div>
   <div class='span11'>
+    {{#kvm}}
+    <a class='btn' href="/machines/{{id}}/vnc" target="_new">VNC</a>
+    {{/kvm}}
+
     <div class='btn-group' style='float: right'> 
       <button class='btn btn-success' id='machine-detail-start' disabled='true'>Start</button>
       <button class='btn btn-warning' id='machine-detail-reboot' disabled='true'>Reboot</button>
