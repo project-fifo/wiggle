@@ -148,7 +148,14 @@ request('GET', [<<"system">>], {_UUID, Admin, _Auth}, Req, State) ->
     {ok, Req2, State};
 
 request('GET', [<<"about">>], {_UUID, Admin, _Auth}, Req, State) ->
+    Versions = proplists:get_value(loaded, application:info()),
+    {wiggle, _, WiggleV} =lists:keyfind(wiggle, 1, Versions),
+    {erllibcloudapi, _, CloudAPIV} =lists:keyfind(erllibcloudapi, 1, Versions),
     {ok, Page} = tpl_about:render([{admin, Admin},
+				   {versions, [[{name, <<"wiggle">>},
+						{version, list_to_binary(WiggleV)}],
+					       [{name, <<"cloudapi">>},
+						{version, list_to_binary(CloudAPIV)}]]},
 				   {page, "about"}]),
     {ok, Req2} = cowboy_http_req:reply(200, [], Page, Req),
     {ok, Req2, State};

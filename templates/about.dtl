@@ -3,5 +3,9 @@
 {% block page_title %}About{% endblock %}
 
 {% block body_content %}
-About
+<ul>
+  {% for version in versions %}
+  <li>{{version.name}} - {{version.version}}</li>
+  {% endfor %}
+</ul>
 {% endblock %}
