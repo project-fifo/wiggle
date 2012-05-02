@@ -39,13 +39,23 @@
       name='start'
       exec='/fifo/wiggle/bin/wiggle %m'
       timeout_seconds='30'>
+      <method_context>
+	<method_environment>
+	  <envvar name=’HOME’ value='/fifo/wiggle’/>
+	</method_environment>
+      </method_context>
     </exec_method>
-
+    
     <exec_method 
 	name='restart' 
 	type='method' 
         exec='/fifo/wiggle/bin/wiggle %m'
 	timeout_seconds='60'>
+      <method_context>
+	<method_environment>
+	  <envvar name=’HOME’ value='/fifo/wiggle’/>
+	</method_environment>
+      </method_context>
     </exec_method>
 
     <exec_method 
@@ -53,12 +63,17 @@
 	type='method' 
         exec='/fifo/wiggle/bin/wiggle %m'
 	timeout_seconds='60'>
+      <method_context>
+	<method_environment>
+	  <envvar name=’HOME’ value='/fifo/wiggle’/>
+	</method_environment>
+      </method_context>
     </exec_method>
 
     <template>
       <common_name>
         <loctext xml:lang='C'>
-          Vmwebadm Service
+          Wiggle Web GUI Service
         </loctext>
       </common_name>
     </template>
