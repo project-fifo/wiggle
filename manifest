@@ -774,3 +774,8 @@ d lib/svc 0755 root sys
 d lib/svc/manifest 0755 root sys
 d lib/svc/manifest/system 0644 root sys
 f lib/svc/manifest/system/wiggle.xml 0644 root sys
+d var/db 0755 root sys
+d var/db/wiggle 0755 root sys
+d var/db/wiggle/db 0755 root sys
+d var/log 0755 root sys
+d var/log/wiggle 0755 root sys
