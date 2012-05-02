@@ -41,7 +41,7 @@
       timeout_seconds='30'>
       <method_context>
 	<method_environment>
-	  <envvar name=’HOME’ value='/fifo/wiggle’/>
+	  <envvar name='HOME' value='/fifo/wiggle'/>
 	</method_environment>
       </method_context>
     </exec_method>
@@ -53,7 +53,7 @@
 	timeout_seconds='60'>
       <method_context>
 	<method_environment>
-	  <envvar name=’HOME’ value='/fifo/wiggle’/>
+	  <envvar name='HOME' value='/fifo/wiggle'/>
 	</method_environment>
       </method_context>
     </exec_method>
@@ -65,7 +65,7 @@
 	timeout_seconds='60'>
       <method_context>
 	<method_environment>
-	  <envvar name=’HOME’ value='/fifo/wiggle’/>
+	  <envvar name='HOME' value='/fifo/wiggle'/>
 	</method_environment>
       </method_context>
     </exec_method>
