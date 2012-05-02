@@ -1,11 +1,11 @@
 world:
 	echo "Building world"
-	./rebar get-deps
-	./rebar update-deps
-	gmake rel
+	. /opt/erlang/r15b01/activate && ./rebar get-deps
+	. /opt/erlang/r15b01/activate && ./rebar update-deps
+	. /opt/erlang/r15b01/activate && gmake rel
 
 update:
-	git pull --rebase
+	. /opt/erlang/r15b01/activate && git pull --rebase
 
 
 manifest:
@@ -23,6 +23,6 @@ install: world
 
 
 clean:
-	gmake clean
+	. /opt/erlang/r15b01/activate && gmake clean
 
 .PHONY: manifest 
