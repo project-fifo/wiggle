@@ -19,7 +19,7 @@ install: world
 	mkdir -p $(DESTDIR)/var/log/wiggle
 	cp -r rel/wiggle $(DESTDIR)/fifo/
 	cp -r priv/wiggle.xml $(DESTDIR)/lib/svc/manifest/system/
-	sed -i $(DESTDIR)/lib/svc/manifest/system/wiggle.xml -e 's;172.16.0.4;127.0.0.1;g'
+	sed -i $(DESTDIR)/fifo/wiggle/releases/0.1.3/sys.config -e 's;172.16.0.4;127.0.0.1;g'
 
 
 clean:
