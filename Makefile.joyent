@@ -1,0 +1,23 @@
+world:
+	echo "Building world"
+	./rebar get-deps
+	./rebar update-deps
+	gmake rel
+
+update:
+	git pull --rebase
+
+
+manifest:
+	cp manifest $(DESTDIR)/$(DESTNAME)
+
+install: world
+	echo "Building install"
+	mkdir -p $(DESTDIR)/fifo
+	cp -r rel/wiggle $(DESTDIR)/fifo/
+	cp -r priv/wiggle.xml $(DESTDIR)/lib/svc/manifest/system/
+
+clean:
+	gmake clean
+
+.PHONY: manifest 
