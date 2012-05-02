@@ -14,7 +14,9 @@ manifest:
 install: world
 	echo "Building install"
 	mkdir -p $(DESTDIR)/fifo
-	mkdir -p $(DESTDIR)/lib/svc/manifest/system/
+	mkdir -p $(DESTDIR)/lib/svc/manifest/system
+	mkdir -p $(DESTDIR)/var/db/wiggle
+	mkdir -p $(DESTDIR)/var/log/wiggle
 	cp -r rel/wiggle $(DESTDIR)/fifo/
 	cp -r priv/wiggle.xml $(DESTDIR)/lib/svc/manifest/system/
 
