@@ -1,23 +1,26 @@
-OBJ=ebin/wiggle.app ebin/wiggle_app.beam ebin/wiggle_server.beam ebin/wiggle_sup.beam ebin/wiggle.beam ebin/cowboy_utils.beam ebin/wiggle_handler.beam ebin/wiggle_storage.beam ebin/wiggle_keymanager.beam ebin/wiggle_wsproxy.beam
-DEPS=deps/jsx/rebar.config deps/mimetypes/rebar.config deps/erllibcloudapi/rebar.config deps/cowboy/rebar.config deps/erlydtl/rebar.config deps/alog/rebar.config deps/lhttpc/rebar.config
+OBJ=$(shell ls src/*.erl | sed -e 's/\.erl$$/.beam/' | sed -e 's/^src/ebin/g') $(shell ls src/*.app.src | sed -e 's/\.src$$//g' | sed -e 's/^src/ebin/g')
+DEPS=$(shell cat rebar.config  |sed -e 's/%.*//'| sed -e '/{\(\w\+\), [^,]\+, {\w\+, [^,]\+, {[^,]\+, [^}]\+}}},\?/!d' | sed -e 's;{\(\w\+\), [^,]\+, {\w\+, [^,]\+, {[^,]\+, [^}]\+}}},\?;deps/\1/rebar.config;')
 ERL=erl
 PA=ebin deps/*/ebin
 REBAR=./rebar
+APP_NAME=wiggle
 
 all: $(OBJ) $(DEPS)
 
 rel: all FORCE
 	-rm -r rel/wiggle
 	cd rel; ../rebar generate
+echo:
+	echo $(DEPS)
 
 tar: rel
-	cd rel; tar jcvf wiggle.tar.bz2 wiggle
+	cd rel; tar jcvf $(APP_NAME).tar.bz2 $(APP_NAME)
 
 clean: FORCE
 	-rm -r *.beam ebin
 	-rm erl_crash.dump
-	-rm -r rel/wiggle
-	-rm rel/wiggle.tar.bz2
+	-rm -r rel/$(APP_NAME)
+	-rm rel/$(APP_NAME).tar.bz2
 
 $(DEPS):
 	$(REBAR) get-deps
