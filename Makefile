@@ -1,5 +1,5 @@
 OBJ=ebin/wiggle.app ebin/wiggle_app.beam ebin/wiggle_server.beam ebin/wiggle_sup.beam ebin/wiggle.beam ebin/cowboy_utils.beam ebin/wiggle_handler.beam ebin/wiggle_storage.beam ebin/wiggle_keymanager.beam ebin/wiggle_wsproxy.beam
-DEPS=deps/jsx deps/lhttpc deps/alogger deps/cowboy
+DEPS=deps/jsx/rebar.config deps/mimetypes/rebar.config deps/erllibcloudapi/rebar.config deps/cowboy/rebar.config deps/erlydtl/rebar.config deps/alog/rebar.config deps/lhttpc/rebar.config
 ERL=erl
 PA=ebin deps/*/ebin
 REBAR=./rebar
@@ -19,13 +19,7 @@ clean: FORCE
 	-rm -r rel/wiggle
 	-rm rel/wiggle.tar.bz2
 
-deps/jsx:
-	$(REBAR) get-deps
-
-deps/alogger:
-	$(REBAR) get-deps
-
-deps/lhttpc:
+$(DEPS):
 	$(REBAR) get-deps
 
 ebin/%.app: src/%.app.src
@@ -35,7 +29,7 @@ ebin/%.beam: src/%.erl
 	$(REBAR) compile
 
 shell: all
-	$(ERL) -pa $(PA) -config standalone.config
+	$(ERL) -pa $(PA) -configig standalone.configig
 	-rm *.beam
 
 FORCE:
