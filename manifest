@@ -378,7 +378,7 @@ f fifo/wiggle/lib/ssl-5.0.1/ebin/ssl_session_cache.beam 0644 root sys
 f fifo/wiggle/lib/ssl-5.0.1/ebin/ssl_certificate_db.beam 0644 root sys
 f fifo/wiggle/lib/ssl-5.0.1/ebin/ssl_handshake.beam 0644 root sys
 d fifo/wiggle/lib/mnesia-4.7 0755 root sys
-d fifo/wiggle/lib/mnesia-4.7/include root sys
+d fifo/wiggle/lib/mnesia-4.7/include 755 root sys
 d fifo/wiggle/lib/mnesia-4.7/ebin 0644 root sys
 f fifo/wiggle/lib/mnesia-4.7/ebin/mnesia_controller.beam 0644 root sys
 f fifo/wiggle/lib/mnesia-4.7/ebin/mnesia_schema.beam 0644 root sys
