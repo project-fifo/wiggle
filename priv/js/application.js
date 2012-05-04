@@ -21,8 +21,9 @@ var ui = new Object();
 	var btns =  $("#modal .modal-footer");
 	$("#modal .modal-header h3").text("Delete VM");
 	$("#modal .modal-body p").
+	    empty().
 	    append("You are about to delete the VM ").
-	    append($("<b>" +$(".machine.active").val() + "</b>")).
+	    append($("<b>" +$(".machine.active").data("id") + "</b>")).
 	    append(", this action can not be reversed! all data willbe lost forever!");
 	go.click(function(){
 	    $.ajax({
@@ -39,6 +40,14 @@ var ui = new Object();
 	    append(cancle).
 	    append(go);
 	modal.modal();	
+    }
+    function extend_machine_data(data) {
+	if (data.type == "kvm")
+	    data.kvm = true;
+	else
+	    data.zone = true;
+	data[data.state] = true;
+	return data;
     }
     function machine_add_fn() {
 	var pkg = $("#machine-new-package").val();
@@ -62,9 +71,8 @@ var ui = new Object();
 		}
 	    }
 	});
-	
-	
     }
+
     function machine_action(uuid, action, callback) {
 	var data = {"action": action};
 	var image = $("#boot-image").val();
@@ -78,8 +86,8 @@ var ui = new Object();
 	    data: data,
 	    success: callback
 	});
-
     }
+
     function update_machine(data) {
 	var c = center;
 	c.empty();
@@ -90,16 +98,11 @@ var ui = new Object();
 	    new_ips = new_ips + data.ips[i];
 	}
 	data.ips = new_ips;
-	if (data.type == "kvm")
-	    data.kvm = true;
-	else
-	    data.zone = true;
-	    
+	if (data.ips == "") 
+	    data.ips = "-"
+	data = extend_machine_data(data);
 	c.append(ich.details(data))
 	if (data.kvm) {
-	    $("#vnc-btn").click(function () {
-		init_vnc(data.id);
-	    });
 	    $.getJSON("/my/images", function (images) {
 		var select = $("#boot-image").
 		    empty().
@@ -135,12 +138,7 @@ var ui = new Object();
 		});;
 	}
     }
-    function disconnect_vnc() {
-	if (rfb)
-	    rfb.disconnect();
-    }
     function show_machine(data) {
-	disconnect_vnc();
 	update_machine(data);
     };
     function activate_machine(id) {
@@ -171,7 +169,6 @@ var ui = new Object();
 	    state.addClass("badge-error");
 	else
 	    state.addClass("badge-warning");
-	    
     };
 
     function add_machine(data, show) {
@@ -187,7 +184,8 @@ var ui = new Object();
     function get_machines() {
 	$.getJSON("/my/machines", function (data) {
 	    for (var i = 0; i < data.length; i++) {
-		add_machine(data[i], i==0);
+		d = extend_machine_data(data[i]);
+		add_machine(d, i==0);
 	    }
 	});
     };
@@ -256,62 +254,13 @@ var ui = new Object();
 	ui.refresh = setInterval(function () {
 	    $.getJSON("/my/machines", function (data) {
 		for (var i = 0; i < data.length; i++) {
-		    update_state(data[i]);
+		    var d = extend_machine_data(data[i]);
+		    update_state(d);
 		}
 	    });
 	}, 1000);
     };
     
-    function updateState(rfb, state, oldstate, msg) {
-        var s, sb, cad, level;
-        s = $D('noVNC_status');
-        sb = $D('noVNC_status_bar');
-        cad = $D('sendCtrlAltDelButton');
-        switch (state) {
-        case 'failed':       level = "error";  break;
-        case 'fatal':        level = "error";  break;
-        case 'normal':       level = "info"; break;
-        case 'disconnected': level = "info"; break;
-        case 'loaded':       level = "info"; break;
-        default:             level = "warn";   break;
-        }
-	
-        if (state === "normal" && cad) { cad.disabled = false; }
-        else                    { if (cad) cad.disabled = true; }
-	
-        if (typeof(msg) !== 'undefined' && sb && s) {
-            s.setAttribute("class", "span9 alert alert-" + level);
-            s.innerHTML = msg;
-        }
-    }
-    function sendCtrlAltDel() {
-        rfb.sendCtrlAltDel();
-        return false;
-    }
-
-    function init_vnc(id) {
-        var host, port, password, path, token;
-	
-        $D('sendCtrlAltDelButton').style.display = "inline";
-        $D('sendCtrlAltDelButton').onclick = sendCtrlAltDel;
-
-        // By default, use the host and port of server that served this file
-        host = window.location.hostname;
-        port = window.location.port;
-	if (port == "")
-	    port = 80;
-	
-        path = "machines/" + id + "/vnc"
-        rfb = new RFB({'target':       $D('noVNC_canvas'),
-                       'encrypt':      (window.location.protocol === "https:"),
-                       'true_color':   true,
-                       'local_cursor': true,
-                       'shared':       true,
-                       'view_only':    false,
-                       'updateState':  updateState});
-	rfb.connect(host, port, password, path);
-    };
-
     function load_template(id) {
 	$.ajax({
 	    url: "/tpl/" + id + ".html",
@@ -333,12 +282,9 @@ var ui = new Object();
     
     load_template("machine_details");
     load_template("details");
-    $.getJSON('/tpl/main.json', function (templates) {
-	$.each(templates, function (name) {
-	    var template = templates[name];
-	    ich.addTemplate(name, template);
-	});
-    });
+    load_template("machine_list_item");
+    load_template("other_list_item");
+
 }(window.jQuery);
 
 
