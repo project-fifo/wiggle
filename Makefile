@@ -7,7 +7,7 @@ PA=$(shell pwd)/$(APP_DIR)/ebin
 ERL_LIBS=`pwd`/deps/
 REBAR=./rebar
 
-all: $(OBJ) $(DEPS)
+all: $(DEPS) $(OBJ)
 
 rel: all remove_trash FORCE
 	-rm -r rel/$(APP_NAME)
