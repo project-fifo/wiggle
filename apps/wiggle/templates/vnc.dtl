@@ -116,7 +116,8 @@
             // By default, use the host and port of server that served this file
             host = WebUtil.getQueryVar('host', window.location.hostname);
             port = WebUtil.getQueryVar('port', window.location.port);
-
+            if (port == "")
+              port = "80";
             // If a token variable is passed in, set the parameter in a cookie.
             // This is used by nova-novncproxy.
             token = WebUtil.getQueryVar('token', null);
