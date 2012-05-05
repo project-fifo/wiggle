@@ -65,7 +65,7 @@ init() ->
 	{aborted,{already_exists,user}} ->
 	    ok;
 	_ ->
-	    set_config(api_host, "http://172.16.0.4")
+	    set_config(api_host, "http://127.0.0.1")
     end.
 
 %%--------------------------------------------------------------------
