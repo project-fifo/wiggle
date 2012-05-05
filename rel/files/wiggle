@@ -11,6 +11,8 @@ RUNNER_LOG_DIR=$RUNNER_BASE_DIR/log
 PIPE_DIR=/tmp/$RUNNER_BASE_DIR/
 RUNNER_USER=
 
+[ -d /var/db/wiggle ] || mkdir -p /var/db/wiggle
+
 # Make sure this script is running as the appropriate user
 if [ ! -z "$RUNNER_USER" ] && [ `whoami` != "$RUNNER_USER" ]; then
     exec sudo -u $RUNNER_USER -i $0 $@
