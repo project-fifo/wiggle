@@ -8,3 +8,4 @@ erl_crash.dump
 *.beam
 rel/wiggle
 rel/wiggle.tar.bz2
+manifest

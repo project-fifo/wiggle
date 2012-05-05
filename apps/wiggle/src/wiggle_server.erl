@@ -15,7 +15,7 @@
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
-	 terminate/2, code_change/3, init_templates/0]).
+	 terminate/2, code_change/3, reload_templates/0]).
 
 -define(SERVER, ?MODULE). 
 
@@ -56,10 +56,8 @@ start_link() ->
 %%--------------------------------------------------------------------
 init([]) ->
     wiggle_storage:init(),
-    init_templates(),
     Port = get_env_default(port, 8080),
     Acceptors = get_env_default(acceptors, 2),
-    application:start(cowboy),
     %% {Host, list({Path, Handler, Opts})}
     Dispatch = [{'_', [?STATIC(<<"js">>),
 		       ?STATIC(<<"css">>),
@@ -155,13 +153,13 @@ get_env_default(Key, Default) ->
 	    Default
     end.
 
-init_templates() ->
-    erlydtl:compile("templates/base.dtl", tpl_base),
-    erlydtl:compile("templates/login.dtl", tpl_login),
-    erlydtl:compile("templates/account.dtl", tpl_account),
-    erlydtl:compile("templates/about.dtl", tpl_about),
-    erlydtl:compile("templates/system.dtl", tpl_system),
-    erlydtl:compile("templates/admin.dtl", tpl_admin),
-    erlydtl:compile("templates/analytics.dtl", tpl_analytics),
-    erlydtl:compile("templates/vnc.dtl", tpl_vnc),
-    erlydtl:compile("templates/index.dtl", tpl_index).
+reload_templates() ->
+    erlydtl:compile("templates/base.dtl", base_dtl),
+    erlydtl:compile("templates/login.dtl", login_dtl),
+    erlydtl:compile("templates/account.dtl", account_dtl),
+    erlydtl:compile("templates/about.dtl", about_dtl),
+    erlydtl:compile("templates/system.dtl", system_dtl),
+    erlydtl:compile("templates/admin.dtl", admin_dtl),
+    erlydtl:compile("templates/analytics.dtl", analytics_dtl),
+    erlydtl:compile("templates/vnc.dtl", vnc_dtl),
+    erlydtl:compile("templates/index.dtl", index_dtl).

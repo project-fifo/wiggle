@@ -16,7 +16,7 @@ init({_Any, http}, Req, []) ->
 
 handle(Req, State) ->
     {[<<"machines">>, ID, <<"vnc">>], Req1} = cowboy_http_req:path(Req),
-    {ok, Page} = tpl_vnc:render([{<<"uuid">>, ID}]),
+    {ok, Page} = vnc_dtl:render([{<<"uuid">>, ID}]),
     {ok, Req2} =  cowboy_http_req:reply(404, [], Page, Req1),
     {ok, Req2, State}.
 

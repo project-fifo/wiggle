@@ -59,7 +59,7 @@ login(Req, State) ->
     {ok, Req2, State}.
 
 request('GET', [<<"login">>], undefined, Req, State) ->
-    {ok, Page} = tpl_login:render([]),
+    {ok, Page} = login_dtl:render([]),
     {ok, Req1} = cowboy_http_req:reply(200, [], Page, Req),
     {ok, Req1, State};
 
@@ -85,7 +85,7 @@ request('POST', [<<"login">>], undefined, Req, State) ->
 		    {ok, Req3, State}
 		end;
 	_ ->
-	    {ok, Page} = tpl_login:render([{<<"messages">>, 
+	    {ok, Page} = login_dtl:render([{<<"messages">>, 
 					    [[{<<"text">>, <<"Login failed">>},
 					      {<<"class">>, <<"error">>}]]}]),
 	    {ok, Req2} = cowboy_http_req:reply(200, [], Page, Req1),
@@ -133,17 +133,17 @@ request('GET', [<<"logout">>], {_UUID, _Admin, _Auth}, Req, State) ->
     {ok, Req2, State};
 
 request('GET', [], {_UUID, Admin, _Auth}, Req, State) ->
-    {ok, Page} = tpl_index:render([{admin, Admin}]),
+    {ok, Page} = index_dtl:render([{admin, Admin}]),
     {ok, Req2} = cowboy_http_req:reply(200, [], Page, Req),
     {ok, Req2, State};
 
 request('GET', [<<"analytics">>], {_UUID, Admin, _Auth}, Req, State) ->
-    {ok, Page} = tpl_analytics:render([{admin, Admin},{page, "analytics"}]),
+    {ok, Page} = analytics_dtl:render([{admin, Admin},{page, "analytics"}]),
     {ok, Req2} = cowboy_http_req:reply(200, [], Page, Req),
     {ok, Req2, State};
 
 request('GET', [<<"system">>], {_UUID, Admin, _Auth}, Req, State) ->
-    {ok, Page} = tpl_system:render([{admin, Admin},{page, "system"}]),
+    {ok, Page} = system_dtl:render([{admin, Admin},{page, "system"}]),
     {ok, Req2} = cowboy_http_req:reply(200, [], Page, Req),
     {ok, Req2, State};
 
@@ -151,7 +151,7 @@ request('GET', [<<"about">>], {_UUID, Admin, _Auth}, Req, State) ->
     Versions = proplists:get_value(loaded, application:info()),
     {wiggle, _, WiggleV} =lists:keyfind(wiggle, 1, Versions),
     {erllibcloudapi, _, CloudAPIV} =lists:keyfind(erllibcloudapi, 1, Versions),
-    {ok, Page} = tpl_about:render([{admin, Admin},
+    {ok, Page} = about_dtl:render([{admin, Admin},
 				   {versions, [[{name, <<"wiggle">>},
 						{version, list_to_binary(WiggleV)}],
 					       [{name, <<"cloudapi">>},
@@ -161,7 +161,7 @@ request('GET', [<<"about">>], {_UUID, Admin, _Auth}, Req, State) ->
     {ok, Req2, State};
 
 request('GET', [<<"admin">>], {_, true, _Auth} , Req, State) ->
-    {ok, Page} = tpl_admin:render([{admin, true},
+    {ok, Page} = admin_dtl:render([{admin, true},
 				   {page, "admin"}]),
     {ok, Req2} = cowboy_http_req:reply(200, [], Page, Req),
     {ok, Req2, State};
@@ -171,7 +171,7 @@ request('POST', [<<"admin">>], {_, true, _Auth} , Req, State) ->
     Name =  binary_to_list(proplists:get_value(<<"name">>, Vals)),
     Pass =  binary_to_list(proplists:get_value(<<"pass">>, Vals)),
     wiggle_storage:add_user(Name, Pass, false),    
-    {ok, Page} = tpl_admin:render([{admin, true},
+    {ok, Page} = admin_dtl:render([{admin, true},
 				   {page, "admin"}]),
     {ok, Req2} = cowboy_http_req:reply(200, [], Page, Req1),
     {ok, Req2, State};
@@ -185,7 +185,7 @@ request('GET', [<<"account">>], {UUID, Admin, Auth}, Req, State) ->
 			_ ->
 			    [[{text, <<"You are not authenticated with the API backend.">>}, {class, <<"error">>}]]
 		    end,
-    {ok, Page} = tpl_account:render([{admin, Admin}, 
+    {ok, Page} = account_dtl:render([{admin, Admin}, 
 				     {name, Name}, 
 				     {messages, Messages},
 				     {priv_key,wiggle_storage:get_user(User, priv_key)},
@@ -214,7 +214,7 @@ request('POST', [<<"account">>], {UID,Admin,Auth}, Req, State) ->
 			   _ ->
 			       [[{text, <<"You are not authenticated with the API backend.">>}, {class, <<"error">>}]]
 		       end,
-	    {ok, Page} = tpl_account:render([{admin, Admin}, 
+	    {ok, Page} = account_dtl:render([{admin, Admin}, 
 					     {name, Name}, 
 					     {messages, Messages1},
 					     {priv_key,wiggle_storage:get_user(User, priv_key)},
@@ -233,7 +233,7 @@ request('POST', [<<"account">>], {UID,Admin,Auth}, Req, State) ->
 			    _ ->
 				[[{text, <<"You are not authenticated with the API backend.">>}, {class, <<"error">>}]]
 			end,
-	    {ok, Page} = tpl_account:render([{admin, Admin}, 
+	    {ok, Page} = account_dtl:render([{admin, Admin}, 
 					     {name, Name}, 
 					     {messages, Messages1},
 					     {priv_key,wiggle_storage:get_user(User, priv_key)},
@@ -249,7 +249,7 @@ request('POST', [<<"account">>], {UID,Admin,Auth}, Req, State) ->
 		Pass ->
 		    case {proplists:get_value(<<"new">>, Vals), proplists:get_value(<<"confirm">>, Vals)} of
 			{New, New} ->
-			    {ok, Page} = tpl_account:render([{admin, Admin},
+			    {ok, Page} = account_dtl:render([{admin, Admin},
 							     {messages, 
 							      [Messages| [{text, <<"Password changed.">>},
 									  {class, <<"success">>}]]},
@@ -261,7 +261,7 @@ request('POST', [<<"account">>], {UID,Admin,Auth}, Req, State) ->
 			    wiggle_storage:set_user(UID, passwd, binary_to_list(New)),
 			    {ok, Req2, State};
 			_ ->
-			    {ok, Page} = tpl_account:render([{admin, Admin},
+			    {ok, Page} = account_dtl:render([{admin, Admin},
 							     {messages, 
 							      [Messages|
 							       [{text, <<"Passwords did not match.">>},
@@ -274,7 +274,7 @@ request('POST', [<<"account">>], {UID,Admin,Auth}, Req, State) ->
 			    {ok, Req2, State}
 			end;
 		_ ->
-		    {ok, Page} = tpl_account:render([{admin, Admin},
+		    {ok, Page} = account_dtl:render([{admin, Admin},
 						     {messages, 
 						      [Messages|
 						       [{text, <<"Old passwords did not match.">>},

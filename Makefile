@@ -9,7 +9,7 @@ REBAR=./rebar
 
 all: $(OBJ) $(DEPS)
 
-rel: all FORCE
+rel: all remove_trash FORCE
 	-rm -r rel/$(APP_NAME)
 	cd rel; ../rebar generate
 echo:
@@ -39,3 +39,10 @@ shell: all
 	[ -f erl_crash.dump ] && rm erl_crash.dump || true
 
 FORCE:
+
+manifest: rel
+	./tools/mkmanifest > manifest
+
+remove_trash:
+	-find . -name "*~" -exec rm {} \;.
+	-rm *.beam erl_crash.dump

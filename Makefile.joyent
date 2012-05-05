@@ -1,8 +1,7 @@
 world:
 	echo "Building world"
-	. /opt/erlang/r15b01/activate && ./rebar get-deps
-	. /opt/erlang/r15b01/activate && ./rebar update-deps
 	. /opt/erlang/r15b01/activate && gmake rel
+	. /opt/erlang/r15b01/activate && gmake manifest
 
 update:
 	. /opt/erlang/r15b01/activate && git pull --rebase
