@@ -29,6 +29,7 @@ start() ->
     application:start(sasl),
     application:start(alog),
     application:start(erllibcloudapi),
+    application:start(uuid),
     application:start(wiggle).
     
 

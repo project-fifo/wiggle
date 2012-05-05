@@ -3,11 +3,11 @@
 {% block page_title %}Welcome{% endblock %}
 
 {% block body_content %}
-<h1>Wiggle</h1>
-<p>
-  Please log in.
-</p>
-<div style="text-align:right; width:500px;">
+<div class="offset4 span4">
+  <h2>Wiggle</h2>
+  <p>
+    Please log in.
+  </p>
   <form  method="POST" action="login">
     <label>Login: </label><input type="text" name="login"/></br>
     <label>Password: </label><input type="password" name="pass"/></br>

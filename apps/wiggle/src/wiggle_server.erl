@@ -154,12 +154,12 @@ get_env_default(Key, Default) ->
     end.
 
 reload_templates() ->
-    erlydtl:compile("templates/base.dtl", base_dtl),
-    erlydtl:compile("templates/login.dtl", login_dtl),
-    erlydtl:compile("templates/account.dtl", account_dtl),
-    erlydtl:compile("templates/about.dtl", about_dtl),
-    erlydtl:compile("templates/system.dtl", system_dtl),
-    erlydtl:compile("templates/admin.dtl", admin_dtl),
-    erlydtl:compile("templates/analytics.dtl", analytics_dtl),
-    erlydtl:compile("templates/vnc.dtl", vnc_dtl),
-    erlydtl:compile("templates/index.dtl", index_dtl).
+    erlydtl:compile("apps/wiggle/templates/base.dtl", base_dtl),
+    erlydtl:compile("apps/wiggle/templates/login.dtl", login_dtl),
+    erlydtl:compile("apps/wiggle/templates/account.dtl", account_dtl),
+    erlydtl:compile("apps/wiggle/templates/about.dtl", about_dtl),
+    erlydtl:compile("apps/wiggle/templates/system.dtl", system_dtl),
+    erlydtl:compile("apps/wiggle/templates/admin.dtl", admin_dtl),
+    erlydtl:compile("apps/wiggle/templates/analytics.dtl", analytics_dtl),
+    erlydtl:compile("apps/wiggle/templates/vnc.dtl", vnc_dtl),
+    erlydtl:compile("apps/wiggle/templates/index.dtl", index_dtl).

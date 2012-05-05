@@ -1,9 +1,9 @@
 {application, wiggle,
- [
-  {description, ""},
+ [{description, ""},
   {vsn, "0.1.4"},
   {registered, []},
   {applications, [
+		  uuid,
 		  erllibcloudapi,
 		  erlydtl,
 		  cowboy,
@@ -14,6 +14,6 @@
 		  alog,
                   stdlib
                  ]},
-  {mod, { wiggle_app, []}},
+  {mod, {wiggle_app, []}},
   {env, []}
  ]}.

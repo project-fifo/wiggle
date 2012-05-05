@@ -12,6 +12,7 @@
 
 
 -record(user, {id, name, passwd, priv_key, pub_key, admin}).
+-record(config, {id, value}).
 
 
 %% API
@@ -24,12 +25,14 @@
 	 set_user/3,
 	 get_session/1,
 	 verify/2,
-	 get_auth/1]).
+	 get_auth/1,
+	 get_config/1,
+	 set_config/2]).
 
 -define(USER_GETTER(F), get_user(#user{F = Res}, F) -> Res).
 -define(USER_SETTER(F), set_user(#user{id = UID} = User, F, Val) ->
 	       {ok, User} = get_user(UID),
-	       write_user(User#user{F = Val})).
+	       write(User#user{F = Val})).
 
 
 %%%===================================================================
@@ -54,6 +57,15 @@ init() ->
 	    ok;
 	_ ->
 	    add_user("admin", "admin", true)
+    end,
+    case mnesia:create_table(config,
+			     [{disc_copies, [N]},
+			      {attributes,
+			       record_info(fields,config)}]) of
+	{aborted,{already_exists,user}} ->
+	    ok;
+	_ ->
+	    set_config(api_host, "http://172.16.0.4")
     end.
 
 %%--------------------------------------------------------------------
@@ -70,14 +82,19 @@ add_user(UID, Pass, Admin) ->
 
 
 add_user(UID, Name, Pass, Admin) ->
-    write_user(#user{id = UID,
+    write(#user{id = UID,
 		     name = Name,
 		     passwd = crypto:sha256(Pass),
 		     admin = Admin}).
 
+set_config(ID, Value) ->
+    write(#config{id = ID,
+		  value = Value}).
+
+
 set_keys(UID, Priv, Pub) ->
     {ok, User} = get_user(UID),
-    write_user(User#user{priv_key = Priv, pub_key = Pub}).
+    write(User#user{priv_key = Priv, pub_key = Pub}).
     
 
 
@@ -88,7 +105,7 @@ set_keys(UID, Priv, Pub) ->
 set_user(#user{id = UID} = User, passwd, Val) ->
     {ok, User} = get_user(UID),
     Hash =  crypto:sha256(Val),
-    write_user(User#user{passwd = Hash});
+    write(User#user{passwd = Hash});
 	
 ?USER_SETTER(priv_key);
 
@@ -140,6 +157,22 @@ get_user(UID, Field) when is_list(UID) ->
 get_user(_User, _Field) ->
     {error, does_not_exist}.
 
+
+get_config(ID) ->
+    Fun =
+        fun() ->
+		mnesia:read({config, ID})
+        end,
+    case mnesia:transaction(Fun) of
+	{atomic,[{config, ID, Value}]} ->
+	    {ok, Value};
+	{aborted, R} -> 
+	    {error, R};
+	_ -> 
+	    {error, not_found}
+    end.
+
+
 get_auth(ID) ->
     case get_user(ID) of
 	{ok, User} -> 
@@ -176,15 +209,16 @@ verify(ID, Pass) ->
 %%%===================================================================
 
 user_to_auth(User) ->
-    {ok, Host} = application:get_env(wiggle, host),
+    {ok, Host} = get_config(api_host),
     {ok, KeyID} = application:get_env(wiggle, key_id),
     {User#user.name,
      Host,
      KeyID,
      User#user.priv_key}.
 
-write_user(User) ->
+write(Value) ->
     Fun = fun() ->
-		  mnesia:write(User)
+		  mnesia:write(Value)
 	  end,
     mnesia:transaction(Fun).
+

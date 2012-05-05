@@ -161,17 +161,28 @@ request('GET', [<<"about">>], {_UUID, Admin, _Auth}, Req, State) ->
     {ok, Req2, State};
 
 request('GET', [<<"admin">>], {_, true, _Auth} , Req, State) ->
-    {ok, Page} = admin_dtl:render([{admin, true},
+    {ok, Host} = wiggle_storage:get_config(api_host),
+    {ok, Page} = admin_dtl:render([{api_host, Host},
+				   {admin, true},
 				   {page, "admin"}]),
+    
     {ok, Req2} = cowboy_http_req:reply(200, [], Page, Req),
     {ok, Req2, State};
 
 request('POST', [<<"admin">>], {_, true, _Auth} , Req, State) ->
     {Vals, Req1} = cowboy_http_req:body_qs(Req),
-    Name =  binary_to_list(proplists:get_value(<<"name">>, Vals)),
-    Pass =  binary_to_list(proplists:get_value(<<"pass">>, Vals)),
-    wiggle_storage:add_user(Name, Pass, false),    
-    {ok, Page} = admin_dtl:render([{admin, true},
+    case proplists:get_value(<<"action">>, Vals) of
+	<<"pass">> ->
+	    Name =  binary_to_list(proplists:get_value(<<"name">>, Vals)),
+	    Pass =  binary_to_list(proplists:get_value(<<"pass">>, Vals)),
+	    wiggle_storage:add_user(Name, Pass, false);
+	<<"api_host">> ->
+	    Host = binary_to_list(proplists:get_value(<<"api_host">>, Vals)),
+	    wiggle_storage:set_config(api_host, Host)
+    end,
+    {ok, NewHost} = wiggle_storage:get_config(api_host),
+    {ok, Page} = admin_dtl:render([{api_host, NewHost},
+				   {admin, true},
 				   {page, "admin"}]),
     {ok, Req2} = cowboy_http_req:reply(200, [], Page, Req1),
     {ok, Req2, State};
