@@ -74,7 +74,7 @@ request('POST', [<<"login">>], undefined, Req, State) ->
 	    {ok, Req3} = cowboy_http_req:reply(200, [{<<"Refresh">>, <<"0; url=/admin">>}], <<"">>, Req2),
 	    {ok, Req3, State};
 	{ok, {_, _, Auth} = Session} ->
-	    case cloudapi:list_keys(Auth) of 
+	    case libsniffle:list_keys(Auth) of 
 		{ok, _} ->
 		    {ok, Req2} = wiggle_session:set(Req1, Session),
 		    {ok, Req3} = cowboy_http_req:reply(200, [{<<"Refresh">>, <<"0; url=/">>}], <<"">>, Req2),
@@ -105,7 +105,7 @@ request('POST', [<<"my">>, <<"machines">>], {_UUID, _Admin, Auth}, Req, State) -
 		   [{<<"name">>, Name} | Obj]
 	   end,
 
-    case cloudapi:create_machine(Auth, Obj1) of
+    case libsniffle:create_machine(Auth, Obj1) of
 	{ok, Res} ->
 	    io:format("~p~n", [Res]),
 	    reply_json(Req1, Res, State);
@@ -116,7 +116,7 @@ request('POST', [<<"my">>, <<"machines">>], {_UUID, _Admin, Auth}, Req, State) -
     end;
 
 request('DELETE', [<<"my">>, <<"machines">>, VMUUID], {_UUID, _Admin, Auth}, Req, State) ->
-    case cloudapi:delete_machine(Auth, VMUUID) of
+    case libsniffle:delete_machine(Auth, VMUUID) of
 	ok ->
 	    {ok, Req1} = cowboy_http_req:reply(200, [], <<"">>, Req),
 	    {ok, Req1, State};
@@ -150,20 +150,15 @@ request('GET', [<<"system">>], {_UUID, Admin, _Auth}, Req, State) ->
 request('GET', [<<"about">>], {_UUID, Admin, _Auth}, Req, State) ->
     Versions = proplists:get_value(loaded, application:info()),
     {wiggle, _, WiggleV} =lists:keyfind(wiggle, 1, Versions),
-    {erllibcloudapi, _, CloudAPIV} =lists:keyfind(erllibcloudapi, 1, Versions),
     {ok, Page} = about_dtl:render([{admin, Admin},
 				   {versions, [[{name, <<"wiggle">>},
-						{version, list_to_binary(WiggleV)}],
-					       [{name, <<"cloudapi">>},
-						{version, list_to_binary(CloudAPIV)}]]},
+						{version, list_to_binary(WiggleV)}]]},
 				   {page, "about"}]),
     {ok, Req2} = cowboy_http_req:reply(200, [], Page, Req),
     {ok, Req2, State};
 
 request('GET', [<<"admin">>], {_, true, _Auth} , Req, State) ->
-    {ok, Host} = wiggle_storage:get_config(api_host),
-    {ok, Page} = admin_dtl:render([{api_host, Host},
-				   {admin, true},
+    {ok, Page} = admin_dtl:render([{admin, true},
 				   {page, "admin"}]),
     
     {ok, Req2} = cowboy_http_req:reply(200, [], Page, Req),
@@ -175,22 +170,17 @@ request('POST', [<<"admin">>], {_, true, _Auth} , Req, State) ->
 	<<"pass">> ->
 	    Name =  binary_to_list(proplists:get_value(<<"name">>, Vals)),
 	    Pass =  binary_to_list(proplists:get_value(<<"pass">>, Vals)),
-	    wiggle_storage:add_user(Name, Pass, false);
-	<<"api_host">> ->
-	    Host = binary_to_list(proplists:get_value(<<"api_host">>, Vals)),
-	    wiggle_storage:set_config(api_host, Host)
+	    wiggle_storage:add_user(Name, Pass, false)
     end,
-    {ok, NewHost} = wiggle_storage:get_config(api_host),
-    {ok, Page} = admin_dtl:render([{api_host, NewHost},
-				   {admin, true},
+    {ok, Page} = admin_dtl:render([{admin, true},
 				   {page, "admin"}]),
     {ok, Req2} = cowboy_http_req:reply(200, [], Page, Req1),
     {ok, Req2, State};
 
 request('GET', [<<"account">>], {UUID, Admin, Auth}, Req, State) ->
-    {Name, _, _, _} = Auth,
+    {Name, _, _} = Auth,
     {ok, User} = wiggle_storage:get_user(UUID),
-    Messages = case cloudapi:list_keys(Auth) of 
+    Messages = case libsniffle:list_keys(Auth) of 
 			{ok, _} ->
 			    undefined;
 			_ ->
@@ -207,9 +197,9 @@ request('GET', [<<"account">>], {UUID, Admin, Auth}, Req, State) ->
 
 request('POST', [<<"account">>], {UID,Admin,Auth}, Req, State) ->
     {Vals, Req1} = cowboy_http_req:body_qs(Req),
-    {Name, _, KeyID, _} = Auth,
+    {Name, KeyID, _} = Auth,
     {ok, User} = wiggle_storage:get_user(UID),
-    Messages = case cloudapi:list_keys(Auth) of 
+    Messages = case libsniffle:list_keys(Auth) of 
 			{ok, _} ->
 			    undefined;
 			_ ->
@@ -217,9 +207,9 @@ request('POST', [<<"account">>], {UID,Admin,Auth}, Req, State) ->
 		    end,
     case proplists:get_value(<<"action">>, Vals) of
 	<<"authenticate">> ->
-	    Pass = binary_to_list(proplists:get_value(<<"password">>, Vals)),
-	    cloudapi:create_key(Auth, Pass, KeyID, wiggle_storage:get_user(User, pub_key)),
-	    Messages1 = case cloudapi:list_keys(Auth) of 
+	    Pass = proplists:get_value(<<"password">>, Vals),
+	    libsniffle:create_key(Auth, Pass, KeyID, wiggle_storage:get_user(User, pub_key)),
+	    Messages1 = case libsniffle:list_keys(Auth) of 
 			   {ok, _} ->
 			       [[{text, <<"Authentication succeeded.">>}, {class, <<"success">>}]];
 			   _ ->
@@ -238,7 +228,7 @@ request('POST', [<<"account">>], {UID,Admin,Auth}, Req, State) ->
 	    wiggle_storage:set_user(UID, name, NewName),
 	    {ok, User} = wiggle_storage:get_user(UID),
 	    {ok, Auth1} = wiggle_storage:get_auth(UID),
-	    Messages1 = case cloudapi:list_keys(Auth1) of 
+	    Messages1 = case libsniffle:list_keys(Auth1) of 
 			    {ok, _} ->
 				undefined;
 			    _ ->
@@ -300,12 +290,11 @@ request('POST', [<<"account">>], {UID,Admin,Auth}, Req, State) ->
     end;
 
 request('GET', [<<"my">>, <<"machines">>], {_UUID, _Admin, Auth}, Req, State) ->
-    {ok, {Res, _, _}} = cloudapi:list_machines(Auth),
+    {ok, Res} = libsniffle:list_machines(Auth),
     reply_json(Req, Res, State);
 
 request('GET', [<<"my">>, <<"machines">>, UUID], {_UUID, _Admin, Auth}, Req, State) ->
-    LUUID = binary_to_list(UUID),
-    {ok, Res} = cloudapi:get_machine(Auth, LUUID),
+    {ok, Res} = libsniffle:get_machine(Auth, UUID),
     reply_json(Req, Res, State);
 
 request('POST', [<<"my">>, <<"machines">>, UUID], {_UUID, _Admin, Auth}, Req, State) ->    
@@ -315,38 +304,31 @@ request('POST', [<<"my">>, <<"machines">>, UUID], {_UUID, _Admin, Auth}, Req, St
 	{<<"start">>, _} ->
 	    case proplists:get_value(<<"image">>, Vals) of
 		undefined ->
-		    cloudapi:start_machine(Auth, binary_to_list(UUID));
+		    libsniffle:start_machine(Auth, UUID);
 		<<"">> ->
-		    cloudapi:start_machine(Auth, binary_to_list(UUID));
+		    libsniffle:start_machine(Auth, UUID);
 		Image ->
 		    io:format("Image: ~p~n", [Image]),
-		    bark:start_machine(Auth, binary_to_list(UUID), binary_to_list(Image))
+		    libsniffle:start_machine(Auth, UUID, Image)
 	    end;
 	{<<"reboot">>, _} ->
-	    case proplists:get_value(<<"image">>, Vals) of
-		undefined ->
-		    cloudapi:reboot_machine(Auth, binary_to_list(UUID));
-		<<"">> ->
-		    cloudapi:reboot_machine(Auth, binary_to_list(UUID));
-		Image ->
-		    bark:reboot_machine(Auth, binary_to_list(UUID), binary_to_list(Image))
-	    end;
+	    libsniffle:reboot_machine(Auth, UUID);
 	{<<"stop">>, __} ->
-	    cloudapi:stop_machine(Auth, binary_to_list(UUID))
+	    libsniffle:stop_machine(Auth, UUID)
     end,
-    {ok, Res} = cloudapi:get_machine(Auth, binary_to_list(UUID)),
+    {ok, Res} = libsniffle:get_machine(Auth, UUID),
     reply_json(Req1, Res, State);
 
 request('GET', [<<"my">>, <<"datasets">>], {_UUID, _Admin, Auth}, Req, State) ->
-    {ok, Res} = cloudapi:list_datasets(Auth),
+    {ok, Res} = libsniffle:list_datasets(Auth),
     reply_json(Req, Res, State);
 
 request('GET', [<<"my">>, <<"packages">>], {_UUID, _Admin, Auth}, Req, State) ->
-    {ok, Res} = cloudapi:list_packages(Auth),
+    {ok, Res} = libsniffle:list_packages(Auth),
     reply_json(Req, Res, State);
 
 request('GET', [<<"my">>, <<"images">>], {_UUID, _Admin, Auth}, Req, State) ->
-    {ok, Res} = bark:list_images(Auth),
+    {ok, Res} = libsniffle:list_images(Auth),
     reply_json(Req, Res, State);
 
 

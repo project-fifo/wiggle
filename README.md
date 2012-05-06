@@ -32,6 +32,15 @@ Screenshots
 * Admin view: http://s7.directupload.net/file/d/2869/woghq83k_png.htm
 * Account view: http://s1.directupload.net/file/d/2869/kv3neins_png.htm
 
+Installation
+============
+
+* Create a smartOS64 zone.
+* Grab the tarball from the download section.
+* Extract the tarball to /fifo
+* run: ```svcadm import /fifo/libs/wigge-*/priv/wiggle.xml
+
+
 Building
 ========
 

@@ -26,6 +26,7 @@ clean: FORCE
 
 $(DEPS):
 	$(REBAR) get-deps
+	$(REBAR) compile
 
 $(APP_DIR)/ebin/%.app: $(APP_DIR)/src/%.app.src
 	$(REBAR) compile
@@ -34,7 +35,7 @@ $(APP_DIR)/ebin/%.beam: $(APP_DIR)/src/%.erl
 	$(REBAR) compile
 
 shell: all
-	ERL_LIBS="$(ERL_LIBS)" $(ERL) -pa $(PA) -config standalone
+	ERL_LIBS="$(ERL_LIBS)" $(ERL) -pa $(PA) -config standalone -sname $(APP_NAME)
 	[ -f *.beam ] && rm *.beam || true
 	[ -f erl_crash.dump ] && rm erl_crash.dump || true
 
