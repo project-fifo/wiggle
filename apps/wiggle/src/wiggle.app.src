@@ -3,11 +3,8 @@
   {vsn, "0.1.4"},
   {registered, []},
   {applications, [
-		  uuid,
-		  erllibcloudapi,
 		  erlydtl,
 		  cowboy,
-		  lhttpc,
 		  jsx,
                   kernel,
 		  sasl,

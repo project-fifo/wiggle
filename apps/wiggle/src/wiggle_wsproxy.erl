@@ -34,7 +34,7 @@ websocket_init(_Any, Req, []) ->
 		{ok, _} ->
 		    {[<<"machines">>, ID, <<"vnc">>], Req1} = cowboy_http_req:path(Req),
 		    
-		    case bark:get_machine_info(Auth, binary_to_list(ID)) of
+		    case sniffle:get_machine_info(Auth, binary_to_list(ID)) of
 			{ok, Info} ->
 			    VNC = proplists:get_value(<<"vnc">>, Info),
 			    Port = proplists:get_value(<<"port">>, VNC),

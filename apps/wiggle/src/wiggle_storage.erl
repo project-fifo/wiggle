@@ -10,7 +10,6 @@
 -include_lib("stdlib/include/qlc.hrl"). 
 
 
-
 -record(user, {id, name, passwd, priv_key, pub_key, admin}).
 -record(config, {id, value}).
 
@@ -65,7 +64,7 @@ init() ->
 	{aborted,{already_exists,user}} ->
 	    ok;
 	_ ->
-	    set_config(api_host, "http://172.16.0.4")
+	    ok
     end.
 
 %%--------------------------------------------------------------------
@@ -209,10 +208,8 @@ verify(ID, Pass) ->
 %%%===================================================================
 
 user_to_auth(User) ->
-    {ok, Host} = get_config(api_host),
     {ok, KeyID} = application:get_env(wiggle, key_id),
     {User#user.name,
-     Host,
      KeyID,
      User#user.priv_key}.
 
