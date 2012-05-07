@@ -218,4 +218,3 @@ write(Value) ->
 		  mnesia:write(Value)
 	  end,
     mnesia:transaction(Fun).
-

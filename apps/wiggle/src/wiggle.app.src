@@ -9,6 +9,7 @@
                   kernel,
 		  sasl,
 		  alog,
+                  libsniffle,
                   stdlib
                  ]},
   {mod, {wiggle_app, []}},

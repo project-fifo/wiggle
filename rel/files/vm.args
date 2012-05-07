@@ -2,7 +2,7 @@
 -name wiggle@127.0.0.1
 
 ## Cookie for distributed erlang
--setcookie wiggle
+-setcookie fifo
 
 ## Heartbeat management; auto-restarts VM if it dies or becomes unresponsive
 ## (Disabled by default..use with caution!)
