@@ -29,17 +29,17 @@ websocket_init(_Any, Req, []) ->
 	    {ok, Req1} = cowboy_http_req:reply(401, [{'Content-Type', <<"text/html">>}], <<"">>, Req),
 	    {shutdown, Req1};
 
-	{UID, _, Auth}  ->
-	    case wiggle_storage:get_user(UID) of
+	Auth  ->
+	    {[<<"machines">>, ID, <<"vnc">>], Req1} = cowboy_http_req:path(Req),
+	    case libsnarl:allowed(Auth, Auth, [vm, ID, vnc]) of
 		{ok, _} ->
-		    {[<<"machines">>, ID, <<"vnc">>], Req1} = cowboy_http_req:path(Req),
-		    
 		    case sniffle:get_machine_info(Auth, binary_to_list(ID)) of
 			{ok, Info} ->
 			    VNC = proplists:get_value(<<"vnc">>, Info),
 			    Port = proplists:get_value(<<"port">>, VNC),
 			    Host = proplists:get_value(<<"host">>, VNC),
-			    case gen_tcp:connect(binary_to_list(Host), Port, [binary,{nodelay, true}, {packet, 0}]) of
+			    case gen_tcp:connect(binary_to_list(Host), Port, 
+						 [binary,{nodelay, true}, {packet, 0}]) of
 				{ok, Socket} ->
 				    gen_tcp:controlling_process(Socket, self()),
 				    Req2 = cowboy_http_req:compact(Req),

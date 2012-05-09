@@ -24,5 +24,4 @@ start_link() ->
 %% ===================================================================
 
 init([]) ->
-    {ok, {{one_for_one, 5, 10}, [?CHILD(wiggle_server, worker),
-				 ?CHILD(wiggle_keymanager, worker)]}}.
+    {ok, {{one_for_one, 5, 10}, [?CHILD(wiggle_server, worker)]}}.

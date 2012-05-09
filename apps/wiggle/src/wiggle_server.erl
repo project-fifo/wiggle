@@ -55,7 +55,6 @@ start_link() ->
 %% @end
 %%--------------------------------------------------------------------
 init([]) ->
-    wiggle_storage:init(),
     Port = get_env_default(port, 8080),
     Acceptors = get_env_default(acceptors, 2),
     %% {Host, list({Path, Handler, Opts})}
