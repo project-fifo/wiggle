@@ -30,6 +30,8 @@ load() ->
     application:start(erlydtl),
     application:start(nicedecimal),
     application:start(jsx),
+    application:start(libsniffle),
+    application:start(libsnarl),
     application:start(wiggle),
     ok.
 

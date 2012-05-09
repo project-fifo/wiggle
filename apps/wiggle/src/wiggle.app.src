@@ -10,6 +10,7 @@
 		  sasl,
 		  alog,
                   libsniffle,
+		  libsnarl,
                   stdlib
                  ]},
   {mod, {wiggle_app, []}},

@@ -42,15 +42,28 @@ handle(Req, State) ->
 		[<<"login">>] ->
 		    request(Method, Path, undefined, Req3, State);
 		_ ->
+		    io:format("1~n"),
 		    login(Req3, State)
 	    end;
-	{UID, _, _} = Session ->
-	    case wiggle_storage:get_user(UID) of
-		{ok, _} ->
-		    request(Method, Path, Session, Req3, State);
+	Auth ->
+	    case libsnarl:user_cache(Auth, Auth) of
+		{ok, Auth1} ->
+		    case libsnarl:allowed(Auth, Auth1, [services, wiggle]) of
+			true ->
+			    request(Method, Path, Auth1, Req3, State);
+			false ->
+			    {ok, Req4} = wiggle_session:del(Req3),
+			    login(Req4, State)
+		    end;
 		_ ->
-		    {ok, Req4} = wiggle_session:del(Req3),
-		    login(Req4, State)
+		    case libsnarl:allowed(Auth, Auth, [services, wiggle]) of
+			{ok, _} ->
+			    request(Method, Path, Auth, Req3, State);
+			_ ->
+			    {ok, Req4} = wiggle_session:del(Req3),
+			    io:format("3~n"),
+			    login(Req4, State)
+		    end
 	    end
     end.
 
@@ -68,19 +81,17 @@ request('POST', [<<"login">>], undefined, Req, State) ->
     {Vals, Req1} = cowboy_http_req:body_qs(Req),
     User = proplists:get_value(<<"login">>, Vals),
     Pass = proplists:get_value(<<"pass">>, Vals),
-    case wiggle_storage:verify(binary_to_list(User), binary_to_list(Pass)) of
-	{ok, {_, true, _} = Session} ->
-	    {ok, Req2} = wiggle_session:set(Req1, Session),
-	    {ok, Req3} = cowboy_http_req:reply(200, [{<<"Refresh">>, <<"0; url=/admin">>}], <<"">>, Req2),
-	    {ok, Req3, State};
-	{ok, {_, _, Auth} = Session} ->
+    case libsnarl:auth(User, Pass) of
+	{ok, Auth} ->
 	    case libsniffle:list_keys(Auth) of 
 		{ok, _} ->
-		    {ok, Req2} = wiggle_session:set(Req1, Session),
+		    {ok, Req2} = wiggle_session:set(Req1, Auth),
+		    io:format("4:~p~n", [Req2]),
 		    {ok, Req3} = cowboy_http_req:reply(200, [{<<"Refresh">>, <<"0; url=/">>}], <<"">>, Req2),
 		    {ok, Req3, State};		
 		_ ->
-		    {ok, Req2} = wiggle_session:set(Req1, Session),
+		    io:format("5~n"),
+		    {ok, Req2} = wiggle_session:set(Req1, Auth),
 		    {ok, Req3} = cowboy_http_req:reply(200, [{<<"Refresh">>, <<"0; url=/account">>}], <<"">>, Req2),
 		    {ok, Req3, State}
 		end;
@@ -92,7 +103,198 @@ request('POST', [<<"login">>], undefined, Req, State) ->
 	    {ok, Req2, State}
     end;
 
-request('POST', [<<"my">>, <<"machines">>], {_UUID, _Admin, Auth}, Req, State) ->
+request('GET', [<<"logout">>],  _Auth, Req, State) ->
+    {ok, Req1} = wiggle_session:del(Req),
+    {ok, Req2} = cowboy_http_req:reply(200, [{<<"Refresh">>, <<"0; url=/login">>}], <<"">>, Req1),
+    {ok, Req2, State};
+
+request('GET', [], Auth, Req, State) ->
+    case libsnarl:allowed(Auth, Auth, [service, wiggle, modules, home]) of
+	false ->
+	    error_page(403, Req, State);
+	true ->
+	    {ok, Page} = index_dtl:render(page_permissions(Auth)),
+	    {ok, Req2} = cowboy_http_req:reply(200, [], Page, Req),
+	    {ok, Req2, State}
+    end;
+
+request('GET', [<<"analytics">>], Auth, Req, State) ->
+    case libsnarl:allowed(Auth, Auth ,[service, wiggle, modules, analytics]) of
+	false ->
+	    error_page(403, Req, State);
+	true ->
+	    {ok, Page} = analytics_dtl:render(page_permissions(Auth) ++ [{page, "analytics"}]),
+	    {ok, Req2} = cowboy_http_req:reply(200, [], Page, Req),
+	    {ok, Req2, State}
+    end;
+
+request('GET', [<<"system">>], Auth, Req, State) ->
+    case libsnarl:allowed(Auth, Auth, [service, wiggle, modules, system]) of
+	false ->
+	    error_page(403, Req, State);
+	true ->
+	    {ok, Page} = system_dtl:render(page_permissions(Auth) ++ [{page, "system"}]),
+	    {ok, Req2} = cowboy_http_req:reply(200, [], Page, Req),
+	    {ok, Req2, State}
+    end;
+
+request('GET', [<<"about">>], Auth, Req, State) ->
+    case libsnarl:allowed(Auth, Auth, [service, wiggle, modules, about]) of
+	false ->
+	    error_page(403, Req, State);
+	true ->
+	    Versions = proplists:get_value(loaded, application:info()),
+	    {wiggle, _, WiggleV} =lists:keyfind(wiggle, 1, Versions),
+	    {ok, Page} = about_dtl:render(page_permissions(Auth) ++ 
+					      [{versions, [[{name, <<"wiggle">>},
+							    {version, list_to_binary(WiggleV)}]]},
+					   {page, "about"}]),
+	    {ok, Req2} = cowboy_http_req:reply(200, [], Page, Req),
+	    {ok, Req2, State}
+    end;
+
+request('GET', [<<"admin">>], Auth , Req, State) ->
+    case libsnarl:allowed(Auth, Auth, [service, wiggle, modules, admin]) of
+	false ->
+	    error_page(403, Req, State);
+	true ->
+	    {ok, Page} = admin_dtl:render(page_permissions(Auth) ++ [{page, "admin"}]),
+    	    {ok, Req2} = cowboy_http_req:reply(200, [], Page, Req),
+	    {ok, Req2, State}
+    end;
+
+request('POST', [<<"admin">>], Auth , Req, State) ->
+    case libsnarl:allowed(Auth, Auth, [service, wiggle, modules, admin]) of
+	false ->
+	    error_page(403, Req, State);
+	true ->
+	    {Vals, Req1} = cowboy_http_req:body_qs(Req),
+	    case proplists:get_value(<<"action">>, Vals) of
+		<<"pass">> ->
+		    Name = proplists:get_value(<<"name">>, Vals),
+		    Pass = proplists:get_value(<<"pass">>, Vals),
+		    {ok, _UUID} = libsnarl:user_add(Name, Pass)
+	    end,
+	    {ok, Page} = admin_dtl:render(page_permissions(Auth) ++ [{page, "admin"}]),
+	    {ok, Req2} = cowboy_http_req:reply(200, [], Page, Req1),
+	    {ok, Req2, State}
+    end;
+
+request('GET', [<<"account">>], Auth, Req, State) ->
+    case libsnarl:allowed(Auth, Auth, [service, wiggle, modules, account]) of
+	false ->
+	    error_page(403, Req, State);
+	true ->
+	    Messages = case libsniffle:list_keys(Auth) of 
+			   {ok, _} ->
+			       undefined;
+			   _ ->
+			       [[{text, <<"You are not authenticated with the API backend.">>}, {class, <<"error">>}]]
+		       end,
+	    {ok, Page} = account_dtl:render(page_permissions(Auth) ++ [{messages, Messages},
+								       {page, "account"}]),
+	    {ok, Req2} = cowboy_http_req:reply(200, [], Page, Req),
+	    {ok, Req2, State}
+    end;
+
+request('POST', [<<"account">>], Auth, Req, State) ->
+    case libsnarl:allowed(Auth, Auth, [service, wiggle, modules, account]) of
+	false ->
+	    error_page(403, Req, State);
+	true ->
+	    {Vals, Req1} = cowboy_http_req:body_qs(Req),
+	    case proplists:get_value(<<"action">>, Vals) of
+		<<"pass">> ->
+		    case proplists:get_value(<<"old">>, Vals) of
+			Pass when is_binary(Pass) ->
+			    case {proplists:get_value(<<"new">>, Vals), proplists:get_value(<<"confirm">>, Vals)} of				{New, New} ->
+				    {ok, Name} = libsnarl:user_name(Auth, Auth),
+				    case libsnarl:auth(Name, Pass) of
+					{ok, _} ->
+					    case libsnarl:passwd(Auth, Pass) of
+						ok ->
+						    {ok, Page} = account_dtl:render(
+								   page_permissions(Auth) ++ 
+								   [{messages, 
+								     [{text, <<"Password changed.">>},
+								      {class, <<"success">>}]},
+								    {page, "account"}]),
+						    {ok, Req2} = cowboy_http_req:reply(200, [], Page , Req1),
+						    {ok, Req2, State};
+						_ ->
+						    {ok, Page} = account_dtl:render(
+								   page_permissions(Auth) ++ 
+								   [{messages, 
+								     [{text, <<"Permission denied.">>},
+								      {class, <<"error">>}]},
+								    {page, "account"}]),
+						    {ok, Req2} = cowboy_http_req:reply(200, [], Page , Req1),
+					    {ok, Req2, State}
+							
+					    end;
+					_ ->
+					    {ok, Page} = account_dtl:render(
+							   page_permissions(Auth) ++ 
+							   [{messages, 
+							     [{text, <<"Passwords incorrect.">>},
+							      {class, <<"error">>}]},
+							    {page, "account"}]),
+					    {ok, Req2} = cowboy_http_req:reply(200, [], Page , Req1),
+					    {ok, Req2, State}
+				    end;
+				_ ->
+				    {ok, Page} = account_dtl:render(
+						   page_permissions(Auth) ++ 
+						   [{messages, 
+						     [{text, <<"Passwords did not match.">>},
+						      {class, <<"error">>}]},
+						    {page, "account"}]),
+				    {ok, Req2} = cowboy_http_req:reply(200, [], Page , Req1),
+				    {ok, Req2, State}
+			end;
+		_ ->
+		    {ok, Page} = account_dtl:render(
+				   page_permissions(Auth) ++ 
+				   [{messages, 
+				     [{text, <<"Old passwords was empty.">>},
+				      {class, <<"error">>}]},
+				    {page, "account"}]),
+			    {ok, Req2} = cowboy_http_req:reply(200, [], Page , Req1),
+			    {ok, Req2, State}
+		    end
+	    end
+    end;
+
+request('GET', [<<"my">>, <<"machines">>], Auth, Req, State) ->
+    {ok, Res} = libsniffle:list_machines(Auth),
+    reply_json(Req, Res, State);
+
+request('GET', [<<"my">>, <<"machines">>, UUID], Auth, Req, State) ->
+    {ok, Res} = libsniffle:get_machine(Auth, UUID),
+    reply_json(Req, Res, State);
+
+request('POST', [<<"my">>, <<"machines">>, UUID], Auth, Req, State) ->    
+    {Vals, Req1} = cowboy_http_req:body_qs(Req),
+    case cowboy_http_req:qs_val(<<"action">>, Req1) of
+	{<<"start">>, _} ->
+	    case proplists:get_value(<<"image">>, Vals) of
+		undefined ->
+		    libsniffle:start_machine(Auth, UUID);
+		<<"">> ->
+		    libsniffle:start_machine(Auth, UUID);
+		Image ->
+		    io:format("Image: ~p~n", [Image]),
+		    libsniffle:start_machine(Auth, UUID, Image)
+	    end;
+	{<<"reboot">>, _} ->
+	    libsniffle:reboot_machine(Auth, UUID);
+	{<<"stop">>, __} ->
+	    libsniffle:stop_machine(Auth, UUID)
+    end,
+    {ok, Res} = libsniffle:get_machine(Auth, UUID),
+    reply_json(Req1, Res, State);
+
+request('POST', [<<"my">>, <<"machines">>], Auth, Req, State) ->
     {Vals, Req1} = cowboy_http_req:body_qs(Req),
     Name = proplists:get_value(<<"name">>, Vals),
     Package = proplists:get_value(<<"package">>, Vals),
@@ -115,7 +317,7 @@ request('POST', [<<"my">>, <<"machines">>], {_UUID, _Admin, Auth}, Req, State) -
 	    {ok, Req2, State}
     end;
 
-request('DELETE', [<<"my">>, <<"machines">>, VMUUID], {_UUID, _Admin, Auth}, Req, State) ->
+request('DELETE', [<<"my">>, <<"machines">>, VMUUID], Auth, Req, State) ->
     case libsniffle:delete_machine(Auth, VMUUID) of
 	ok ->
 	    {ok, Req1} = cowboy_http_req:reply(200, [], <<"">>, Req),
@@ -126,215 +328,21 @@ request('DELETE', [<<"my">>, <<"machines">>, VMUUID], {_UUID, _Admin, Auth}, Req
 	    {ok, Req1, State}
     end;
 
-
-request('GET', [<<"logout">>], {_UUID, _Admin, _Auth}, Req, State) ->
-    {ok, Req1} = wiggle_session:del(Req),
-    {ok, Req2} = cowboy_http_req:reply(200, [{<<"Refresh">>, <<"0; url=/login">>}], <<"">>, Req1),
-    {ok, Req2, State};
-
-request('GET', [], {_UUID, Admin, _Auth}, Req, State) ->
-    {ok, Page} = index_dtl:render([{admin, Admin}]),
-    {ok, Req2} = cowboy_http_req:reply(200, [], Page, Req),
-    {ok, Req2, State};
-
-request('GET', [<<"analytics">>], {_UUID, Admin, _Auth}, Req, State) ->
-    {ok, Page} = analytics_dtl:render([{admin, Admin},{page, "analytics"}]),
-    {ok, Req2} = cowboy_http_req:reply(200, [], Page, Req),
-    {ok, Req2, State};
-
-request('GET', [<<"system">>], {_UUID, Admin, _Auth}, Req, State) ->
-    {ok, Page} = system_dtl:render([{admin, Admin},{page, "system"}]),
-    {ok, Req2} = cowboy_http_req:reply(200, [], Page, Req),
-    {ok, Req2, State};
-
-request('GET', [<<"about">>], {_UUID, Admin, _Auth}, Req, State) ->
-    Versions = proplists:get_value(loaded, application:info()),
-    {wiggle, _, WiggleV} =lists:keyfind(wiggle, 1, Versions),
-    {ok, Page} = about_dtl:render([{admin, Admin},
-				   {versions, [[{name, <<"wiggle">>},
-						{version, list_to_binary(WiggleV)}]]},
-				   {page, "about"}]),
-    {ok, Req2} = cowboy_http_req:reply(200, [], Page, Req),
-    {ok, Req2, State};
-
-request('GET', [<<"admin">>], {_, true, _Auth} , Req, State) ->
-    {ok, Page} = admin_dtl:render([{admin, true},
-				   {page, "admin"}]),
-    
-    {ok, Req2} = cowboy_http_req:reply(200, [], Page, Req),
-    {ok, Req2, State};
-
-request('POST', [<<"admin">>], {_, true, _Auth} , Req, State) ->
-    {Vals, Req1} = cowboy_http_req:body_qs(Req),
-    case proplists:get_value(<<"action">>, Vals) of
-	<<"pass">> ->
-	    Name =  binary_to_list(proplists:get_value(<<"name">>, Vals)),
-	    Pass =  binary_to_list(proplists:get_value(<<"pass">>, Vals)),
-	    wiggle_storage:add_user(Name, Pass, false)
-    end,
-    {ok, Page} = admin_dtl:render([{admin, true},
-				   {page, "admin"}]),
-    {ok, Req2} = cowboy_http_req:reply(200, [], Page, Req1),
-    {ok, Req2, State};
-
-request('GET', [<<"account">>], {UUID, Admin, Auth}, Req, State) ->
-    {Name, _, _} = Auth,
-    {ok, User} = wiggle_storage:get_user(UUID),
-    Messages = case libsniffle:list_keys(Auth) of 
-			{ok, _} ->
-			    undefined;
-			_ ->
-			    [[{text, <<"You are not authenticated with the API backend.">>}, {class, <<"error">>}]]
-		    end,
-    {ok, Page} = account_dtl:render([{admin, Admin}, 
-				     {name, Name}, 
-				     {messages, Messages},
-				     {priv_key,wiggle_storage:get_user(User, priv_key)},
-				     {pub_key, wiggle_storage:get_user(User, pub_key)},
-				     {page, "account"}]),
-    {ok, Req2} = cowboy_http_req:reply(200, [], Page, Req),
-    {ok, Req2, State};
-
-request('POST', [<<"account">>], {UID,Admin,Auth}, Req, State) ->
-    {Vals, Req1} = cowboy_http_req:body_qs(Req),
-    {Name, KeyID, _} = Auth,
-    {ok, User} = wiggle_storage:get_user(UID),
-    Messages = case libsniffle:list_keys(Auth) of 
-			{ok, _} ->
-			    undefined;
-			_ ->
-			    [[{text, <<"You are not authenticated with the API backend.">>}, {class, <<"error">>}]]
-		    end,
-    case proplists:get_value(<<"action">>, Vals) of
-	<<"authenticate">> ->
-	    Pass = proplists:get_value(<<"password">>, Vals),
-	    libsniffle:create_key(Auth, Pass, KeyID, wiggle_storage:get_user(User, pub_key)),
-	    Messages1 = case libsniffle:list_keys(Auth) of 
-			   {ok, _} ->
-			       [[{text, <<"Authentication succeeded.">>}, {class, <<"success">>}]];
-			   _ ->
-			       [[{text, <<"You are not authenticated with the API backend.">>}, {class, <<"error">>}]]
-		       end,
-	    {ok, Page} = account_dtl:render([{admin, Admin}, 
-					     {name, Name}, 
-					     {messages, Messages1},
-					     {priv_key,wiggle_storage:get_user(User, priv_key)},
-					     {pub_key, wiggle_storage:get_user(User, pub_key)},
-					     {page, "account"}]),
-	    {ok, Req2} = cowboy_http_req:reply(200, [], Page , Req1),
-	    {ok, Req2, State};
-       	<<"name">> ->
-	    NewName =  binary_to_list(proplists:get_value(<<"name">>, Vals)),
-	    wiggle_storage:set_user(UID, name, NewName),
-	    {ok, User} = wiggle_storage:get_user(UID),
-	    {ok, Auth1} = wiggle_storage:get_auth(UID),
-	    Messages1 = case libsniffle:list_keys(Auth1) of 
-			    {ok, _} ->
-				undefined;
-			    _ ->
-				[[{text, <<"You are not authenticated with the API backend.">>}, {class, <<"error">>}]]
-			end,
-	    {ok, Page} = account_dtl:render([{admin, Admin}, 
-					     {name, Name}, 
-					     {messages, Messages1},
-					     {priv_key,wiggle_storage:get_user(User, priv_key)},
-					     {pub_key, wiggle_storage:get_user(User, pub_key)},
-					     {page, "account"}]),
-	    {ok, Session} = wiggle_storage:get_session(UID),
-	    {ok, Req2} = wiggle_session:set(Req1, Session),
-	    {ok, Req3} = cowboy_http_req:reply(200, [], Page , Req2),
-	    {ok, Req3, State};
-	<<"pass">> ->
-	    Pass = wiggle_storage:get_user(User, passwd),
-	    case crypto:sha265(proplists:get_value(<<"old">>, Vals)) of
-		Pass ->
-		    case {proplists:get_value(<<"new">>, Vals), proplists:get_value(<<"confirm">>, Vals)} of
-			{New, New} ->
-			    {ok, Page} = account_dtl:render([{admin, Admin},
-							     {messages, 
-							      [Messages| [{text, <<"Password changed.">>},
-									  {class, <<"success">>}]]},
-							     {name, Name}, 
-							     {priv_key,wiggle_storage:get_user(User, priv_key)},
-							     {pub_key, wiggle_storage:get_user(User, pub_key)},
-							     {page, "account"}]),
-			    {ok, Req2} = cowboy_http_req:reply(200, [], Page , Req1),
-			    wiggle_storage:set_user(UID, passwd, binary_to_list(New)),
-			    {ok, Req2, State};
-			_ ->
-			    {ok, Page} = account_dtl:render([{admin, Admin},
-							     {messages, 
-							      [Messages|
-							       [{text, <<"Passwords did not match.">>},
-								{class, <<"error">>}]]},
-							     {name, Name}, 
-							     {priv_key,wiggle_storage:get_user(User, priv_key)},
-							     {pub_key, wiggle_storage:get_user(User, pub_key)},
-							     {page, "account"}]),
-			    {ok, Req2} = cowboy_http_req:reply(200, [], Page , Req1),
-			    {ok, Req2, State}
-			end;
-		_ ->
-		    {ok, Page} = account_dtl:render([{admin, Admin},
-						     {messages, 
-						      [Messages|
-						       [{text, <<"Old passwords did not match.">>},
-							{class, <<"error">>}]]},
-						     {name, Name}, 
-						     {priv_key,wiggle_storage:get_user(User, priv_key)},
-						     {pub_key, wiggle_storage:get_user(User, pub_key)},
-						     {page, "account"}]),
-		    {ok, Req2} = cowboy_http_req:reply(200, [], Page , Req1),
-		    {ok, Req2, State}
-		end
-    end;
-
-request('GET', [<<"my">>, <<"machines">>], {_UUID, _Admin, Auth}, Req, State) ->
-    {ok, Res} = libsniffle:list_machines(Auth),
-    reply_json(Req, Res, State);
-
-request('GET', [<<"my">>, <<"machines">>, UUID], {_UUID, _Admin, Auth}, Req, State) ->
-    {ok, Res} = libsniffle:get_machine(Auth, UUID),
-    reply_json(Req, Res, State);
-
-request('POST', [<<"my">>, <<"machines">>, UUID], {_UUID, _Admin, Auth}, Req, State) ->    
-    {Vals, Req1} = cowboy_http_req:body_qs(Req),
-    io:format("~p~n", [Vals]),
-    case cowboy_http_req:qs_val(<<"action">>, Req1) of
-	{<<"start">>, _} ->
-	    case proplists:get_value(<<"image">>, Vals) of
-		undefined ->
-		    libsniffle:start_machine(Auth, UUID);
-		<<"">> ->
-		    libsniffle:start_machine(Auth, UUID);
-		Image ->
-		    io:format("Image: ~p~n", [Image]),
-		    libsniffle:start_machine(Auth, UUID, Image)
-	    end;
-	{<<"reboot">>, _} ->
-	    libsniffle:reboot_machine(Auth, UUID);
-	{<<"stop">>, __} ->
-	    libsniffle:stop_machine(Auth, UUID)
-    end,
-    {ok, Res} = libsniffle:get_machine(Auth, UUID),
-    reply_json(Req1, Res, State);
-
-request('GET', [<<"my">>, <<"datasets">>], {_UUID, _Admin, Auth}, Req, State) ->
+request('GET', [<<"my">>, <<"datasets">>], Auth, Req, State) ->
     {ok, Res} = libsniffle:list_datasets(Auth),
     reply_json(Req, Res, State);
 
-request('GET', [<<"my">>, <<"packages">>], {_UUID, _Admin, Auth}, Req, State) ->
+request('GET', [<<"my">>, <<"packages">>], Auth, Req, State) ->
     {ok, Res} = libsniffle:list_packages(Auth),
     reply_json(Req, Res, State);
 
-request('GET', [<<"my">>, <<"images">>], {_UUID, _Admin, Auth}, Req, State) ->
+request('GET', [<<"my">>, <<"images">>], Auth, Req, State) ->
     {ok, Res} = libsniffle:list_images(Auth),
     reply_json(Req, Res, State);
 
 
-request(_, _Path, {_UUID, _Admin, _Auth}, Req, State) ->
-    {ok, Req2} = cowboy_http_req:reply(404, [], <<"not found!">>, Req),
-    {ok, Req2, State}.
+request(_, _Path, _Auth, Req, State) ->
+    error_page(404, Req, State).
 
 %%--------------------------------------------------------------------
 %% @doc
@@ -354,3 +362,24 @@ reply_json(Req, Data, State) ->
 				       [{<<"Content-Type">>, <<"application/json">>}], 
 				       jsx:to_json(Data), Req),
     {ok, Req2, State}.
+
+
+page_permissions(Auth) ->
+    [{<<"admin">>, libsnarl:allowed(Auth, Auth, [services, wiggle, module, home])},
+     {<<"admin">>, libsnarl:allowed(Auth, Auth, [services, wiggle, module, admin])},
+     {<<"admin">>, libsnarl:allowed(Auth, Auth, [services, wiggle, module, analytics])},
+     {<<"admin">>, libsnarl:allowed(Auth, Auth, [services, wiggle, module, system])},
+     {<<"admin">>, libsnarl:allowed(Auth, Auth, [services, wiggle, module, about])},
+     {<<"admin">>, libsnarl:allowed(Auth, Auth, [services, wiggle, module, account])}].
+
+error_page(ErrorCode, Req, State) ->
+    {ok, Page} = case ErrorCode of 
+		     404 ->
+			 error404_dtl:render([]);
+		     403 ->
+			 error403_dtl:render([]);
+		     _ ->
+			 {ok, <<"">>}
+		 end,
+    {ok, Req1} = cowboy_http_req:reply(ErrorCode, [], Page, Req),
+    {ok, Req1, State}.
