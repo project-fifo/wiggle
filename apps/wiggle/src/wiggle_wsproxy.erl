@@ -32,8 +32,8 @@ websocket_init(_Any, Req, []) ->
 	Auth  ->
 	    {[<<"machines">>, ID, <<"vnc">>], Req1} = cowboy_http_req:path(Req),
 	    case libsnarl:allowed(Auth, Auth, [vm, ID, vnc]) of
-		{ok, _} ->
-		    case sniffle:get_machine_info(Auth, binary_to_list(ID)) of
+		true ->
+		    case libsniffle:get_machine_info(Auth, ID) of
 			{ok, Info} ->
 			    VNC = proplists:get_value(<<"vnc">>, Info),
 			    Port = proplists:get_value(<<"port">>, VNC),
@@ -48,15 +48,15 @@ websocket_init(_Any, Req, []) ->
 				    Req2 = cowboy_http_req:compact(Req),
 				    {ok, Req2, undefined, hibernate}
 			    end;
-			_ ->
+			E ->
 			    {ok, Req2} = cowboy_http_req:reply(505, [{'Content-Type', <<"text/html">>}],
-							       <<"">>, Req1),
+							       list_to_binary(io_lib:format("~p", E)), Req1),
 			    {shutdown, Req2}
 		    end;
-		_ ->
-		    {ok, Req1} = cowboy_http_req:reply(401, [{'Content-Type', <<"text/html">>}],
+		false ->
+		    {ok, Req2} = cowboy_http_req:reply(401, [{'Content-Type', <<"text/html">>}],
 						       <<"">>, Req),
-		    {shutdown, Req1}
+		    {shutdown, Req2}
 	    end
     end.
 
