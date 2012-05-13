@@ -66,7 +66,7 @@ handle(Req, State) ->
 		    end
 	    end
     catch
-	_T ->
+	_T:_E ->
 	    {ok, Req5} = wiggle_session:del(Req3),
 	    login(Req5, State)
     end.
