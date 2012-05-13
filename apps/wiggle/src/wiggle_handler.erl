@@ -36,35 +36,41 @@ init({_Any, http}, Req, []) ->
 handle(Req, State) ->
     {Path, Req2} = cowboy_http_req:path(Req),
     {Method, Req3} = cowboy_http_req:method(Req2),
-    case wiggle_session:get(Req3) of
-	undefined ->
-	    case Path of
-		[<<"login">>] ->
-		    request(Method, Path, undefined, Req3, State);
-		_ ->
-		    io:format("1~n"),
-		    login(Req3, State)
-	    end;
-	Auth ->
-	    case libsnarl:user_cache(Auth, Auth) of
-		{ok, Auth1} ->
-		    case libsnarl:allowed(Auth, Auth1, [services, wiggle]) of
-			true ->
-			    request(Method, Path, Auth1, Req3, State);
-			false ->
-			    {ok, Req4} = wiggle_session:del(Req3),
-			    login(Req4, State)
-		    end;
-		_ ->
-		    case libsnarl:allowed(Auth, Auth, [services, wiggle]) of
-			{ok, _} ->
-			    request(Method, Path, Auth, Req3, State);
-			_ ->
-			    {ok, Req4} = wiggle_session:del(Req3),
-			    io:format("3~n"),
-			    login(Req4, State)
-		    end
-	    end
+    try
+	case wiggle_session:get(Req3) of
+	    undefined ->
+		case Path of
+		    [<<"login">>] ->
+			request(Method, Path, undefined, Req3, State);
+		    _ ->
+			io:format("1~n"),
+			login(Req3, State)
+		end;
+	    Auth ->
+		case libsnarl:user_cache(Auth, Auth) of
+		    {ok, Auth1} ->
+			case libsnarl:allowed(Auth, Auth1, [services, wiggle]) of
+			    true ->
+				request(Method, Path, Auth1, Req3, State);
+			    false ->
+				{ok, Req4} = wiggle_session:del(Req3),
+				login(Req4, State)
+			end;
+		    _ ->
+			case libsnarl:allowed(Auth, Auth, [services, wiggle]) of
+			    {ok, _} ->
+				request(Method, Path, Auth, Req3, State);
+			    _ ->
+				{ok, Req4} = wiggle_session:del(Req3),
+				io:format("3~n"),
+				login(Req4, State)
+			end
+		end
+	end
+    catch
+	_E->
+	    {ok, Req5} = wiggle_session:del(Req3),
+	    login(Req5, State)
     end.
 
 login(Req, State) ->
