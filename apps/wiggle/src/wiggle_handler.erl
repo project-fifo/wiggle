@@ -310,7 +310,6 @@ request('POST', [<<"my">>, <<"machines">>], Auth, Req, State) ->
 	       _ ->
 		   [{<<"name">>, Name} | Obj]
 	   end,
-
     case libsniffle:create_machine(Auth, Obj1) of
 	{ok, Res} ->
 	    io:format("~p~n", [Res]),
@@ -369,12 +368,12 @@ reply_json(Req, Data, State) ->
 
 
 page_permissions(Auth) ->
-    [{<<"admin">>, libsnarl:allowed(Auth, Auth, [services, wiggle, module, home])},
+    [{<<"home">>, libsnarl:allowed(Auth, Auth, [services, wiggle, module, home])},
      {<<"admin">>, libsnarl:allowed(Auth, Auth, [services, wiggle, module, admin])},
-     {<<"admin">>, libsnarl:allowed(Auth, Auth, [services, wiggle, module, analytics])},
-     {<<"admin">>, libsnarl:allowed(Auth, Auth, [services, wiggle, module, system])},
-     {<<"admin">>, libsnarl:allowed(Auth, Auth, [services, wiggle, module, about])},
-     {<<"admin">>, libsnarl:allowed(Auth, Auth, [services, wiggle, module, account])}].
+     {<<"analytics">>, libsnarl:allowed(Auth, Auth, [services, wiggle, module, analytics])},
+     {<<"system">>, libsnarl:allowed(Auth, Auth, [services, wiggle, module, system])},
+     {<<"about">>, libsnarl:allowed(Auth, Auth, [services, wiggle, module, about])},
+     {<<"account">>, libsnarl:allowed(Auth, Auth, [services, wiggle, module, account])}].
 
 error_page(ErrorCode, Req, State) ->
     {ok, Page} = case ErrorCode of 

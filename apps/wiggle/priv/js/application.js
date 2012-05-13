@@ -141,6 +141,47 @@ var ui = new Object();
     function show_machine(data) {
 	update_machine(data);
     };
+    function click_package(e) {
+	if (id) {
+	    $.getJSON("/my/packages/"+id, function (package) {
+		show_package(package)
+	    })
+	};
+    }
+    function show_package(data) {
+	center.empty();
+	center.append(ich.package(data));
+	$('#packageForm').validate({
+	    rules: {
+		packageName: {
+	            minlength: 5,
+	            required: true
+		},
+		packageRam: {
+	            required: true,
+		    digits: true
+		},
+		packageDisk: {
+	            required: true,
+		    digits: true
+		},
+		packageCPUs: {
+	            required: true,
+		    digits: true
+		}
+	    },
+	    highlight: function(label) {
+	    	$(label).closest('.control-group').addClass('error');
+	    },
+	    success: function(label) {
+	    	label
+	    	    .text('OK!').addClass('valid')
+	    	    .closest('.control-group').addClass('success');
+	    }
+	}).action(function(f) {
+	    alert(JSON.stringify(f));
+	}).data("id", data.id);
+    }
     function activate_machine(id) {
 	var navItem = $("#" + id + "-menu");
 	if(!navItem.hasClass("active")) {
@@ -208,6 +249,10 @@ var ui = new Object();
     };
 
 
+    function view_add_pkg() {
+	show_package({});
+    };
+
     function view_add_vm() {
 	center.empty();
 	center.append(machine_form);
@@ -242,13 +287,20 @@ var ui = new Object();
     };
     ui.init = function () {
 	get_machines();
-	get_other("packages");
+	get_other("packages", false,
+		 function(data) {
+		     show_package
+		 });
 	get_other("datasets",
 		  function (data) {
 		      return data.name +
 			  " v" + 
 			  data.urn.split(":")[3];
 		  });
+
+	$("#packages-nav-add").click(view_add_pkg);
+	$("#pacakges-nav-del").click(delete_pkg);
+	
 	$("#machines-nav-add").click(view_add_vm);
 	$("#machines-nav-del").click(delete_vm);
 	ui.refresh = setInterval(function () {
@@ -283,6 +335,7 @@ var ui = new Object();
     
     load_template("machine_details");
     load_template("details");
+    load_template("package");
     load_template("machine_list_item");
     load_template("other_list_item");
 

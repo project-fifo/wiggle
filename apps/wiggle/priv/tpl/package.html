@@ -1,0 +1,27 @@
+<form class="form-horizontal" id="packageForm">
+  <div class="control-group">
+    <label class="control-label" for="packageName">Name</label>
+    <input type="text" value="{{name}}" id="packageName"/>
+  </div>
+  <div class="control-group">
+    <label class="control-label" for="packageRam">Memroy</label>
+    <div class="input-append">
+      <input type="text" value="{{disk}}" id="packageRam"/>
+      <span class="add-on">MB</span>
+    </div>
+    <span class="help-inline">For KVM machines 1GB will be added to this.</span>
+  </div>
+  <div class="control-group">
+    <label class="control-label" for="packageDisk">Disk</label>
+    <div class="input-append">
+      <input type="text" value="{{disk}}" id="packageDisk"/>
+      <span class="add-on">GB</span>
+    </div>
+    <span class="help-inline">For KVM machines 10GB quota for the zone will be added.</span>
+  </div>
+  <div class="control-group">
+    <label class="control-label" for="packageCPUs">vCPUS</label>
+    <input type="text" value="{{cpus}}" id="packageCPUs"/>
+    <span class="help-inline">Only relevant for KVM VM's.</span>
+  </div>
+</form>
