@@ -1,4 +1,5 @@
 gproc_dist_*
+standalone.config
 ebin
 db
 deps
