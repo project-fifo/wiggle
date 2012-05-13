@@ -252,6 +252,9 @@ var ui = new Object();
     function view_add_pkg() {
 	show_package({});
     };
+    function delete_pkg() {
+	alert("pew pew pew");
+    };
 
     function view_add_vm() {
 	center.empty();
