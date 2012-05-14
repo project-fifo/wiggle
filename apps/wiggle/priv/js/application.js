@@ -302,7 +302,7 @@ var ui = new Object();
 		  });
 
 	$("#packages-nav-add").click(view_add_pkg);
-	$("#pacakges-nav-del").click(delete_pkg);
+	$("#packages-nav-del").click(delete_pkg);
 	
 	$("#machines-nav-add").click(view_add_vm);
 	$("#machines-nav-del").click(delete_vm);
@@ -343,5 +343,3 @@ var ui = new Object();
     load_template("other_list_item");
 
 }(window.jQuery);
-
-

@@ -23,7 +23,7 @@
       </li>
       <li class="nav-pills">
 	<div class='btn-group' style='float: right'>
-	  <button class='btn' id='pacakges-nav-add'>+</button>
+	  <button class='btn' id='packages-nav-add'>+</button>
 	  <button class='btn' id='packages-nav-del'>-</button>
 	</div>	
       </li>
