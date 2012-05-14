@@ -141,51 +141,21 @@ var ui = new Object();
     function show_machine(data) {
 	update_machine(data);
     };
-    function click_package(e) {
-	if (id) {
-	    $.getJSON("/my/packages/"+id, function (package) {
-		show_package(package)
-	    })
+    function click_package(e, i) {
+	var obj = $(this).data("obj");
+	if (obj) {
+	    show_package(obj);
 	};
     }
     function show_package(data) {
 	center.empty();
 	center.append(ich.package(data));
-	$('#packageForm').validate({
-	    rules: {
-		packageName: {
-	            minlength: 5,
-	            required: true
-		},
-		packageRam: {
-	            required: true,
-		    digits: true
-		},
-		packageDisk: {
-	            required: true,
-		    digits: true
-		},
-		packageCPUs: {
-	            required: true,
-		    digits: true
-		}
-	    },
-	    highlight: function(label) {
-	    	$(label).closest('.control-group').addClass('error');
-	    },
-	    unhighlight: function (element, errorClass, validClass) { 
-                $(element).closest('.control-group').removeClass("error"); 
-	    }, 
-	    success: function(label) {
-	    	label.
-		    addClass('valid').
-	    	    closest('.control-group').
-		    addClass('success');
-	    }
-	}).submit(function(f) {
-	    alert(JSON.stringify(f));
-	    return false;
-	}).data("id", data.id);
+	$('#packageForm').
+	    submit(function(f) {
+		alert("save");
+		return false;
+	    }).
+	    data("id", data.id);
     }
     function activate_machine(id) {
 	var navItem = $("#" + id + "-menu");
@@ -244,7 +214,7 @@ var ui = new Object();
 	    for (var i = 0; i < data.length; i++) {
 		var li = ich.other_list_item({"id": data[i].id,
 					      "name": f(data[i])}).
-		    data("id", data[i].id);
+		    data("obj", data[i]);
 		if (click_fn) {
 		    li.click(click_fn);
 			  }
@@ -295,10 +265,7 @@ var ui = new Object();
     };
     ui.init = function () {
 	get_machines();
-	get_other("packages", false,
-		 function(data) {
-		     show_package
-		 });
+	get_other("packages", false, click_package);
 	get_other("datasets",
 		  function (data) {
 		      return data.name +
@@ -346,5 +313,4 @@ var ui = new Object();
     load_template("package");
     load_template("machine_list_item");
     load_template("other_list_item");
-
 }(window.jQuery);

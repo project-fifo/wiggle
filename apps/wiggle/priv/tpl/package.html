@@ -9,6 +9,7 @@
       <input type="text" value="{{disk}}" id="packageRam" name="packageRam"/>
       <span class="add-on">MB</span>
     </div>
+    <b><span class="error"></span></b>
     <span class="help-inline">For KVM machines 1GB will be added to this.</span>
   </div>
   <div class="control-group">
@@ -23,5 +24,8 @@
     <label class="control-label" for="packageCPUs">vCPUS</label>
     <input type="text" value="{{cpus}}" id="packageCPUs" name="packageCPUs"/>
     <span class="help-inline">Only relevant for KVM VM's.</span>
+  </div>
+  <div class="control-group">
+    <button class="submit" value="save">Save</button>
   </div>
 </form>
