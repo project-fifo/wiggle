@@ -173,13 +173,18 @@ var ui = new Object();
 	    highlight: function(label) {
 	    	$(label).closest('.control-group').addClass('error');
 	    },
+	    unhighlight: function (element, errorClass, validClass) { 
+                $(element).closest('.control-group').removeClass("error"); 
+	    }, 
+	    errorElement: 'span' ,
 	    success: function(label) {
 	    	label
 	    	    .text('OK!').addClass('valid')
 	    	    .closest('.control-group').addClass('success');
 	    }
-	}).action(function(f) {
+	}).submit(function(f) {
 	    alert(JSON.stringify(f));
+	    return false;
 	}).data("id", data.id);
     }
     function activate_machine(id) {
