@@ -3,14 +3,6 @@ var ui = new Object();
 !function ($) {
     var rfb;
     var center=$("#center");
-    
-    var machine_form = $(
-	"<div>" +
-	    "<label>Name</label><input type='text' id='machine-new-name'/></br>" +
-	    "<label>Package</label><select id='machine-new-package' name='package'/></br>" +
-	    "<label>Dataset</label><select id='machine-new-dataset' name='dataset'/></br>" +
-	    "<button class='btn btn-success' id='machine-new-btn'>Create</button>" +
-	"</div>");
 
     function delete_vm() {
 	var id=$(".machine.active").data("id");
@@ -41,6 +33,14 @@ var ui = new Object();
 	    append(go);
 	modal.modal();	
     }
+
+    function activate(navItem) {
+	if(!navItem.hasClass("active")) {
+	    $("#navlist .active").removeClass("active");
+	    navItem.addClass("active");
+	}
+    }
+    
     function extend_machine_data(data) {
 	if (data.type == "kvm")
 	    data.kvm = true;
@@ -138,10 +138,13 @@ var ui = new Object();
 		});;
 	}
     }
-    function show_machine(data) {
+    function show_machine(data) {	
 	update_machine(data);
+	
     };
     function click_package(e, i) {
+	var id = $(this).data("id");
+	
 	var obj = $(this).data("obj");
 	if (obj) {
 	    show_package(obj);
@@ -150,6 +153,8 @@ var ui = new Object();
     function show_package(data) {
 	center.empty();
 	center.append(ich.package(data));
+	var navItem = $("#" + data.name + "-menu");
+	activate(navItem);
 	$('#packageForm').
 	    submit(function(f) {
 		var obj = {
@@ -164,18 +169,15 @@ var ui = new Object();
 		    dataType: 'json',
 		    data: obj,
 		    success: function (pkg) {
-			alert(JSON.stringify(pkg));
+			activate(add_other("packages", pkg, pkg.name, pkg.name, click_package));
 		    }});
 		return false;
-		}).
+	    }).
 	    data("id", data.id);
     }
     function activate_machine(id) {
 	var navItem = $("#" + id + "-menu");
-	if(!navItem.hasClass("active")) {
-	    $("#navlist .active").removeClass("active");
-	    navItem.addClass("active");
-	}
+	activate(navItem);
 	get_machine(id,show_machine);
 
     };
@@ -219,19 +221,34 @@ var ui = new Object();
 	});
     };
 
+    function add_other(kind, obj, id, name, click_fn) {
+	var parent = $("#" + kind);
+	var old = $("#" + id + "-menu");
+	var li = ich.other_list_item({"id": id,
+				      "name": name,
+				      "type": kind}).
+	    data("obj", obj).
+	    data("id", id);
+		if (click_fn) {
+	    li.click(click_fn);
+	}
+	if (old.length) {
+	    li.attr("class", old.attr("class"));
+	    old.replaceWith(li);
+	} else {
+	    parent.after(li);
+	}
+	return li;
+	
+    };
     
-    function get_other(name, fmtr, click_fn) {
-	var parent = $("#" + name);
+    function get_other(name, fmtr, idkey, click_fn) {
 	var f = fmtr || function (data) { return data.name; };
+	var k = idkey || "id";
 	$.getJSON("/my/" + name, function (data) {
 	    for (var i = 0; i < data.length; i++) {
-		var li = ich.other_list_item({"id": data[i].id,
-					      "name": f(data[i])}).
-		    data("obj", data[i]);
-		if (click_fn) {
-		    li.click(click_fn);
-			  }
-		parent.after(li);
+		var obj = data[i];
+		add_other(name, obj, obj[k], f(obj), click_fn)
 	    };
 	});
     };
@@ -240,13 +257,27 @@ var ui = new Object();
     function view_add_pkg() {
 	show_package({});
     };
+
     function delete_pkg() {
-	alert("pew pew pew");
+	var pkg = $(".packages.active");
+	x = pkg;
+	if (pkg.length) {
+	    var id = pkg.data("id");
+	    $.ajax({
+		url: "/my/packages/"+id,
+		type: 'DELETE',
+		dataType: 'json',
+		success: function () {
+		    $("#" + id + "-menu").remove();
+		    show_package($(".packages").first().data("obj"));
+		}
+	    });
+	}
     };
 
     function view_add_vm() {
 	center.empty();
-	center.append(machine_form);
+	center.append(ich.machine_form());
 	var datasets = $("#machine-new-dataset");
 	datasets.empty();
 	$.getJSON("/my/datasets", function (data) {
@@ -278,7 +309,7 @@ var ui = new Object();
     };
     ui.init = function () {
 	get_machines();
-	get_other("packages", false, click_package);
+	get_other("packages", false, "name", click_package);
 	get_other("datasets",
 		  function (data) {
 		      return data.name +
@@ -311,19 +342,16 @@ var ui = new Object();
 	    }
 	});
     }
-    function load_partial(id) {
-	$.ajax({
-	    url: "/tpl/" + id + ".html",
-	    dataType: 'text',
-	    success: function (data) {
-		ich.addPartial(id, data);
-	    }
-	});
+    function load_templtes(tpls) {
+	for (var i = 0; i < tpls.length; i++) {
+	    load_template(tpls[i]);
+	}
     }
     
-    load_template("machine_details");
-    load_template("details");
-    load_template("package");
-    load_template("machine_list_item");
-    load_template("other_list_item");
+    load_templtes(["machine_details",
+		   "details",
+		   "package",
+		   "machine_list_item",
+		   "other_list_item",
+		   "machine_form"]);
 }(window.jQuery);
