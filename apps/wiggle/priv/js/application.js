@@ -152,9 +152,22 @@ var ui = new Object();
 	center.append(ich.package(data));
 	$('#packageForm').
 	    submit(function(f) {
-		alert("save");
+		var obj = {
+		    name: $("#packageName").val(),
+		    memory: $("#packageRam").val(),
+		    disk: $("#packageDisk").val(),
+		    swap: $("#packageSwap").val()
+		};
+		$.ajax({
+		    url: "/my/packages",
+		    type: 'POST',
+		    dataType: 'json',
+		    data: obj,
+		    success: function (pkg) {
+			alert(JSON.stringify(pkg));
+		    }});
 		return false;
-	    }).
+		}).
 	    data("id", data.id);
     }
     function activate_machine(id) {

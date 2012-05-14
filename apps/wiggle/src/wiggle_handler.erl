@@ -339,6 +339,22 @@ request('GET', [<<"my">>, <<"packages">>], Auth, Req, State) ->
     {ok, Res} = libsniffle:list_packages(Auth),
     reply_json(Req, Res, State);
 
+request('POST', [<<"my">>, <<"packages">>], Auth, Req, State) ->
+    {Vals, Req1} = cowboy_http_req:body_qs(Req),
+    Name = proplists:get_value(<<"name">>, Vals),
+    Memory = proplists:get_value(<<"memory">>, Vals),
+    Disk = proplists:get_value(<<"disk">>, Vals),
+    Swap = proplists:get_value(<<"swap">>, Vals),
+
+    case libsniffle:create_package(Auth, Name, Disk, Memory, Swap) of
+	{ok, Res} ->
+	    io:format("ok: ~p/~p/~p/~p~n", [Name, Memory, Disk, Swap]),
+	    reply_json(Req1, Res, State);
+	_ ->
+	    io:format("er: ~p/~p/~p/~p~n", [Name, Memory, Disk, Swap]),
+	    cowboy_http_req:reply(500, [], <<"error">>, Req1)
+    end;
+
 request('GET', [<<"my">>, <<"images">>], Auth, Req, State) ->
     {ok, Res} = libsniffle:list_images(Auth),
     reply_json(Req, Res, State);
