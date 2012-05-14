@@ -310,7 +310,7 @@ request('POST', [<<"my">>, <<"machines">>], Auth, Req, State) ->
 	       _ ->
 		   [{<<"name">>, Name} | Obj]
 	   end,
-    case libsniffle:create_machine(Auth, Obj1) of
+    case libsniffle:create_machine(Auth, Name, Package, Dataset, [], []) of
 	{ok, Res} ->
 	    io:format("~p~n", [Res]),
 	    reply_json(Req1, Res, State);
