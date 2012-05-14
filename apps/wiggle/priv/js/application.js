@@ -176,11 +176,11 @@ var ui = new Object();
 	    unhighlight: function (element, errorClass, validClass) { 
                 $(element).closest('.control-group').removeClass("error"); 
 	    }, 
-	    errorElement: 'span' ,
 	    success: function(label) {
-	    	label
-	    	    .text('OK!').addClass('valid')
-	    	    .closest('.control-group').addClass('success');
+	    	label.
+		    addClass('valid').
+	    	    closest('.control-group').
+		    addClass('success');
 	    }
 	}).submit(function(f) {
 	    alert(JSON.stringify(f));
