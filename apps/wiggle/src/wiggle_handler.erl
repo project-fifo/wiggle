@@ -277,7 +277,7 @@ request('GET', [<<"my">>, <<"machines">>, UUID], Auth, Req, State) ->
     {ok, Res} = libsniffle:get_machine(Auth, UUID),
     reply_json(Req, Res, State);
 
-request('POST', [<<"my">>, <<"machines">>, UUID], Auth, Req, State) ->    
+request('POST', [<<"my">>, <<"machines">>, UUID], Auth, Req, State) ->
     {Vals, Req1} = cowboy_http_req:body_qs(Req),
     case cowboy_http_req:qs_val(<<"action">>, Req1) of
 	{<<"start">>, _} ->
@@ -312,10 +312,10 @@ request('POST', [<<"my">>, <<"machines">>], Auth, Req, State) ->
 	   end,
     case libsniffle:create_machine(Auth, Name, Package, Dataset, [], []) of
 	{ok, Res} ->
-	    io:format("~p~n", [Res]),
+	    io:format("create-ok: ~p~n", [Res]),
 	    reply_json(Req1, Res, State);
 	Error ->
-	    io:format("~p~n", [Error]),
+	    io:format("create-err: ~p~n", [Error]),
 	    {ok, Req2} = cowboy_http_req:reply(500, [], <<"error">>, Req1),
 	    {ok, Req2, State}
     end;
