@@ -62,6 +62,7 @@ init([]) ->
 		       ?STATIC(<<"css">>),
 		       ?STATIC(<<"img">>),
 		       ?STATIC(<<"tpl">>),
+		       {[<<"events">>], wiggle_events, []},
 		       {[<<"machines">>, '...', <<"vnc">>], wiggle_wsproxy, []},
 		       {'_', wiggle_handler, []}]}],
     %% Name, NbAcceptors, Transport, TransOpts, Protocol, ProtoOpts

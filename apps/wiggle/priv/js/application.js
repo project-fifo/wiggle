@@ -1,5 +1,5 @@
 var ui = new Object();
-
+var ws;
 !function ($) {
     var rfb;
     var center=$("#center");
@@ -308,6 +308,7 @@ var ui = new Object();
     };
     ui.init = function () {
 	get_machines();
+	init_event_socket();
 	get_other("packages", false, "name", click_package);
 	get_other("datasets",
 		  function (data) {
@@ -346,6 +347,31 @@ var ui = new Object();
 	    load_template(tpls[i]);
 	}
     }
+    
+    function init_event_socket(){
+	if ("MozWebSocket" in window) {
+	    WebSocket = MozWebSocket;
+	}
+	if ("WebSocket" in window) {
+	    // browser supports websockets
+	    ws = new WebSocket("ws://localhost:8080/events");
+	    ws.onopen = function() {
+		// websocket is connected
+	    };
+	    ws.onmessage = function (evt) {
+		var receivedMsg = evt.data;
+		JSON.parse(receivedMsg);
+	    };
+	    ws.onclose = function() {
+		// websocket was closed
+		alert("websocket was closed");
+	    };
+	} else {
+	    // browser does not support websockets
+	    addStatus("sorry, your browser does not support websockets.");
+	}
+    }
+
     
     load_templtes(["machine_details",
 		   "details",
