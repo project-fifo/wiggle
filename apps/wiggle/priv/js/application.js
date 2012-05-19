@@ -64,10 +64,7 @@ var ui = new Object();
 	    },
 	    success: function (vm) {
 		if (vm) {
-		    var new_vm = {};
-		    new_vm.name = vm.zonename;
-		    new_vm.id = vm.uuid;
-		    add_machine(new_vm, true);
+		    add_machine(vm, true);
 		}
 	    }
 	});
