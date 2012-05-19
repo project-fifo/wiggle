@@ -89,10 +89,12 @@ var ui = new Object();
 	var c = center;
 	c.empty();
 	var new_ips = "";
-	for (var i = 0; i < data.ips.length; i++) {
-	    if (i > 0 )
-		new_ips = new_ips + ", ";
-	    new_ips = new_ips + data.ips[i];
+	if (data.ips) {
+	    for (var i = 0; i < data.ips.length; i++) {
+		if (i > 0 )
+		    new_ips = new_ips + ", ";
+		new_ips = new_ips + data.ips[i];
+	    }
 	}
 	data.ips = new_ips;
 	if (data.ips == "") 
