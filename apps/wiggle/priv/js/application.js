@@ -1,8 +1,17 @@
 var ui = new Object();
-var ws;
+
 !function ($) {
+    var ws;
     var rfb;
     var center=$("#center");
+
+    function watch_machine(id) {
+	ws.send(JSON.stringify({"action": "subscribe", "uuid": id}));
+    };
+    function unwatch_machine(id) {
+	ws.send(JSON.stringify({"action": "unsubscribe", "uuid": id}));
+    };
+
 
     function delete_vm() {
 	var id=$(".machine.active").data("id");
@@ -24,6 +33,7 @@ var ws;
 		type: 'DELETE',
 		dataType: 'json',
 		success: function () {
+		    unwatch_machine(id);g
 		    $("#" + id + "-menu").remove();
 		    activate_machine($(".machine").first().data("id"));
 		}
@@ -214,9 +224,6 @@ var ws;
 	    s.addClass("badge-error");
 	else
 	    s.addClass("badge-warning");
-    };
-    function watch_machine(id) {
-	ws.send(JSON.stringify({"action": "subscribe", "uuid": id}));
     };
 
     function add_machine(data, show) {

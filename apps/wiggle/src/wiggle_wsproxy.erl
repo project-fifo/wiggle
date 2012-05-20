@@ -35,9 +35,9 @@ websocket_init(_Any, Req, []) ->
 		true ->
 		    case libsniffle:get_machine_info(Auth, ID) of
 			{ok, Info} ->
-			    VNC = proplists:get_value(<<"vnc">>, Info),
-			    Port = proplists:get_value(<<"port">>, VNC),
-			    Host = proplists:get_value(<<"host">>, VNC),
+			    VNC = proplists:get_value(vnc, Info),
+			    Port = proplists:get_value(port, VNC),
+			    Host = proplists:get_value(host, VNC),
 			    case gen_tcp:connect(binary_to_list(Host), Port, 
 						 [binary,{nodelay, true}, {packet, 0}]) of
 				{ok, Socket} ->
