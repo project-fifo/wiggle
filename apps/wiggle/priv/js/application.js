@@ -353,8 +353,13 @@ var ws;
 	    WebSocket = MozWebSocket;
 	}
 	if ("WebSocket" in window) {
+            host = window.location.hostname;
+            port = window.location.port;
+	                if (port == "")
+              port = "80";
+
 	    // browser supports websockets
-	    ws = new WebSocket("ws://localhost:8080/events");
+	    ws = new WebSocket("ws://" + host + ":" + port + "/events");
 	    ws.onopen = function() {
 		// websocket is connected
 	    };
