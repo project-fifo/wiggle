@@ -205,7 +205,7 @@ var ws;
     };
 
     function add_machine(data, show) {
-	watch_machine(data.uuid);
+	watch_machine(data.id);
 	var li = ich.machine_list_item(data).
 	    data("id", data.id).
 	    click(machine_click_fn);
