@@ -360,6 +360,7 @@ var ws;
 	    };
 	    ws.onmessage = function (evt) {
 		var receivedMsg = evt.data;
+		console.log(receivedMsg);
 		JSON.parse(receivedMsg);
 	    };
 	    ws.onclose = function() {
