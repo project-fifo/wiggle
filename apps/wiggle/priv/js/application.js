@@ -85,6 +85,34 @@ var ws;
 	});
     }
 
+
+    function update_detail_buttons(id, state) {
+	$('#machine-detail-stop').
+	    attr("disabled", true);
+	$('#machine-detail-reboot').
+	    attr("disabled", true);
+	$('#machine-detail-start').
+	    attr("disabled", true);
+	if (state == "running") {
+	    $('#machine-detail-stop').
+		attr("disabled", false).
+		click(function (){
+		    machine_action(id, "stop", update_machine);
+		});
+	    $('#machine-detail-reboot').
+		attr("disabled", false).
+		click(function (){
+		    machine_action(id, "reboot", update_machine);
+		});
+	} else if (state == "stopped") {
+	    $('#machine-detail-start').
+		attr("disabled", false).
+		click(function (){
+		    machine_action(id, "start", update_machine);
+		});
+	}
+
+    }
     function update_machine(data) {
 	var c = center;
 	c.empty();
@@ -99,8 +127,10 @@ var ws;
 	data.ips = new_ips;
 	if (data.ips == "") 
 	    data.ips = "-"
-	data = extend_machine_data(data);
-	c.append(ich.details(data))
+	var data = extend_machine_data(data);
+	c.append(ich.details(data));
+	var details = $("#detail-tabs");
+	details.data("id", data.id);
 	if (data.kvm) {
 	    $.getJSON("/my/images", function (images) {
 		var select = $("#boot-image").
@@ -111,31 +141,7 @@ var ws;
 		}
 	    });
 	}
-
-	$('#machine-detail-stop').
-	    attr("disabled", true);
-	$('#machine-detail-reboot').
-	    attr("disabled", true);
-	$('#machine-detail-start').
-	    attr("disabled", true);
-	if (data.state == "running") {
-	    $('#machine-detail-stop').
-		attr("disabled", false).
-		click(function (){
-		    machine_action(data.id, "stop", update_machine);
-		});
-	    $('#machine-detail-reboot').
-		attr("disabled", false).
-		click(function (){
-		    machine_action(data.id, "reboot", update_machine);
-		});
-	} else if (data.state == "stopped") {
-	    $('#machine-detail-start').
-		attr("disabled", false).
-		click(function (){
-		    machine_action(data.id, "start", update_machine);
-		});;
-	}
+	update_detail_buttons(data.id, data.state);
     }
     function show_machine(data) {	
 	update_machine(data);
@@ -190,6 +196,14 @@ var ws;
     };
 
     function update_state(uuid, state) {
+	
+
+	var details = $("#detail-tabs");
+	if (details.data("id") == uuid) {
+	    update_detail_buttons(uuid, state);	    
+	    $("#machine-detail-state").text(state);
+	};
+	
 	var s = $("#" + uuid + "-state");
 	s.attr("class","badge");
 
