@@ -206,7 +206,7 @@ var ws;
 	    data("id", data.id).
 	    click(machine_click_fn);
 	$("#machines").after(li);
-	update_state(data);
+	update_state(data.id, data.state);
 	if (show)
 	    activate_machine(data.id)
     }
@@ -327,7 +327,7 @@ var ws;
 	    $.getJSON("/my/machines", function (data) {
 		for (var i = 0; i < data.length; i++) {
 		    var d = extend_machine_data(data[i]);
-		    update_state(d);
+		    update_state(d.id, d.state);
 		}
 	    });
 	}, 1000);
