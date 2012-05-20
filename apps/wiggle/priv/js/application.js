@@ -3,6 +3,7 @@ var ui = new Object();
 !function ($) {
     var ws;
     var rfb;
+    var ws_problem = 0;
     var center=$("#center");
 
     function watch_machine(id) {
@@ -340,7 +341,7 @@ var ui = new Object();
 		  function (data) {
 		      return data.name +
 			  " v" + 
-			  data.urn.split(":")[3];
+			  data.urn.splPit(":")[3];
 		  });
 
 	$("#packages-nav-add").click(view_add_pkg);
@@ -369,7 +370,7 @@ var ui = new Object();
 	if ("MozWebSocket" in window) {
 	    WebSocket = MozWebSocket;
 	}
-	if ("WebSocket" in window) {
+	if (("WebSocket" in window) && (ws_problem < 30)) {
             host = window.location.hostname;
             port = window.location.port;
 	                if (port == "")
@@ -379,10 +380,12 @@ var ui = new Object();
 	    ws = new WebSocket("ws://" + host + ":" + port + "/events");
 	    ws.onopen = function() {
 		// websocket is connected
+		ws_problem = 0;
 	    };
 	    ws.onmessage = function (evt) {
 		var receivedMsg = evt.data;
 		var json = JSON.parse(receivedMsg);
+		
 		switch (json.event) {
 		    case "state change":
 		    console.log(receivedMsg);
@@ -393,7 +396,12 @@ var ui = new Object();
 	    };
 	    ws.onclose = function() {
 		// websocket was closed
-		alert("websocket was closed");
+		ws_problem++;
+		if (ws_problem <= 30) {
+		    setTimeout(init_event_socket,1000*ws_problem);
+		} else {
+		    alert("Sorry, giving up on the event socket - something is wrong.");
+		}
 	    };
 	} else {
 	    // browser does not support websockets
