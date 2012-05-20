@@ -8,14 +8,14 @@ var ws;
 	var id=$(".machine.active").data("id");
 	var go = $('<a href="#" class="btn btn-danger" data-dismiss="modal">Delete!</a>');
 	var cancle = $('<a href="#" class="btn" data-dismiss="modal">Cancle</a>');
-	
+	var name = $(".machine.active a").text().replace(/^\s*/,"");
 	var modal = $("#modal");
 	var btns =  $("#modal .modal-footer");
 	$("#modal .modal-header h3").text("Delete VM");
 	$("#modal .modal-body p").
 	    empty().
 	    append("You are about to delete the VM ").
-	    append($("<b>" +$(".machine.active").data("id") + "</b>")).
+	    append($("<b>" + name + "</b>(" + $(".machine.active").data("id") + ")")).
 	    append(", this action can not be reversed! all data willbe lost forever!");
 	go.click(function(){
 	    $.ajax({
