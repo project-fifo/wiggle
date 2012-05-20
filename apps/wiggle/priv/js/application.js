@@ -189,16 +189,16 @@ var ws;
 	$.getJSON("/my/machines/"+uuid, callback);
     };
 
-    function update_state(data) {
-	var state = $("#" + data.id + "-state");
-	state.attr("class","badge");
+    function update_state(uuid, state) {
+	var s = $("#" + uuid + "-state");
+	s.attr("class","badge");
 
-	if (data.state == "running")
-	    state.addClass("badge-success");
-	else if (data.state == "stopped")
-	    state.addClass("badge-error");
+	if (state == "running")
+	    s.addClass("badge-success");
+	else if (state == "stopped")
+	    s.addClass("badge-error");
 	else
-	    state.addClass("badge-warning");
+	    s.addClass("badge-warning");
     };
 
     function add_machine(data, show) {
@@ -365,8 +365,14 @@ var ws;
 	    };
 	    ws.onmessage = function (evt) {
 		var receivedMsg = evt.data;
-		console.log(receivedMsg);
-		JSON.parse(receivedMsg);
+		var json = JSON.parse(receivedMsg);
+		switch (json.event) {
+		    case "state change":
+		    console.log(receivedMsg);
+		    update_state(json.uuid, json.state);
+		    break;
+		}
+
 	    };
 	    ws.onclose = function() {
 		// websocket was closed

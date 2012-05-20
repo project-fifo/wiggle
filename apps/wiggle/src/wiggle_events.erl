@@ -57,9 +57,7 @@ websocket_info({vm, state, UUID, NewState}, Req, State) ->
 websocket_info(_Info, Req, State) ->
     {ok, Req, State, hibernate}.
 
-websocket_terminate(_Reason, _Req, {Socket} = _State) ->
-    Socket ! {ws, closed},
-    gen_tcp:close(Socket),
+websocket_terminate(_Reason, _Req,  _State) ->
     ok.
 
 ensure_bin(A) when is_atom(A) ->
