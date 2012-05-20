@@ -348,15 +348,6 @@ var ui = new Object();
 	
 	$("#machines-nav-add").click(view_add_vm);
 	$("#machines-nav-del").click(delete_vm);
-	ui.refresh = setInterval(function () {
-	    return;
-	    $.getJSON("/my/machines", function (data) {
-		for (var i = 0; i < data.length; i++) {
-		    var d = extend_machine_data(data[i]);
-		    update_state(d.id, d.state);
-		}
-	    });
-	}, 1000);
     };
     
     function load_template(id) {
