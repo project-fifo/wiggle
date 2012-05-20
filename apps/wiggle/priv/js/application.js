@@ -200,8 +200,12 @@ var ws;
 	else
 	    s.addClass("badge-warning");
     };
+    function watch_machine(uuid) {
+	ws.send(JSON.stringify({"action": "subscribe", "uuid": uuid}));
+    };
 
     function add_machine(data, show) {
+	watch_machine(data.uuid);
 	var li = ich.machine_list_item(data).
 	    data("id", data.id).
 	    click(machine_click_fn);
