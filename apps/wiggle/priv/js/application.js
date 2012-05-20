@@ -15,7 +15,8 @@ var ws;
 	$("#modal .modal-body p").
 	    empty().
 	    append("You are about to delete the VM ").
-	    append($("<b>" + name + "</b>(" + $(".machine.active").data("id") + ")")).
+	    append($("<b>" + name + "</b>")).
+	    append("(" + $(".machine.active").data("id") + ")").
 	    append(", this action can not be reversed! all data willbe lost forever!");
 	go.click(function(){
 	    $.ajax({
