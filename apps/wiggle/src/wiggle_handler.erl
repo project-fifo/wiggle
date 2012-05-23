@@ -48,7 +48,7 @@ handle(Req, State) ->
 	 Auth ->
 	    case libsnarl:user_cache(Auth, Auth) of
 		{ok, Auth1} ->
-		    case libsnarl:allowed(Auth, Auth1, [services, wiggle]) of
+		    case libsnarl:allowed(Auth, Auth1, [service, wiggle]) of
 			true ->
 			    request(Method, Path, Auth1, Req3, State);
 			false ->
@@ -56,7 +56,7 @@ handle(Req, State) ->
 			    login(Req4, State)
 		    end;
 		_ ->
-		    case libsnarl:allowed(Auth, Auth, [services, wiggle]) of
+		    case libsnarl:allowed(Auth, Auth, [service, wiggle]) of
 			{ok, _} ->
 			    request(Method, Path, Auth, Req3, State);
 			_ ->
@@ -113,7 +113,7 @@ request('GET', [<<"logout">>],  _Auth, Req, State) ->
     {ok, Req2, State};
 
 request('GET', [], Auth, Req, State) ->
-    case libsnarl:allowed(Auth, Auth, [service, wiggle, modules, home]) of
+    case libsnarl:allowed(Auth, Auth, [service, wiggle, module, home]) of
 	false ->
 	    error_page(403, Req, State);
 	true ->
@@ -123,7 +123,7 @@ request('GET', [], Auth, Req, State) ->
     end;
 
 request('GET', [<<"analytics">>], Auth, Req, State) ->
-    case libsnarl:allowed(Auth, Auth ,[service, wiggle, modules, analytics]) of
+    case libsnarl:allowed(Auth, Auth ,[service, wiggle, module, analytics]) of
 	false ->
 	    error_page(403, Req, State);
 	true ->
@@ -133,7 +133,7 @@ request('GET', [<<"analytics">>], Auth, Req, State) ->
     end;
 
 request('GET', [<<"system">>], Auth, Req, State) ->
-    case libsnarl:allowed(Auth, Auth, [service, wiggle, modules, system]) of
+    case libsnarl:allowed(Auth, Auth, [service, wiggle, module, system]) of
 	false ->
 	    error_page(403, Req, State);
 	true ->
@@ -143,7 +143,7 @@ request('GET', [<<"system">>], Auth, Req, State) ->
     end;
 
 request('GET', [<<"about">>], Auth, Req, State) ->
-    case libsnarl:allowed(Auth, Auth, [service, wiggle, modules, about]) of
+    case libsnarl:allowed(Auth, Auth, [service, wiggle, module, about]) of
 	false ->
 	    error_page(403, Req, State);
 	true ->
@@ -158,7 +158,7 @@ request('GET', [<<"about">>], Auth, Req, State) ->
     end;
 
 request('GET', [<<"admin">>], Auth , Req, State) ->
-    case libsnarl:allowed(Auth, Auth, [service, wiggle, modules, admin]) of
+    case libsnarl:allowed(Auth, Auth, [service, wiggle, module, admin]) of
 	false ->
 	    error_page(403, Req, State);
 	true ->
@@ -168,7 +168,7 @@ request('GET', [<<"admin">>], Auth , Req, State) ->
     end;
 
 request('POST', [<<"admin">>], Auth , Req, State) ->
-    case libsnarl:allowed(Auth, Auth, [service, wiggle, modules, admin]) of
+    case libsnarl:allowed(Auth, Auth, [service, wiggle, module, admin]) of
 	false ->
 	    error_page(403, Req, State);
 	true ->
@@ -185,7 +185,7 @@ request('POST', [<<"admin">>], Auth , Req, State) ->
     end;
 
 request('GET', [<<"account">>], Auth, Req, State) ->
-    case libsnarl:allowed(Auth, Auth, [service, wiggle, modules, account]) of
+    case libsnarl:allowed(Auth, Auth, [service, wiggle, module, account]) of
 	false ->
 	    error_page(403, Req, State);
 	true ->
@@ -202,7 +202,7 @@ request('GET', [<<"account">>], Auth, Req, State) ->
     end;
 
 request('POST', [<<"account">>], Auth, Req, State) ->
-    case libsnarl:allowed(Auth, Auth, [service, wiggle, modules, account]) of
+    case libsnarl:allowed(Auth, Auth, [service, wiggle, module, account]) of
 	false ->
 	    error_page(403, Req, State);
 	true ->
@@ -267,6 +267,22 @@ request('POST', [<<"account">>], Auth, Req, State) ->
 			    {ok, Req2, State}
 		    end
 	    end
+    end;
+
+
+request('GET', [<<"my">>, <<"users">>], Auth, Req, State) ->
+    {ok, Res} = libsnarl:user_list(Auth),
+    reply_json(Req, Res, State);
+
+
+request('GET', [<<"my">>, <<"users">>, User, <<"permissions">>], Auth, Req, State) ->
+    case libsnarl:user_get(system, User) of
+	{ok, UUID} ->
+	    {ok, Res} = libsnarl:user_permissions(Auth, UUID),
+	    Res2 = [[ list_to_binary(atom_to_list(P)) || P <- PS] || PS <- Res],
+	    reply_json(Req, Res2, State);
+	_ ->
+	    error_page(403, Req, State)
     end;
 
 request('GET', [<<"my">>, <<"machines">>], Auth, Req, State) ->
@@ -394,12 +410,12 @@ reply_json(Req, Data, State) ->
 
 
 page_permissions(Auth) ->
-    [{<<"home">>, libsnarl:allowed(Auth, Auth, [services, wiggle, module, home])},
-     {<<"admin">>, libsnarl:allowed(Auth, Auth, [services, wiggle, module, admin])},
-     {<<"analytics">>, libsnarl:allowed(Auth, Auth, [services, wiggle, module, analytics])},
-     {<<"system">>, libsnarl:allowed(Auth, Auth, [services, wiggle, module, system])},
-     {<<"about">>, libsnarl:allowed(Auth, Auth, [services, wiggle, module, about])},
-     {<<"account">>, libsnarl:allowed(Auth, Auth, [services, wiggle, module, account])}].
+    [{<<"home">>, libsnarl:allowed(Auth, Auth, [service, wiggle, module, home])},
+     {<<"admin">>, libsnarl:allowed(Auth, Auth, [service, wiggle, module, admin])},
+     {<<"analytics">>, libsnarl:allowed(Auth, Auth, [service, wiggle, module, analytics])},
+     {<<"system">>, libsnarl:allowed(Auth, Auth, [service, wiggle, module, system])},
+     {<<"about">>, libsnarl:allowed(Auth, Auth, [service, wiggle, module, about])},
+     {<<"account">>, libsnarl:allowed(Auth, Auth, [service, wiggle, module, account])}].
 
 error_page(ErrorCode, Req, State) ->
     {ok, Page} = case ErrorCode of 

@@ -23,7 +23,7 @@ websocket_init(_Any, Req, []) ->
 	    {shutdown, Req1};
 
 	Auth  ->
-	    case libsnarl:allowed(Auth, Auth, [events]) of
+	    case libsnarl:allowed(Auth, Auth, [service, wiggle, module, event]) of
 		true ->
 		    {ok, Req, undefined, hibernate};
 		false ->
