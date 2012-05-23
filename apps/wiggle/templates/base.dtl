@@ -73,14 +73,8 @@
     <script type="application/javascript" src="/js/ICanHaz.js"></script>
     <script type="application/javascript" src="/js/vnc/vnc.js"></script>
     <script type="application/javascript" src="/js/jquery.validate.min.js"></script>
-
-    {% block templates %}{% endblock %}
-
+    <script type="application/javascript" src="/js/snarl.js"></script>
     <script type="application/javascript" src="/js/application.js"></script>
-    
-
-
-
     <script type="application/javascript">
       $('#modal').hide();
       {% block script %}{% endblock %}

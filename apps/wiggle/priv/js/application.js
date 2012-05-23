@@ -159,6 +159,7 @@ var ui = new Object();
 	update_machine(data);
 	
     };
+
     function click_package(e, i) {
 	var id = $(this).data("id");
 	
@@ -166,7 +167,8 @@ var ui = new Object();
 	if (obj) {
 	    show_package(obj);
 	};
-    }
+    };
+
     function show_package(data) {
 	center.empty();
 	center.append(ich.package(data));
@@ -341,7 +343,7 @@ var ui = new Object();
 		  function (data) {
 		      return data.name +
 			  " v" + 
-			  data.urn.splPit(":")[3];
+			  data.urn.split(":")[3];
 		  });
 
 	$("#packages-nav-add").click(view_add_pkg);
@@ -392,7 +394,6 @@ var ui = new Object();
 		    update_state(json.uuid, json.state);
 		    break;
 		}
-
 	    };
 	    ws.onclose = function() {
 		// websocket was closed
@@ -408,7 +409,7 @@ var ui = new Object();
 	    addStatus("sorry, your browser does not support websockets.");
 	}
     }
-
+    
     
     load_templtes(["machine_details",
 		   "details",

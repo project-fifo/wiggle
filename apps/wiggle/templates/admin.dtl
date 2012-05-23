@@ -3,20 +3,32 @@
 {% block page_title %}Admin{% endblock %}
 
 {% block body_content %}
-<div class="span6">
-  <h2>Add User</h2>
-  <form class="well" action="/admin" method="POST">
-    <label>Name</label><input type="text" name="name"/></br>
-    <label>Password</label><input type="password" name="pass"/></br> 
-    <button type="submit" name="action" value="pass">Save</button>
-  </form>
+<div class="span3">
+  <h2>User</h2>
+  <div class="well">
+    <h3>Add</h3>
+
+    <form action="/admin" method="POST">
+      <label>Name</label><input type="text" name="name"/></br>
+      <label>Password</label><input type="password" name="pass"/></br> 
+      <button type="submit" name="action" value="pass">Save</button>
+    </form>
+    <h3>List</h3>
+    <ul id="users">
+    </ul>
+  </div>
 </div>
-<div class="span6">
-  <h2>API Host</h2>
-  <form class="well" action="/admin" method="POST">
-    <label>API Host</label><input type="text" name="api_host" value="{{api_host}}"/></br>
-    <button type="submit" name="action" value="api_host">Save</button>
-  </form>
+<div class="span9">
+  <h2>Permissions</h2>
+  <div  class="well">
+  <ul id="permissions">
+  </ul>
+  </div>
+
 </div>
 
+{% endblock %}
+
+{% block script %}
+snarl.show_users();
 {% endblock %}
