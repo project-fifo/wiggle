@@ -4,31 +4,36 @@
 
 {% block body_content %}
 <div class="span3">
-  <h2>User</h2>
+  <h2>Users</h2>
   <div class="well">
-    <h3>Add</h3>
-
-    <form action="/admin" method="POST">
-      <label>Name</label><input type="text" name="name"/></br>
-      <label>Password</label><input type="password" name="pass"/></br> 
-      <button type="submit" name="action" value="pass">Save</button>
-    </form>
-    <h3>List</h3>
+    <label>Name</label><input type="text" id="user_name"/></br>
+    <label>Password</label><input type="password" id="user_pass"/></br> 
+    <button id="add_user">Add</button>
     <ul id="users">
+    </ul>
+  </div>
+  <h2>Groups</h2>
+  <div class="well">
+    <label>Name</label><input type="text" id="group_name"/></br>
+    <button id="add_group">Add</button>
+
+    <ul id="groups">
     </ul>
   </div>
 </div>
 <div class="span9">
   <h2>Permissions</h2>
   <div  class="well">
-  <ul id="permissions">
-  </ul>
+    <ul id="permissions">
+    </ul>
+    <div id="user_groups"></div>
+    <div id="new_permission">
+      <select></select>
+    </div><button id="add_permission">Add</button>
   </div>
-
 </div>
-
 {% endblock %}
 
 {% block script %}
-snarl.show_users();
+snarl.init();
 {% endblock %}

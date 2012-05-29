@@ -274,16 +274,120 @@ request('GET', [<<"my">>, <<"users">>], Auth, Req, State) ->
     {ok, Res} = libsnarl:user_list(Auth),
     reply_json(Req, Res, State);
 
-
 request('GET', [<<"my">>, <<"users">>, User, <<"permissions">>], Auth, Req, State) ->
     case libsnarl:user_get(system, User) of
 	{ok, UUID} ->
-	    {ok, Res} = libsnarl:user_permissions(Auth, UUID),
-	    Res2 = [[ list_to_binary(atom_to_list(P)) || P <- PS] || PS <- Res],
-	    reply_json(Req, Res2, State);
+	    {ok, Res} = libsnarl:user_own_permissions(Auth, UUID),
+	    reply_json(Req, encode_permissions(Res), State);
 	_ ->
 	    error_page(403, Req, State)
     end;
+
+request('POST', [<<"my">>, <<"users">>], Auth, Req, State) ->
+    {Vals, Req1} = cowboy_http_req:body_qs(Req),
+    Login = proplists:get_value(<<"login">>, Vals),
+    Pass = proplists:get_value(<<"pass">>, Vals),
+    case libsnarl:user_add(Auth, Login, Pass) of
+	{ok, UUID} ->
+	    {ok, Res} = libsnarl:user_own_permissions(Auth, UUID),
+	    reply_json(Req, Login, State);
+	_ ->
+	    error_page(403, Req, State)
+    end;
+request('POST', [<<"my">>, <<"users">>, User, <<"permissions">>], Auth, Req, State) ->
+    case libsnarl:user_get(system, User) of
+	{ok, UUID} ->	    
+	    {Vals, Req1} = cowboy_http_req:body_qs(Req),
+	    JSON = proplists:get_value(<<"perms">>, Vals),
+	    Perm = decode_permission(JSON),
+	    libsnarl:user_grant(Auth, UUID, Perm),
+	    {ok, Res} = libsnarl:user_own_permissions(Auth, UUID),
+	    reply_json(Req1, encode_permissions(Res), State);
+	_ ->
+	    error_page(403, Req, State)
+    end;
+
+request('DELETE', [<<"my">>, <<"users">>, User, <<"permissions">>], Auth, Req, State) ->
+    case libsnarl:user_get(system, User) of
+	{ok, UUID} ->	    
+	    {Vals, Req1} = cowboy_http_req:body_qs(Req),
+	    JSON = proplists:get_value(<<"perms">>, Vals),
+	    Perm = decode_permission(JSON),
+	    libsnarl:user_revoke(Auth, UUID, Perm),
+	    {ok, Res} = libsnarl:user_own_permissions(Auth, UUID),
+	    reply_json(Req1, encode_permissions(Res), State);
+	_ ->
+	    error_page(403, Req, State)
+    end;
+
+request('GET', [<<"my">>, <<"users">>, User, <<"own_permissions">>], Auth, Req, State) ->
+    case libsnarl:user_get(system, User) of
+	{ok, UUID} ->
+	    {ok, Res} = libsnarl:user_own_permissions(Auth, UUID),
+	    reply_json(Req, encode_permissions(Res), State);
+	_ ->
+	    error_page(403, Req, State)
+    end;
+
+request('GET', [<<"my">>, <<"users">>, User, <<"groups">>], Auth, Req, State) ->
+    case libsnarl:user_get(system, User) of
+	{ok, UUID} ->
+	    {ok, Res} = libsnarl:user_groups(Auth, UUID),
+	    reply_json(Req,[Name ||
+			       {ok, Name} <- [libsnarl:group_name(system, G) || G <- Res]], State);
+	_ ->
+	    error_page(403, Req, State)
+    end;
+
+request('GET', [<<"my">>, <<"groups">>], Auth, Req, State) ->
+    {ok, Res} = libsnarl:group_list(Auth),
+    reply_json(Req, Res, State);
+
+
+request('GET', [<<"my">>, <<"groups">>, Group, <<"permissions">>], Auth, Req, State) ->
+    case libsnarl:group_get(system, Group) of
+	{ok, UUID} ->
+	    {ok, Res} = libsnarl:group_permissions(Auth, UUID),
+	    reply_json(Req, encode_permissions(Res), State);
+	_ ->
+	    error_page(403, Req, State)
+    end;
+
+request('POST', [<<"my">>, <<"groups">>, Group, <<"permissions">>], Auth, Req, State) ->
+    case libsnarl:group_get(system, Group) of
+	{ok, UUID} ->	    
+	    {Vals, Req1} = cowboy_http_req:body_qs(Req),
+	    JSON = proplists:get_value(<<"perms">>, Vals),
+	    Perm = decode_permission(JSON),
+	    libsnarl:group_grant(Auth, UUID, Perm),
+	    {ok, Res} = libsnarl:group_permissions(Auth, UUID),
+	    reply_json(Req1, encode_permissions(Res), State);
+	_ ->
+	    error_page(403, Req, State)
+    end;
+
+request('DELETE', [<<"my">>, <<"groups">>, Group, <<"permissions">>], Auth, Req, State) ->
+    case libsnarl:group_get(system, Group) of
+	{ok, UUID} ->	    
+	    {Vals, Req1} = cowboy_http_req:body_qs(Req),
+	    JSON = proplists:get_value(<<"perms">>, Vals),
+	    Perm = decode_permission(JSON),
+	    libsnarl:group_revoke(Auth, UUID, Perm),
+	    {ok, Res} = libsnarl:group_permissions(Auth, UUID),
+	    reply_json(Req1, encode_permissions(Res), State);
+	_ ->
+	    error_page(403, Req, State)
+    end;
+
+request('GET', [<<"my">>, <<"groups">>, Group, <<"users">>], Auth, Req, State) ->
+    case libsnarl:user_get(system, Group) of
+	{ok, UUID} ->
+	    {ok, Res} = libsnarl:group_users(Auth, UUID),
+	    reply_json(Req, Res, State);
+	_ ->
+	    error_page(403, Req, State)
+    end;
+
 
 request('GET', [<<"my">>, <<"machines">>], Auth, Req, State) ->
     {ok, Res} = libsniffle:list_machines(Auth),
@@ -428,3 +532,38 @@ error_page(ErrorCode, Req, State) ->
 		 end,
     {ok, Req1} = cowboy_http_req:reply(ErrorCode, [], Page, Req),
     {ok, Req1, State}.
+
+encode_permission(Permission) ->
+    [case Perm of 
+	 P when is_atom(P) ->
+	     [{<<"perm">>, ensure_binary(P)}];
+	 P when is_binary(P) ->
+	     [{<<"placeholder">>, ensure_binary(P)}]
+     end || Perm <- Permission].
+    
+
+encode_permissions(Permissions) ->
+    [encode_permission(P) || P <- Permissions].
+    
+    
+decode_permission(JSON) ->
+    [case Type of
+	 <<"perm">> -> 
+	     list_to_atom(binary_to_list(Value));
+	 <<"placeholder">> ->
+	     case Value of
+		 <<"_">> ->
+		     list_to_atom(binary_to_list(Value));
+		 <<"...">> ->
+		     list_to_atom(binary_to_list(Value));
+		 _ ->
+		     Value
+	     end
+     end || [{Type, Value}] <- jsx:to_term(JSON)].
+
+ensure_binary(A) when is_atom(A) ->
+    list_to_binary(atom_to_list(A));
+ensure_binary(L) when is_list(L)->
+    list_to_binary(L);
+ensure_binary(B) when is_binary(B)->
+    B.
