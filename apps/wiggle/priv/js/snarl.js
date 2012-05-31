@@ -4,14 +4,15 @@ var debug;
 !function ($){
     permissions.data = new Object();
     var selected;
-    var vm_permissions = [
-	"start",
-	"stop",
-	"reboot",
-	"edit",
-	"delete",
-	"vnc"
-    ];
+    var vm_permissions = {
+	"start": true,
+	"stop": true,
+	"reboot": true,
+	"edit": true,
+	"delete": true,
+	"vnc": true,
+	"info": true
+    };
     var wiggle = {
 	"module": {
 	    "about": true,
@@ -96,10 +97,34 @@ var debug;
 	    }
 	}
     };
+    var dataset = {
+	"create": true,	
+	"Name": {
+	    "get": true,
+	    "delete": true
+	}
+    }
+    var pkg = {
+	"create": true,	
+	"Name": {
+	    "get": true,
+	    "delete": true
+	}
+    }
+    var key = {
+	"create": true,	
+	"Name": {
+	    "get": true,
+	    "delete": true
+	}
+    }
     permissions.data["permission"] = permission;
     permissions.data["option"] = option
     permissions.data["group"] = group;
     permissions.data["user"] = user;
+    permissions.data["dataset"] = dataset;
+    permissions.data["package"] = pkg;
+    permissions.data["key"] = key;
     permissions.data["service"] = {
 	"wiggle": wiggle,
 	"sniffle": sniffle,
@@ -114,7 +139,8 @@ var debug;
 	}
     };
     permissions.data["vm"] = {
-	"Name": vm_permissions
+	"Name": vm_permissions,
+	"create": true
     };
     permissions.get = function(ks, current) {
 	if (current == undefined) {
@@ -158,7 +184,7 @@ var debug;
 	    };
 	};
 	if (show_delete) {
-	    var btn = $("<button>(revoke)</button>").
+	    var btn = $("<button class='btn-mini btn-danger'>revoke</button>").
 		click(function () {
 		    var type = selected.type;
 		    var id = selected.id;
@@ -190,24 +216,66 @@ var debug;
 	};
     }
     function get_user(user) {
-	$.getJSON("/my/users/" + user + "/own_permissions", function(data) {
+	$.getJSON("/my/users/" + user + "/permissions", function(data) {
 	    get_user_groups(user);
 	    show_user(data);
 	});
     };
+    function add_user_group(groups, group) {
+	var li = $("<li></li>");
+	var btn = $("<button class='btn-mini btn-danger'>remove</button>");
+	var h4 = $("<h4></h4>").text(group).
+	    append(btn);
+	btn.click(function (){
+	    $.ajax({
+		url: "/my/users/" + selected.id + "/groups/" + group,
+		type: 'DELETE',
+		success: function (new_group) {
+		    li.remove();
+		}
+	    });
+	});
+	groups.append(
+	    li.append(h4).
+		append($("<ul></ul>").
+		       attr("id", "permissions_" + group)));
+	get_group(group, group);
+
+    }
     function show_user_groups(data) {
 	var groups = $("<ul></ul>")
 	$("#user_groups").
 	    empty().
-	    append($("<h3>Groups</h3>")).
+	    append($("<h3>Groups<select id='group_to_add'></select><button id='add_group_btn' class='btn-mini btn-success'>+</button></h3>")).
 	    append(groups);
+	$("#add_group_btn").click(function() {
+	    var group = $("#group_to_add").val();
+	    if (group != "") {
+		$.ajax({
+		    url: "/my/users/" + selected.id + "/groups",
+		    type: 'POST',
+		    dataType: 'json',
+		    data: {
+			"group": group
+		    },
+		    success: function (new_group) {
+			add_user_group(groups,new_group);
+		    }
+		});
+	    }
+	});
+	$.getJSON("/my/groups", function(groups){
+	    $("#group_to_add").
+		empty().
+		append($("<option></option>"));
+	    for (var i=0; i < groups.length; i++) {
+		$("#group_to_add").append(
+		    $("<option></option>").
+			append(groups[i]));
+	    }
+	});
 	for (var i = 0; i < data.length; i++) {
-	    groups.append(
-		$("<li></li>").
-		    append($("<h4></h4>").text(data[i])).
-		    append($("<ul></ul>").
-			   attr("id", "permissions_" + data[i])));
-	    get_group(data[i], data[i]);
+	    add_user_group(groups,data[i]);
 	};
     }
     function get_user_groups(user) {
@@ -238,18 +306,28 @@ var debug;
 	return select;
     }
     function add_list_user(user) {
-	$("#users").append(
-	    $("<li></li>").
-		text(user).
-		click(function() {
-		    get_user(user);
-		    get_user_groups(user);
-			    selected = {
-				type: "users",
-				id: user
-			    };
-		})
-	);
+	var li=$("<li></li>").
+	    text(user).
+	    click(function() {
+		selected = {
+		    type: "users",
+		    id: user
+		};
+		get_user(user);
+	    });
+	var btn = $("<button class='btn-mini btn-danger'>x</button>");
+	li.append(btn);
+	btn.click(function() {
+	    li.unbind("click");
+	    $.ajax({
+		url: "/my/users/" + user,
+		type: 'DELETE',
+		success: function () {
+		    li.remove();
+		}
+	    });
+	});
+	$("#users").append(li);
     };
     function list_users(data) {
 	$("#users").empty();
@@ -261,24 +339,37 @@ var debug;
     snarl.show_users = function() {
 	$.getJSON("/my/users", list_users);
     }
-    function list_groups(data) {
-	var groups = $("#groups");
-	groups.empty();
-	for (var i = 0; i < data.length; i++) {
+    function add_list_group(group) {
+	var btn = $("<button class='btn-mini btn-danger'>x</button>");
+	var li=$("<li></li>").
+	    text(group).
+	    click(function() {
+		debug = this;
+		console.log(1);
+		selected = {
+		    type: "groups",
+		    id: group
+		};
+		get_group(group);
 
-	    (function(d){
-		groups.append(
-		    $("<li></li>").
-			text(d).
-			click(function() {
-			    selected = {
-				type: "groups",
-				id: d
-			    };
-			get_group(d);
-			})
-		);
-	    })(data[i]);
+	    });
+	li.append(btn);
+	btn.click(function() {
+	    li.unbind("click");
+	    $.ajax({
+		url: "/my/groups/" + group,
+		type: 'DELETE',
+		success: function (data) {
+		    li.remove();
+		}
+	    });
+	});
+	$("#groups").append(li);
+    }
+    function list_groups(data) {
+	$("#groups").empty();
+	for (var i = 0; i < data.length; i++) {
+	    add_list_group(data[i]);
 	};
     }
     snarl.show_groups = function() {
@@ -330,10 +421,23 @@ var debug;
 		"pass": pass
 	    },
 	    success: function (data) {
-		data
+		add_list_user(data);
 	    }
 	});
-
+    };
+    function add_group() {
+	var name = $("#group_name").val();
+	$.ajax({
+	    url: "/my/groups",
+	    type: 'POST',
+	    dataType: 'json',
+	    data: {
+		"name": name
+	    },
+	    success: function (data) {
+		add_list_group(data);
+	    }
+	});
     }
     snarl.init = function() {
 	var selects = $("#new_permission select");
@@ -346,6 +450,7 @@ var debug;
 	snarl.show_groups();
 	$("#add_permission").click(add_permission);
 	$("#add_user").click(add_user);
+	$("#add_group").click(add_group);
     };
     function add_permission() {	
 	var type = selected.type;

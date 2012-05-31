@@ -6,16 +6,16 @@
 <div class="span3">
   <h2>Users</h2>
   <div class="well">
-    <label>Name</label><input type="text" id="user_name"/></br>
-    <label>Password</label><input type="password" id="user_pass"/></br> 
-    <button id="add_user">Add</button>
+    <label class="control-label" for="user_name">Name</label><input type="text" id="user_name"/></br>
+    <label class="control-label" for="user_pass">Password</label><input type="password" id="user_pass"/></br> 
+    <button id="add_user" class="btn btn-success">Add</button>
     <ul id="users">
     </ul>
   </div>
   <h2>Groups</h2>
   <div class="well">
-    <label>Name</label><input type="text" id="group_name"/></br>
-    <button id="add_group">Add</button>
+    <label class="control-label" for="group_name">Name</label><input type="text" id="group_name"/></br>
+    <button id="add_group" class="btn btn-success">Add</button>
 
     <ul id="groups">
     </ul>
@@ -29,7 +29,7 @@
     <div id="user_groups"></div>
     <div id="new_permission">
       <select></select>
-    </div><button id="add_permission">Add</button>
+    </div><button id="add_permission" class="btn-mini btn-success">Add</button>
   </div>
 </div>
 {% endblock %}

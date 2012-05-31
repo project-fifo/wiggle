@@ -288,12 +288,12 @@ request('POST', [<<"my">>, <<"users">>], Auth, Req, State) ->
     Login = proplists:get_value(<<"login">>, Vals),
     Pass = proplists:get_value(<<"pass">>, Vals),
     case libsnarl:user_add(Auth, Login, Pass) of
-	{ok, UUID} ->
-	    {ok, Res} = libsnarl:user_own_permissions(Auth, UUID),
-	    reply_json(Req, Login, State);
+	{ok, _UUID} ->
+	    reply_json(Req1, Login, State);
 	_ ->
-	    error_page(403, Req, State)
+	    error_page(403, Req1, State)
     end;
+
 request('POST', [<<"my">>, <<"users">>, User, <<"permissions">>], Auth, Req, State) ->
     case libsnarl:user_get(system, User) of
 	{ok, UUID} ->	    
@@ -320,15 +320,6 @@ request('DELETE', [<<"my">>, <<"users">>, User, <<"permissions">>], Auth, Req, S
 	    error_page(403, Req, State)
     end;
 
-request('GET', [<<"my">>, <<"users">>, User, <<"own_permissions">>], Auth, Req, State) ->
-    case libsnarl:user_get(system, User) of
-	{ok, UUID} ->
-	    {ok, Res} = libsnarl:user_own_permissions(Auth, UUID),
-	    reply_json(Req, encode_permissions(Res), State);
-	_ ->
-	    error_page(403, Req, State)
-    end;
-
 request('GET', [<<"my">>, <<"users">>, User, <<"groups">>], Auth, Req, State) ->
     case libsnarl:user_get(system, User) of
 	{ok, UUID} ->
@@ -339,9 +330,77 @@ request('GET', [<<"my">>, <<"users">>, User, <<"groups">>], Auth, Req, State) ->
 	    error_page(403, Req, State)
     end;
 
+request('POST', [<<"my">>, <<"users">>, User, <<"groups">>], Auth, Req, State) ->
+    {Vals, Req1} = cowboy_http_req:body_qs(Req),
+    Group = proplists:get_value(<<"group">>, Vals),
+    case {libsnarl:user_get(system, User), libsnarl:group_get(Auth, Group)} of
+	{{ok, UUID}, {ok, GUUID}} ->
+	    case libsnarl:user_add_to_group(Auth, UUID, GUUID) of
+		ok ->
+		    reply_json(Req1,Group, State);
+		_ ->
+		    error_page(403, Req1, State)
+	    end;
+	_ ->
+	    error_page(403, Req, State)
+    end;
+
+request('DELETE', [<<"my">>, <<"users">>, User, <<"groups">>, Group], Auth, Req, State) ->
+    case {libsnarl:user_get(system, User), libsnarl:group_get(Auth, Group)} of
+	{{ok, UUID}, {ok, GUUID}} ->
+	    case libsnarl:user_delete_from_group(Auth, UUID, GUUID) of
+		ok ->
+		    {ok, Res} = libsnarl:user_groups(Auth, UUID),
+		    reply_json(Req,[Name ||
+				       {ok, Name} <- [libsnarl:group_name(system, G) || G <- Res]], State);
+		_ ->
+		    error_page(403, Req, State)
+	    end;
+	_ ->
+	    error_page(403, Req, State)
+    end;
+
+request('DELETE', [<<"my">>, <<"users">>, User], Auth, Req, State) ->
+    case libsnarl:user_get(Auth, User) of
+	{ok, UUID} ->
+	    case libsnarl:user_delete(Auth, UUID) of
+		ok -> 
+		    reply_json(Req, User, State);
+		_ ->
+		    error_page(403, Req, State)
+	    end;
+	_ ->
+	    error_page(403, Req, State)
+    end;
+
+	      
+
 request('GET', [<<"my">>, <<"groups">>], Auth, Req, State) ->
     {ok, Res} = libsnarl:group_list(Auth),
     reply_json(Req, Res, State);
+
+request('DELETE', [<<"my">>, <<"groups">>, Group], Auth, Req, State) ->
+    case libsnarl:group_get(Auth, Group) of
+	{ok, UUID} ->
+	    case libsnarl:group_delete(Auth, UUID) of
+		ok -> 
+		    reply_json(Req, Group, State);
+		_ ->
+		    error_page(403, Req, State)
+	    end;
+	_ ->
+	    error_page(403, Req, State)
+    end;
+
+request('POST', [<<"my">>, <<"groups">>], Auth, Req, State) ->
+    {Vals, Req1} = cowboy_http_req:body_qs(Req),
+    Name = proplists:get_value(<<"name">>, Vals),
+    case libsnarl:group_add(Auth, Name) of
+	{ok, _UUID} ->
+	    reply_json(Req1, Name, State);
+	_ ->
+	    error_page(403, Req1, State)
+    end;
 
 
 request('GET', [<<"my">>, <<"groups">>, Group, <<"permissions">>], Auth, Req, State) ->
@@ -423,13 +482,6 @@ request('POST', [<<"my">>, <<"machines">>], Auth, Req, State) ->
     Name = proplists:get_value(<<"name">>, Vals),
     Package = proplists:get_value(<<"package">>, Vals),
     Dataset = proplists:get_value(<<"dataset">>, Vals),
-    Obj = [{<<"package">>, Package}, {<<"dataset">>, Dataset}],
-    Obj1 = case Name of
-	       <<>> ->
-		   Obj;
-	       _ ->
-		   [{<<"name">>, Name} | Obj]
-	   end,
     case libsniffle:create_machine(Auth, Name, Package, Dataset, [], []) of
 	{ok, Res} ->
 	    io:format("create-ok: ~p~n", [Res]),
