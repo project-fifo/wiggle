@@ -118,6 +118,17 @@ var debug;
 	    "delete": true
 	}
     }
+    var network = {
+	"create": true,
+	"Name": {
+	    "delete": true,
+	    "get": true,
+	    "next_ip": true,
+	    "release_ip": {
+		"IP": true
+	    }
+	}
+    }
     permissions.data["permission"] = permission;
     permissions.data["option"] = option
     permissions.data["group"] = group;
@@ -125,6 +136,7 @@ var debug;
     permissions.data["dataset"] = dataset;
     permissions.data["package"] = pkg;
     permissions.data["key"] = key;
+    permissions.data["network"] = network;
     permissions.data["service"] = {
 	"wiggle": wiggle,
 	"sniffle": sniffle,
@@ -144,21 +156,15 @@ var debug;
     };
     permissions.get = function(ks, current) {
 	if (current == undefined) {
-	    console.log("1 - no current");
 	    return permissions.get(ks, permissions.data);
 	}
 	if (current == true) {
-	    console.log(2);
 	    return undefined;
 	}
 	if (ks.length == 0) {
-	    console.log(3);
 	    return current||undefined;
 	}
-	console.log(4, ks);
 	var key = ks.shift();
-	console.log(5, key);
-	console.log(6, ks);
 	if (key == "...")
 	    return undefined;
 	if (current[key])
@@ -345,7 +351,6 @@ var debug;
 	    text(group).
 	    click(function() {
 		debug = this;
-		console.log(1);
 		selected = {
 		    type: "groups",
 		    id: group
@@ -381,7 +386,6 @@ var debug;
     }
 
     function option_pick() {
-	console.log("option change");
 	var rest = $("#new_permission").children();
 	var idx = 0
 	for (var i = rest.index($(this))+1; i < rest.length; i++) {
@@ -393,14 +397,11 @@ var debug;
 	    path.push(selects.eq(i).val());
 	}
 	var last = selects.last();
-	console.log("path", path);
 	debug = path;
 	var perms = permissions.get(path);
-	console.log("perms", typeof(perms), perms);
 	debug = perms;
 	if (perms) {
 	    var ks = keys(perms);
-	    console.log("ks", ks);
 	    var select = create_select(ks)
 	    last.after(select);
 	}
@@ -439,6 +440,29 @@ var debug;
 	    }
 	});
     }
+    function get_ip() {
+	$.getJSON("/my/networks/external", function(data) {
+	    $("#ip_range").attr("value",data.network);
+	    $("#gateway").attr("value",data.gateway);
+	    $('#netmask > option[value="' + data.netmask + '"]').attr("selected", true);	    
+	});
+    }
+    function set_network() {
+	$.ajax({
+	    url: "/my/networks/external",
+	    type: 'POST',
+	    dataType: 'json',
+	    data: {
+		"first": $("#ip_range").val(),
+		"netmask": $("#netmask").val(),
+		"gateway": $("#gateway").val()
+	    },
+	    success: function (data) {
+	    }
+	});
+
+    }
+
     snarl.init = function() {
 	var selects = $("#new_permission select");
 	selects.remove();
@@ -448,30 +472,35 @@ var debug;
 	$("#new_permission").append(select);
 	snarl.show_users();
 	snarl.show_groups();
+	get_ip();
 	$("#add_permission").click(add_permission);
 	$("#add_user").click(add_user);
 	$("#add_group").click(add_group);
+	$("#set_network").click(set_network);
     };
+
     function add_permission() {	
-	var type = selected.type;
-	var id = selected.id;
-	$.ajax({
-	    url: "/my/" + type + "/" + id + "/permissions",
-	    type: 'POST',
-	    dataType: 'json',
-	    data: {
-		perms: JSON.stringify(get_new_permission())
-	    },
-	    success: function (data) {
-		if (selected.type == "users") {
-		    show_user(data);
-		} else if (selected.type == "groups") {
-		    show_group(data);
+	if (selected) {
+	    var type = selected.type;
+	    var id = selected.id;
+	    $.ajax({
+		url: "/my/" + type + "/" + id + "/permissions",
+		type: 'POST',
+		dataType: 'json',
+		data: {
+		    perms: JSON.stringify(get_new_permission())
+		},
+		success: function (data) {
+		    if (selected.type == "users") {
+			show_user(data);
+		    } else if (selected.type == "groups") {
+			show_group(data);
+		    }
 		}
-	    }
-	});
+	    });
+	}
     }
-	
+
     function get_new_permission() {
 	var perms = $("#new_permission").children().map(function(i,o) {return $(o).val()});
 	var res = []
