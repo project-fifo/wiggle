@@ -34,7 +34,6 @@ var ui = new Object();
 		type: 'DELETE',
 		dataType: 'json',
 		success: function () {
-		    unwatch_machine(id);g
 		    $("#" + id + "-menu").remove();
 		    activate_machine($(".machine").first().data("id"));
 		}
