@@ -1,6 +1,6 @@
 {application, wiggle,
  [{description, ""},
-  {vsn, "0.1.4"},
+  {vsn, "0.2.0"},
   {registered, []},
   {applications, [
 		  erlydtl,
