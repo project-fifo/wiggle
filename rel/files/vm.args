@@ -1,8 +1,8 @@
 ## Name of the node
--name wiggle@127.0.0.1
+-name wiggle@_OWN_IP_
 
 ## Cookie for distributed erlang
--setcookie fifo
+-setcookie _FIFOCOOKIE_
 
 ## Heartbeat management; auto-restarts VM if it dies or becomes unresponsive
 ## (Disabled by default..use with caution!)
