@@ -37,7 +37,7 @@
     <button id="set_network" class="btn btn-success">Set</button>
   </div>
   <h2>Users</h2>
-  <div class="well">x
+  <div class="well">
     <label class="control-label" for="user_name">Name</label><input type="text" id="user_name"/></br>
     <label class="control-label" for="user_pass">Password</label><input type="password" id="user_pass"/></br> 
     <button id="add_user" class="btn btn-success">Add</button>
