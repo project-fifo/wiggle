@@ -14,6 +14,7 @@ var debug;
 	"info": true
     };
     var wiggle = {
+	"login": true,
 	"module": {
 	    "about": true,
 	    "account": true,

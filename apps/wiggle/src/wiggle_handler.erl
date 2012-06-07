@@ -48,7 +48,7 @@ handle(Req, State) ->
 	 Auth ->
 	    case libsnarl:user_cache(Auth, Auth) of
 		{ok, Auth1} ->
-		    case libsnarl:allowed(Auth, Auth1, [service, wiggle]) of
+		    case libsnarl:allowed(Auth, Auth1, [service, wiggle, login]) of
 			true ->
 			    request(Method, Path, Auth1, Req3, State);
 			false ->
@@ -56,7 +56,7 @@ handle(Req, State) ->
 			    login(Req4, State)
 		    end;
 		_ ->
-		    case libsnarl:allowed(Auth, Auth, [service, wiggle]) of
+		    case libsnarl:allowed(Auth, Auth, [service, wiggle, login]) of
 			{ok, _} ->
 			    request(Method, Path, Auth, Req3, State);
 			_ ->
