@@ -7,10 +7,26 @@ var ui = new Object();
     var center=$("#center");
 
     function watch_machine(id) {
-	ws.send(JSON.stringify({"action": "subscribe", "uuid": id}));
+	try {
+	    ws.send(JSON.stringify({"action": "subscribe", "uuid": id}));
+	} catch (e) {
+	    ws_problem++;
+	    setInterval(function(){
+		watch_machine(id);
+	    }, 200);
+	}
+	    
     };
     function unwatch_machine(id) {
-	ws.send(JSON.stringify({"action": "unsubscribe", "uuid": id}));
+	try {
+	    ws.send(JSON.stringify({"action": "unsubscribe", "uuid": id}));
+	} catch (e) {
+	    ws_problem++;
+	    setInterval(function(){
+		unwatch_machine(id);
+	    }, 200);
+	}
+    
     };
 
 
