@@ -40,8 +40,12 @@ websocket_handle({text, JSON}, Req, State) ->
     case proplists:get_value(<<"action">>, Data) of
 	<<"subscribe">> ->
 	    io:format("subscribe: ~s.~n", [UUID]),
-	     gproc:reg({p, g, {vm,UUID}})
-		
+	    try
+		gproc:reg({p, g, {vm,UUID}})
+	    catch
+		_:_ ->
+		    ok
+	    end
     end,
     {ok, Req, State};
 

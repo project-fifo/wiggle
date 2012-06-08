@@ -1,7 +1,7 @@
-var permissions = new Object();
 var snarl = new Object();
 var debug;
 !function ($){
+    var permissions = new Object();
     permissions.data = new Object();
     var selected;
     var vm_permissions = {
