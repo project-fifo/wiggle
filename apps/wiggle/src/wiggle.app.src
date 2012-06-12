@@ -8,7 +8,7 @@
 		  jsx,
                   kernel,
 		  sasl,
-		  alog,
+		  lager,
                   libsniffle,
 		  libsnarl,
                   stdlib
