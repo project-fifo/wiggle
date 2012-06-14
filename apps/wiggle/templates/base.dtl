@@ -39,7 +39,7 @@
     {% if messages %}
     {% for message in messages %}
     <div class="alert alert-block{%if message.class %} alert-{{message.class}}{%endif%}" onclick="$(this).remove(500);">
-      {{ message.text }}
+      {{message.text}}
     </div>
     {% empty %}
     {% endfor %}

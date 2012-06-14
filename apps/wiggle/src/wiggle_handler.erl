@@ -100,9 +100,9 @@ request('POST', [<<"login">>], undefined, Req, State) ->
 		    {ok, Req3, State}
 		end;
 	_ ->
-	    {ok, Page} = login_dtl:render([{<<"messages">>, 
-					    [[{<<"text">>, <<"Login failed">>},
-					      {<<"class">>, <<"error">>}]]}]),
+	    {ok, Page} = login_dtl:render([{messages, 
+					    [[{text, <<"Login failed">>},
+					      {class, <<"error">>}]]}]),
 	    {ok, Req2} = cowboy_http_req:reply(200, [], Page, Req1),
 	    {ok, Req2, State}
     end;
@@ -215,43 +215,42 @@ request('POST', [<<"account">>], Auth, Req, State) ->
 				    {ok, Name} = libsnarl:user_name(Auth, Auth),
 				    case libsnarl:auth(Name, Pass) of
 					{ok, _} ->
-					    case libsnarl:passwd(Auth, Auth, Pass) of
+					    case libsnarl:user_passwd(Auth, Auth, New) of
 						ok ->
 						    {ok, Page} = account_dtl:render(
 								   page_permissions(Auth) ++ 
-								   [{messages, 
-								     [{text, <<"Password changed.">>},
-								      {class, <<"success">>}]},
-								    {page, "account"}]),
+								       [{messages,
+									 [[{text, <<"Password changed.">>},
+									   {class, <<"success">>}]]},
+									{page, "account"}]),
 						    {ok, Req2} = cowboy_http_req:reply(200, [], Page , Req1),
 						    {ok, Req2, State};
 						_ ->
 						    {ok, Page} = account_dtl:render(
 								   page_permissions(Auth) ++ 
-								   [{messages, 
-								     [{text, <<"Permission denied.">>},
-								      {class, <<"error">>}]},
-								    {page, "account"}]),
+								       [{messages,
+									 [[{text, <<"Permission denied.">>},
+									   {class, <<"error">>}]]},
+									{page, "account"}]),
 						    {ok, Req2} = cowboy_http_req:reply(200, [], Page , Req1),
-					    {ok, Req2, State}
-							
+						    {ok, Req2, State}
 					    end;
 					_ ->
 					    {ok, Page} = account_dtl:render(
 							   page_permissions(Auth) ++ 
-							   [{messages, 
-							     [{text, <<"Passwords incorrect.">>},
-							      {class, <<"error">>}]},
-							    {page, "account"}]),
+							       [{messages,
+								 [[{text, <<"Passwords incorrect.">>},
+								   {class, <<"error">>}]]},
+								{page, "account"}]),
 					    {ok, Req2} = cowboy_http_req:reply(200, [], Page , Req1),
 					    {ok, Req2, State}
 				    end;
 				_ ->
 				    {ok, Page} = account_dtl:render(
 						   page_permissions(Auth) ++ 
-						   [{messages, 
-						     [{text, <<"Passwords did not match.">>},
-						      {class, <<"error">>}]},
+						   [{messages,
+						     [[{text, <<"Passwords did not match.">>},
+						       {class, <<"error">>}]]},
 						    {page, "account"}]),
 				    {ok, Req2} = cowboy_http_req:reply(200, [], Page , Req1),
 				    {ok, Req2, State}
@@ -259,9 +258,9 @@ request('POST', [<<"account">>], Auth, Req, State) ->
 		_ ->
 		    {ok, Page} = account_dtl:render(
 				   page_permissions(Auth) ++ 
-				   [{messages, 
-				     [{text, <<"Old passwords was empty.">>},
-				      {class, <<"error">>}]},
+				   [{messages,
+				     [[{text, <<"Old passwords was empty.">>},
+				       {class, <<"error">>}]]},
 				    {page, "account"}]),
 			    {ok, Req2} = cowboy_http_req:reply(200, [], Page , Req1),
 			    {ok, Req2, State}
