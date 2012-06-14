@@ -215,7 +215,7 @@ request('POST', [<<"account">>], Auth, Req, State) ->
 				    {ok, Name} = libsnarl:user_name(Auth, Auth),
 				    case libsnarl:auth(Name, Pass) of
 					{ok, _} ->
-					    case libsnarl:passwd(Auth, Name, Pass) of
+					    case libsnarl:passwd(Auth, Auth, Pass) of
 						ok ->
 						    {ok, Page} = account_dtl:render(
 								   page_permissions(Auth) ++ 
