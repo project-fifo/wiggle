@@ -20,7 +20,12 @@
   <div class='span2 detail-field'>Name</div><div class='span9' id='machine-detail-name'>{{name}}</div>
   <div class='span2 detail-field'>Type</div><div class='span9' id='machine-detail-type'>{{type}}</div>
   <div class='span2 detail-field'>State</div><div class='span9' id='machine-detail-state'>{{state}}</div>
-  <div class='span2 detail-field'>Memory</div><div class='span9' id='machine-detail-memory'>{{memory}}</div>
+  <div class='span2 detail-field'>VM Memory</div><div class='span9' id='machine-detail-memory'>{{memory}}</div>
+  {{#kvm}}
+  {{#max_physical_memory}}
+  <div class='span2 detail-field'>Physical Memory</div><div class='span9' id='machine-detail-memory'>{{max_physical_memory}}</div>
+  {{/max_physical_memory}}
+  {{/kvm}}
   <div class='span2 detail-field'>IPs</div><div class='span9' id='machine-detail-ips'>{{ips}}</div>
   <div class='span2 detail-field'>Dataset</div><div class='span9' id='machine-detail-dataset'>{{dataset}}</div>
   <div class='span2 detail-field'>Created</div><div class='span9' id='machine-detail-created'>{{created}}</div>
