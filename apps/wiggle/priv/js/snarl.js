@@ -450,7 +450,7 @@ var debug;
     }
     function set_network() {
 	$.ajax({
-	    url: "/my/networks/external",
+	    url: "/my/networks/admin",
 	    type: 'POST',
 	    dataType: 'json',
 	    data: {
