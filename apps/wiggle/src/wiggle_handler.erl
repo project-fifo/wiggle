@@ -446,8 +446,8 @@ request('GET', [<<"my">>, <<"groups">>, Group, <<"users">>], Auth, Req, State) -
 	    error_page(403, Req, State)
     end;
 
-request('GET', [<<"my">>, <<"networks">>, <<"external">>], Auth, Req, State) ->
-    Res = case libsnarl:network_get(Auth, <<"external">>) of
+request('GET', [<<"my">>, <<"networks">>, <<"admin">>], Auth, Req, State) ->
+    Res = case libsnarl:network_get(Auth, <<"admin">>) of
 	      {ok, {Network, Mask, Gateway, _}} ->
 		  [{network, libsnarl:ip_to_str(Network)},
 		   {netmask, libsnarl:ip_to_str(Mask)},
@@ -459,15 +459,15 @@ request('GET', [<<"my">>, <<"networks">>, <<"external">>], Auth, Req, State) ->
 	  end,
     reply_json(Req, Res, State);
 
-request('POST', [<<"my">>, <<"networks">>, <<"external">>], Auth, Req, State) ->
+request('POST', [<<"my">>, <<"networks">>, <<"admin">>], Auth, Req, State) ->
     {Vals, Req1} = cowboy_http_req:body_qs(Req),
     First = libsnarl:parse_ip(proplists:get_value(<<"first">>, Vals)),
     Mask = libsnarl:parse_ip(proplists:get_value(<<"netmask">>, Vals)),
     Gateway = libsnarl:parse_ip(proplists:get_value(<<"gateway">>, Vals)),
-    libsnarl:network_delete(Auth, <<"external">>),
-    case libsnarl:network_add(Auth, <<"external">>, First, Mask, Gateway) of
-	ok ->
-	    {ok, {NewNetwork, NewMask, NewGateway, _}} = libsnarl:network_get(Auth, <<"external">>),
+    libsnarl:network_delete(Auth, <<"admin">>),
+    case libsnarl:network_add(Auth, <<"admin">>, First, Mask, Gateway) of
+	ok ->b
+	    {ok, {NewNetwork, NewMask, NewGateway, _}} = libsnarl:network_get(Auth, <<"admin">>),
 	    Res = [{network, libsnarl:ip_to_str(NewNetwork)},
 		   {netmask, libsnarl:ip_to_str(NewMask)},
 		   {gateway, libsnarl:ip_to_str(NewGateway)}],
