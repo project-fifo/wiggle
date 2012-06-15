@@ -466,7 +466,7 @@ request('POST', [<<"my">>, <<"networks">>, <<"admin">>], Auth, Req, State) ->
     Gateway = libsnarl:parse_ip(proplists:get_value(<<"gateway">>, Vals)),
     libsnarl:network_delete(Auth, <<"admin">>),
     case libsnarl:network_add(Auth, <<"admin">>, First, Mask, Gateway) of
-	ok ->b
+	ok ->
 	    {ok, {NewNetwork, NewMask, NewGateway, _}} = libsnarl:network_get(Auth, <<"admin">>),
 	    Res = [{network, libsnarl:ip_to_str(NewNetwork)},
 		   {netmask, libsnarl:ip_to_str(NewMask)},
