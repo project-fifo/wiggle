@@ -442,7 +442,7 @@ var debug;
 	});
     }
     function get_ip() {
-	$.getJSON("/my/networks/external", function(data) {
+	$.getJSON("/my/networks/admin", function(data) {
 	    $("#ip_range").attr("value",data.network);
 	    $("#gateway").attr("value",data.gateway);
 	    $('#netmask > option[value="' + data.netmask + '"]').attr("selected", true);	    
