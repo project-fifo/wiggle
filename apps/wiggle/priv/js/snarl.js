@@ -31,48 +31,52 @@ var debug;
 	    "add": {"Type":true}
 	}
     };
+    var group_group = {
+	"users": {
+	    "add":{
+		"UUID": true
+	    },
+	    "delete":{
+		"UUID": true
+	    }
+	},
+	"delete": true,
+	"grant": true,
+	"name": true,
+	"permissions": true,
+	"revoke": true
+    };
     var group = {
 	"add": true,
 	"get": {
 	    "Name": true
 	},
-	"UUID": {
-	    "users": {
-		"add":{
-		    "UUID": true
-		},
-		"delete":{
-		    "UUID": true
-		}
-	    },
-	    "delete": true,
-	    "grant": true,
-	    "name": true,
-	    "permissions": true,
-	    "revoke": true
-	}
+	"UUID": group_group,
+	"_": group_group
     }
+    var user_user = {
+	"groups": {
+	    "add":{
+		"UUID": true
+	    },
+	    "delete":{
+		"UUID": true
+	    }
+	},
+	"delete": true,
+	"grant": true,
+	"name": true,
+	"permissions": true,
+	"revoke": true
+    };
     var user = {
 	"add": true,
 	"passwd": true,
 	"get": {
 	    "Name": true
 	},
-	"UUID": {
-	    "groups": {
-		"add":{
-		    "UUID": true
-		},
-		"delete":{
-		    "UUID": true
-		}
-	    },
-	    "delete": true,
-	    "grant": true,
-	    "name": true,
-	    "permissions": true,
-	    "revoke": true
-	}
+	"UUID": user_user,
+	"_": user_user
     };
     var permission = {
 	"group": {
@@ -84,51 +88,61 @@ var debug;
 	    "revoke": permissions.data
 	}
     };
-    var option = {
-	"Category": {
-	    "list": true,
-	    "delete": {
-		"Name": true
-	    },
-	    "get": {
-		"Name": true
-	    },
-	    "set": {
-		"Name": true
-	    }
+    var option_cat = {
+	"list": true,
+	"delete": {
+	    "Name": true
+	},
+	"get": {
+	    "Name": true
+	},
+	"set": {
+	    "Name": true
 	}
+    };
+    var option = {
+	"Category": option_cat,
+	"_": option_cat
+    };
+    var dataset_dataset = {
+	"get": true,
+	"delete": true
     };
     var dataset = {
 	"create": true,	
-	"Name": {
-	    "get": true,
-	    "delete": true
-	}
+	"Name": dataset_dataset,
+	"_": dataset_dataset
     }
+    var pkg_pkg = {
+	"get": true,
+	"delete": true
+    };
     var pkg = {
 	"create": true,	
-	"Name": {
-	    "get": true,
-	    "delete": true
-	}
-    }
+	"Name": pkg_pkg,
+	"_": pkg_pkg
+    };
+    var key_key = {
+	"get": true,
+	"delete": true
+    };
     var key = {
 	"create": true,	
-	"Name": {
-	    "get": true,
-	    "delete": true
+	"Name": key_key,
+	"_": key_key
+    };
+    var network_net = {
+	"delete": true,
+	"get": true,
+	"next_ip": true,
+	"release_ip": {
+	    "IP": true
 	}
-    }
+    };
     var network = {
 	"create": true,
-	"Name": {
-	    "delete": true,
-	    "get": true,
-	    "next_ip": true,
-	    "release_ip": {
-		"IP": true
-	    }
-	}
+	"Name": network_net,
+	"_": network_net
     }
     permissions.data["permission"] = permission;
     permissions.data["option"] = option
@@ -142,17 +156,19 @@ var debug;
 	"wiggle": wiggle,
 	"sniffle": sniffle,
     };
-    
+    var package_package = {
+	"add": true,
+	"delete": true,
+	"edit": true,
+	"view": true
+    }
     permissions.data["package"] = {
-	"Name": {
-	    "add": true,
-	    "delete": true,
-	    "edit": true,
-	    "view": true
-	}
+	"Name": package_package,
+	"_": package_package
     };
     permissions.data["vm"] = {
 	"Name": vm_permissions,
+	"_": vm_permissions,
 	"create": true
     };
     permissions.get = function(ks, current) {
