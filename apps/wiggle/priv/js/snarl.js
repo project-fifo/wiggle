@@ -34,10 +34,12 @@ var debug;
     var group_group = {
 	"users": {
 	    "add":{
-		"UUID": true
+		"UUID": true,
+		"_": true
 	    },
 	    "delete":{
-		"UUID": true
+		"UUID": true,
+		"_": true
 	    }
 	},
 	"delete": true,
@@ -49,7 +51,8 @@ var debug;
     var group = {
 	"add": true,
 	"get": {
-	    "Name": true
+	    "Name": true,
+	    "_": true
 	},
 	"UUID": group_group,
 	"_": group_group
@@ -57,10 +60,12 @@ var debug;
     var user_user = {
 	"groups": {
 	    "add":{
-		"UUID": true
+		"UUID": true,
+		"_": true
 	    },
 	    "delete":{
-		"UUID": true
+		"UUID": true,
+		"_": true
 	    }
 	},
 	"delete": true,
@@ -73,7 +78,8 @@ var debug;
 	"add": true,
 	"passwd": true,
 	"get": {
-	    "Name": true
+	    "Name": true,
+	    "_": true
 	},
 	"UUID": user_user,
 	"_": user_user
@@ -91,13 +97,16 @@ var debug;
     var option_cat = {
 	"list": true,
 	"delete": {
-	    "Name": true
+	    "Name": true,
+	    "_": true
 	},
 	"get": {
-	    "Name": true
+	    "Name": true,
+	    "_": true
 	},
 	"set": {
-	    "Name": true
+	    "Name": true,
+	    "_": true
 	}
     };
     var option = {
@@ -136,7 +145,8 @@ var debug;
 	"get": true,
 	"next_ip": true,
 	"release_ip": {
-	    "IP": true
+	    "IP": true,
+	    "_": true
 	}
     };
     var network = {
