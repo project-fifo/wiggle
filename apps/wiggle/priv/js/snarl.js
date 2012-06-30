@@ -160,7 +160,7 @@ var debug;
 	"add": true,
 	"delete": true,
 	"edit": true,
-	"view": true
+	"get": true
     }
     permissions.data["package"] = {
 	"Name": package_package,
