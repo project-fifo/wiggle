@@ -8,7 +8,7 @@ var ui = new Object();
 
     function watch_machine(id) {
 	try {
-	    ws.send(JSON.stringify({"action": "subscribe", "uuid": id}));
+	    ws.send(JSON.stringify({"action": "subscribe", "type": "vm", "uuid": id}));
 	} catch (e) {
 	    ws_problem++;
 	    setInterval(function(){
@@ -19,7 +19,7 @@ var ui = new Object();
     };
     function unwatch_machine(id) {
 	try {
-	    ws.send(JSON.stringify({"action": "unsubscribe", "uuid": id}));
+	    ws.send(JSON.stringify({"action": "unsubscribe", "type": "vm", "uuid": id}));
 	} catch (e) {
 	    ws_problem++;
 	    setInterval(function(){

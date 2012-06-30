@@ -36,12 +36,33 @@ websocket_init(_Any, Req, []) ->
 
 websocket_handle({text, JSON}, Req, State) ->
     Data = jsx:to_term(JSON),
+    Type = proplists:get_value(<<"type">>, Data),
     UUID = proplists:get_value(<<"uuid">>, Data),
     case proplists:get_value(<<"action">>, Data) of
 	<<"subscribe">> ->
 	    io:format("subscribe: ~s.~n", [UUID]),
 	    try
-		gproc:reg({p, g, {vm,UUID}})
+		case Type of
+		    <<"vm">> ->
+			gproc:reg({p, g, {vm,UUID}});
+		    <<"host">> ->
+			gproc:reg({p, g, {host,UUID}});
+		    _ ->
+			ok
+		end
+	    catch
+		_:_ ->
+		    ok
+	    end;
+	<<"unsubscribe">> ->
+	    io:format("unsubscribe: ~s.~n", [UUID]),
+	    try
+		case Type of
+		    <<"host">> ->
+			gproc:reg({p, g, {host,UUID}});
+		    _ ->
+			ok
+		end
 	    catch
 		_:_ ->
 		    ok
@@ -56,6 +77,13 @@ websocket_info({vm, state, UUID, NewState}, Req, State) ->
     Reply = [{event, <<"state change">>},
 	     {uuid, UUID},
 	     {state, ensure_bin(NewState)}],
+    {reply, {text, jsx:to_json(Reply)}, Req, State};
+
+
+websocket_info({host, stats, UUID, Stats}, Req, State) ->
+    Reply = [{event, <<"stat">>},
+	     {uuid, UUID},
+	     {stats, Stats}],
     {reply, {text, jsx:to_json(Reply)}, Req, State};
 
 websocket_info(_Info, Req, State) ->
