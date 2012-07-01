@@ -17,16 +17,21 @@ terminate(_Req, _State) ->
     ok.
 
 websocket_init(_Any, Req, []) ->
+    io:format("1~n"),
     case wiggle_session:get(Req) of
 	undefined ->
+	    io:format("2~n"),
 	    {ok, Req1} = cowboy_http_req:reply(401, [{'Content-Type', <<"text/html">>}], <<"">>, Req),
 	    {shutdown, Req1};
 
 	Auth  ->
+	    io:format("3~n"),
 	    case libsnarl:allowed(Auth, Auth, [service, wiggle, module, event]) of
 		true ->
+		    io:format("4~n"),
 		    {ok, Req, undefined, hibernate};
 		false ->
+		    io:format("5~n"),
 		    {ok, Req2} = cowboy_http_req:reply(401, [{'Content-Type', <<"text/html">>}],
 						       <<"">>, Req),
 		    {shutdown, Req2}
@@ -46,6 +51,7 @@ websocket_handle({text, JSON}, Req, State) ->
 		    <<"vm">> ->
 			gproc:reg({p, g, {vm,UUID}});
 		    <<"host">> ->
+			io:format("watching host ~s~n", [UUID]),
 			gproc:reg({p, g, {host,UUID}});
 		    _ ->
 			ok
@@ -81,6 +87,7 @@ websocket_info({vm, state, UUID, NewState}, Req, State) ->
 
 
 websocket_info({host, stats, UUID, Stats}, Req, State) ->
+    io:format("Host ~s Stats: ~p", [UUID, Stats]),
     Reply = [{event, <<"stat">>},
 	     {uuid, UUID},
 	     {stats, Stats}],
