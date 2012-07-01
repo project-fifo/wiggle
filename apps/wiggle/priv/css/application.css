@@ -14,3 +14,9 @@ div.tab-content {
 div.detail-field {
     font-weight: bold;
 }
+.user {
+    fill: lightreen;
+}
+.system {
+    fill: steelblue;
+}

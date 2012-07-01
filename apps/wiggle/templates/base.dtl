@@ -73,6 +73,8 @@
     <script type="application/javascript" src="/js/ICanHaz.js"></script>
     <script type="application/javascript" src="/js/vnc/vnc.js"></script>
     <script type="application/javascript" src="/js/jquery.validate.min.js"></script>
+    <script type="application/javascript" src="/js/d3.v2.js"></script>
+    <script type="application/javascript" src="/js/cpu_charts.js"></script>
     <script type="application/javascript" src="/js/snarl.js"></script>
     <script type="application/javascript" src="/js/gauge.js"></script>
     <script type="application/javascript" src="/js/application.js"></script>

@@ -6,15 +6,12 @@ var stats = new Object();
     var rfb;
     var ws_problem = 0;
     var center=$("#center");
-
+    var context;
     function watcher_action(action, type, uuid) {
 	try {
 	    var json = JSON.stringify({"action": action, "type": type, "uuid": uuid});
-	    console.log(json);
-	    console.log(ws);
 	    ws.send(json);
 	} catch (e) {
-	    console.log(e);
 	    ws_problem++;
 	    if (ws_problem == 100) {
 		alert("Websocket died!");
@@ -361,21 +358,23 @@ var stats = new Object();
 	$("#machine-new-btn").click(machine_add_fn)
     };
     ui.init = function () {
-	get_machines();
-	init_event_socket();
-	get_other("packages", false, "name", click_package);
-	get_other("datasets",
-		  function (data) {
-		      return data.name +
-			  " v" + 
-			  data.urn.split(":")[3];
-		  });
-
-	$("#packages-nav-add").click(view_add_pkg);
-	$("#packages-nav-del").click(delete_pkg);
-	
-	$("#machines-nav-add").click(view_add_vm);
-	$("#machines-nav-del").click(delete_vm);
+	init_event_socket(function() {
+	    get_machines();
+	    
+	    get_other("packages", false, "name", click_package);
+	    get_other("datasets",
+		      function (data) {
+			  return data.name +
+			      " v" + 
+			      data.urn.split(":")[3];
+		      });
+	    
+	    $("#packages-nav-add").click(view_add_pkg);
+	    $("#packages-nav-del").click(delete_pkg);
+	    
+	    $("#machines-nav-add").click(view_add_vm);
+	    $("#machines-nav-del").click(delete_vm);
+	});
     };
     
     function load_template(id) {
@@ -404,16 +403,13 @@ var stats = new Object();
               port = "80";
 
 	    // browser supports websockets
-	    console.log("ws://" + host + ":" + port + "/events");
 	    ws = new WebSocket("ws://" + host + ":" + port + "/events");
 	    ws.onopen = function() {
 		// websocket is connected
 		ws_problem = 0;
-		console.log("ws://" + host + ":" + port + "/events - opened");
 		initfn();
 	    };
 	    ws.onmessage = function (evt) {
-		console.log(evt);
 		var receivedMsg = evt.data;
 		var json = JSON.parse(receivedMsg);
 		
@@ -421,7 +417,6 @@ var stats = new Object();
 		    case "stat":
 		    update_host_stats(json.uuid, json.stats);
 		    case "state change":
-		    console.log(receivedMsg);
 		    update_state(json.uuid, json.state);
 		    break;
 		}
@@ -448,14 +443,20 @@ var stats = new Object();
 	    gauge_mem.draw();
 	    $("#" + host+'-memory').data("false")
 	}
-	console.log("user: " + stats.cpu.user);
-	console.log("system: " + stats.cpu.system);
 	gauge_mem.setValue((stats.memory.total - stats.memory.free)/(1024*1024));
 	$("#" + host+'-user').data("gauge").setValue(stats.cpu.user);
 	$("#" + host+'-system').data("gauge").setValue(stats.cpu.system);
 	$("#" + host+'-ioblock').data("gauge").setValue(stats.kthr.blocked);
 	$("#" + host+'-pgin').data("gauge").setValue(stats.page.in);
 	$("#" + host+'-pgout').data("gauge").setValue(stats.page.out);
+	var mpstat_chart = $("#" + host+'-mpstat').data("chart");
+	if (mpstat_chart) {
+	    mpstat_chart.update(stats.cpu.details);
+	} else {
+	    console.log(stats.cpu);
+	    $("#" + host+'-mpstat').data("chart",mpstat.create(host, stats.cpu.details));
+	}
+	
     }
     function add_stat_host(host) {
 	$("#hosts").append(ich.host({uuid: host}));
@@ -534,9 +535,6 @@ var stats = new Object();
 	}); 
 	$("#" + host+'-pgout').data("gauge",gauge_pgout);
 	gauge_pgout.draw();
-
-
-
     }
     function stat_hosts() {
 	$.getJSON("/my/hosts", function (data) {
