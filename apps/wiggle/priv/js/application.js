@@ -443,25 +443,22 @@ var stats = new Object();
 
     function update_host_stats(host, stats) {
 	var gauge_mem = $("#" + host+'-memory').data("gauge");
-	gauge_mem.config.maxValue = stats.memory.total/(1024* 1024);
-	gauge_mem.draw()
+	if ($("#" + host+'-memory').data("first")) {
+	    gauge_mem.config.maxValue = stats.memory.total/(1024* 1024);
+	    gauge_mem.draw();
+	    $("#" + host+'-memory').data("false")
+	}
+	console.log("user: " + stats.cpu.user);
+	console.log("system: " + stats.cpu.system);
 	gauge_mem.setValue((stats.memory.total - stats.memory.free)/(1024*1024));
-	var gauge_user = $("#" + host+'-user').data("gauge");
-	gauge_user.setValue(stats.cpu.user);
-	var gauge_system = $("#" + host+'-system').data("gauge");
-	gauge_system.setValue(stats.cpu.system);
-	var gauge_ioblock = $("#" + host+'-ioblock').data("gauge");
-	gauge_ioblock.setValue(stats.kthr.blocked);
+	$("#" + host+'-user').data("gauge").setValue(stats.cpu.user);
+	$("#" + host+'-system').data("gauge").setValue(stats.cpu.system);
+	$("#" + host+'-ioblock').data("gauge").setValue(stats.kthr.blocked);
 	$("#" + host+'-pgin').data("gauge").setValue(stats.page.in);
 	$("#" + host+'-pgout').data("gauge").setValue(stats.page.out);
-
-
     }
     function add_stat_host(host) {
 	$("#hosts").append(ich.host({uuid: host}));
-	var green = "#8FFEDD";
-	var yellow = "#FFFF99";
-	var red = "#FF8A8A";
 	var green = "#eee";
 	var yellow = "#ccc";
 	var red = "#999";
@@ -476,26 +473,29 @@ var stats = new Object();
 	    valueFormat:{"int": 3, "dec": 0}
 	});
 	$("#" + host+'-memory').data("gauge",gauge_mem);
+	$("#" + host+'-memory').data("first",true);
 	gauge_mem.draw();
 
-	var gauge_user = new Gauge({ 
+	gauge_user = new Gauge({ 
 	    renderTo: host+'-user',
 	    width: 150,
 	    height: 150,
 	    highlights: [{ from: 0, to: 30, color: green}, 
 			 { from: 30, to: 80, color: yellow}, 
-			 { from: 80, to: 100, color: red}]
+			 { from: 80, to: 100, color: red}],
+	    valueFormat:{"int": 3, "dec": 0}
 	});
  	$("#" + host+'-user').data("gauge",gauge_user);
 	gauge_user.draw();
 
-	var gauge_system = new Gauge({
+	gauge_system = new Gauge({
 	    renderTo: host+'-system',
 	    width: 150,
 	    height: 150,
 	    highlights: [{ from: 0, to: 30, color: green}, 
 			 { from: 30, to: 80, color: yellow}, 
-			 { from: 80, to: 100, color: red}]
+			 { from: 80, to: 100, color: red}],
+	    valueFormat:{"int": 3, "dec": 0}
 	});
 	$("#" + host+'-system').data("gauge",gauge_system);
 	gauge_system.draw();
@@ -505,7 +505,9 @@ var stats = new Object();
 	    height: 150,
 	    highlights: [{ from: 0, to: 10, color: green}, 
 			 { from: 10, to: 50, color: yellow}, 
-			 { from: 50, to: 100, color: red}]
+			 { from: 50, to: 100, color: red}],
+	    valueFormat:{"int": 3, "dec": 0}
+
 	}); 
 	$("#" + host+'-ioblock').data("gauge",gauge_ioblock);
 	gauge_ioblock.draw();
@@ -516,7 +518,8 @@ var stats = new Object();
 	    height: 150,
 	    highlights: [{ from: 0, to: 10, color: green}, 
 			 { from: 10, to: 50, color: yellow}, 
-			 { from: 50, to: 100, color: red}]
+			 { from: 50, to: 100, color: red}],
+	    valueFormat:{"int": 3, "dec": 0}
 	}); 
 	$("#" + host+'-pgin').data("gauge",gauge_pgin);
 	gauge_pgin.draw();
@@ -526,7 +529,8 @@ var stats = new Object();
 	    height: 150,
 	    highlights: [{ from: 0, to: 10, color: green}, 
 			 { from: 10, to: 50, color: yellow}, 
-			 { from: 50, to: 100, color: red}]
+			 { from: 50, to: 100, color: red}],
+	    valueFormat:{"int": 3, "dec": 0}
 	}); 
 	$("#" + host+'-pgout').data("gauge",gauge_pgout);
 	gauge_pgout.draw();
