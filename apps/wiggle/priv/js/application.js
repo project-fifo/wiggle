@@ -1,4 +1,5 @@
 var ui = new Object();
+var stats = new Object();
 
 !function ($) {
     var ws;
@@ -6,28 +7,37 @@ var ui = new Object();
     var ws_problem = 0;
     var center=$("#center");
 
-    function watch_machine(id) {
+    function watcher_action(action, type, uuid) {
 	try {
-	    ws.send(JSON.stringify({"action": "subscribe", "uuid": id}));
+	    var json = JSON.stringify({"action": action, "type": type, "uuid": uuid});
+	    console.log(json);
+	    console.log(ws);
+	    ws.send(json);
 	} catch (e) {
+	    console.log(e);
 	    ws_problem++;
-	    setInterval(function(){
-		watch_machine(id);
-	    }, 200);
+	    if (ws_problem == 100) {
+		alert("Websocket died!");
+	    }
+	//   setInterval(function(){
+	//	watcher_action(action, type, uuid);
+	//    }, 200);
 	}
-	    
+    }	
+    function watch_machine(id) {
+	watcher_action("subscribe", "vm", id);
+    };
+    function watch_host(id) {
+	watcher_action("subscribe", "host", id);
     };
     function unwatch_machine(id) {
-	try {
-	    ws.send(JSON.stringify({"action": "unsubscribe", "uuid": id}));
-	} catch (e) {
-	    ws_problem++;
-	    setInterval(function(){
-		unwatch_machine(id);
-	    }, 200);
-	}
-    
+	watcher_action("unsubscribe", "vm", id);
     };
+
+    function unwatch_machine(id) {
+	watcher_action("unsubscribe", "host", id);
+    };
+
 
 
     function delete_vm() {
@@ -383,7 +393,7 @@ var ui = new Object();
 	}
     }
     
-    function init_event_socket(){
+    function init_event_socket(initfn){
 	if ("MozWebSocket" in window) {
 	    WebSocket = MozWebSocket;
 	}
@@ -394,16 +404,22 @@ var ui = new Object();
               port = "80";
 
 	    // browser supports websockets
+	    console.log("ws://" + host + ":" + port + "/events");
 	    ws = new WebSocket("ws://" + host + ":" + port + "/events");
 	    ws.onopen = function() {
 		// websocket is connected
 		ws_problem = 0;
+		console.log("ws://" + host + ":" + port + "/events - opened");
+		initfn();
 	    };
 	    ws.onmessage = function (evt) {
+		console.log(evt);
 		var receivedMsg = evt.data;
 		var json = JSON.parse(receivedMsg);
 		
 		switch (json.event) {
+		    case "stat":
+		    update_host_stats(json.uuid, json.stats);
 		    case "state change":
 		    console.log(receivedMsg);
 		    update_state(json.uuid, json.state);
@@ -424,12 +440,122 @@ var ui = new Object();
 	    addStatus("sorry, your browser does not support websockets.");
 	}
     }
+
+    function update_host_stats(host, stats) {
+	var gauge_mem = $("#" + host+'-memory').data("gauge");
+	gauge_mem.config.maxValue = stats.memory.total/(1024* 1024);
+	gauge_mem.draw()
+	gauge_mem.setValue((stats.memory.total - stats.memory.free)/(1024*1024));
+	var gauge_user = $("#" + host+'-user').data("gauge");
+	gauge_user.setValue(stats.cpu.user);
+	var gauge_system = $("#" + host+'-system').data("gauge");
+	gauge_system.setValue(stats.cpu.system);
+	var gauge_ioblock = $("#" + host+'-ioblock').data("gauge");
+	gauge_ioblock.setValue(stats.kthr.blocked);
+	$("#" + host+'-pgin').data("gauge").setValue(stats.page.in);
+	$("#" + host+'-pgout').data("gauge").setValue(stats.page.out);
+
+
+    }
+    function add_stat_host(host) {
+	$("#hosts").append(ich.host({uuid: host}));
+	var green = "#8FFEDD";
+	var yellow = "#FFFF99";
+	var red = "#FF8A8A";
+	var green = "#eee";
+	var yellow = "#ccc";
+	var red = "#999";
+
+	var gauge_mem = new Gauge({ 
+	    renderTo: host+'-memory',
+	    width: 150,
+	    height: 150,
+	    highlights: [{ from: 20, to: 60, color: green }, 
+			 { from: 60, to: 80, color: yellow }, 
+			 { from: 80, to: 100, color: red}],
+	    valueFormat:{"int": 3, "dec": 0}
+	});
+	$("#" + host+'-memory').data("gauge",gauge_mem);
+	gauge_mem.draw();
+
+	var gauge_user = new Gauge({ 
+	    renderTo: host+'-user',
+	    width: 150,
+	    height: 150,
+	    highlights: [{ from: 0, to: 30, color: green}, 
+			 { from: 30, to: 80, color: yellow}, 
+			 { from: 80, to: 100, color: red}]
+	});
+ 	$("#" + host+'-user').data("gauge",gauge_user);
+	gauge_user.draw();
+
+	var gauge_system = new Gauge({
+	    renderTo: host+'-system',
+	    width: 150,
+	    height: 150,
+	    highlights: [{ from: 0, to: 30, color: green}, 
+			 { from: 30, to: 80, color: yellow}, 
+			 { from: 80, to: 100, color: red}]
+	});
+	$("#" + host+'-system').data("gauge",gauge_system);
+	gauge_system.draw();
+	var gauge_ioblock = new Gauge({
+	    renderTo: host+'-ioblock',
+	    width: 150,
+	    height: 150,
+	    highlights: [{ from: 0, to: 10, color: green}, 
+			 { from: 10, to: 50, color: yellow}, 
+			 { from: 50, to: 100, color: red}]
+	}); 
+	$("#" + host+'-ioblock').data("gauge",gauge_ioblock);
+	gauge_ioblock.draw();
+
+	var gauge_pgin = new Gauge({
+	    renderTo: host+'-pgin',
+	    width: 150,
+	    height: 150,
+	    highlights: [{ from: 0, to: 10, color: green}, 
+			 { from: 10, to: 50, color: yellow}, 
+			 { from: 50, to: 100, color: red}]
+	}); 
+	$("#" + host+'-pgin').data("gauge",gauge_pgin);
+	gauge_pgin.draw();
+	var gauge_pgout = new Gauge({
+	    renderTo: host+'-pgout',
+	    width: 150,
+	    height: 150,
+	    highlights: [{ from: 0, to: 10, color: green}, 
+			 { from: 10, to: 50, color: yellow}, 
+			 { from: 50, to: 100, color: red}]
+	}); 
+	$("#" + host+'-pgout').data("gauge",gauge_pgout);
+	gauge_pgout.draw();
+
+
+
+    }
+    function stat_hosts() {
+	$.getJSON("/my/hosts", function (data) {
+	    for (var i = 0; i < data.length; i++) {
+		add_stat_host(data[i]);
+		watch_host(data[i]);
+	    };
+	});
+
+    }
     
+    stats.init = function() {
+	init_event_socket(function(){
+	    stat_hosts();
+	});
+    }
     
     load_templtes(["machine_details",
 		   "details",
 		   "package",
 		   "machine_list_item",
 		   "other_list_item",
-		   "machine_form"]);
+		   "machine_form",
+		   "host"]);
 }(window.jQuery);
+

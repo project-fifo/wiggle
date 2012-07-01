@@ -273,6 +273,11 @@ request('GET', [<<"my">>, <<"users">>], Auth, Req, State) ->
     {ok, Res} = libsnarl:user_list(Auth),
     reply_json(Req, Res, State);
 
+request('GET', [<<"my">>, <<"hosts">>], Auth, Req, State) ->
+    {ok, Res} = libsniffle:list_hosts(Auth),
+    reply_json(Req, Res, State);
+
+
 request('GET', [<<"my">>, <<"users">>, User, <<"permissions">>], Auth, Req, State) ->
     case libsnarl:user_get(system, User) of
 	{ok, UUID} ->
