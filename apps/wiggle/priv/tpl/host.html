@@ -1,53 +1,58 @@
-<div class="span12">
-  <h1>{{uuid}}</h1>
-  <div class="span2 well">
-    <center>
-      <h4>Memory usage in GB</h4>
-      <canvas id="{{uuid}}-memory">
-      </canvas>
-    </center>
-  </div>
-  <div class="span2 well">
-    <center>
-      <h4>User CPU usage %</h4>
-      <canvas id="{{uuid}}-user">
-      </canvas>
-    </center>
-  </div>
-  <div class="span2 well">
-    <center>
-      <h4>Sys CPU usage %</h4>
-      <canvas id="{{uuid}}-system">
-      </canvas>
-    </center>
-  </div>
-  <div class="span2 well">
-    <center>
-      <h4>IO Blocked Threads</h4>
-      <canvas id="{{uuid}}-ioblock">
-      </canvas>
-    </center>
-  </div>
-  <div class="span2 well">
-    <center>
-      <h4>Page ins</h4>
-      <canvas id="{{uuid}}-pgin">
-      </canvas>
-    </center>
-  </div>
-  <div class="span2 well">
-    <center>
-      <h4>Page outs</h4>
-      <canvas id="{{uuid}}-pgout">
-      </canvas>
-    </center>
-  </div>
-  <div class="span6 well">
+<div class="row-fluid">
+  <div class="span12"><center><h1>Host: {{uuid}}</h1></center></div>
+  <div class="span4 well">
     <center>
       <h4>CPU Stats</h4>
       <div id="{{uuid}}-mpstat">
       </div>
     </center>
   </div>
-
+  <div class="span7">
+    <div class="row-fluid">
+      <div class="span12">
+	</div>
+	
+      <div class="span2 well">
+	<center>
+	  <canvas id="{{uuid}}-memory">
+	  </canvas>
+	  Memory usage in GB
+	</center>
+      </div>
+      <div class="span2 well">
+	<center>
+	  <canvas id="{{uuid}}-user">
+	  </canvas>
+	  User CPU usage %
+	</center>
+      </div>
+      <div class="span2 well">
+	<center>
+	  <canvas id="{{uuid}}-system">
+	  </canvas>
+	  Sys CPU usage %
+	</center>
+      </div>
+      <div class="span2 well">
+	<center>
+	  <canvas id="{{uuid}}-ioblock">
+	  </canvas>
+	  IO Blocked Threads
+	</center>
+      </div>
+      <div class="span2 well">
+	<center>
+	  <canvas id="{{uuid}}-pgin">
+	  </canvas>
+	  Page ins
+	</center>
+      </div>
+      <div class="span2 well">
+	<center>
+	  <canvas id="{{uuid}}-pgout">
+	  </canvas>
+	  Page outs
+	</center>
+      </div>
+    </div>
 </div>

@@ -4,10 +4,6 @@
 
 {% block body_content %}
 <div class="row-fluid" id="hosts">
-  <div class="hero-unit">
-    <h1>Systems status</h1>
-    here might come some fancy system status stuff!
-  </div>
 </div>
 
 {% endblock %}
