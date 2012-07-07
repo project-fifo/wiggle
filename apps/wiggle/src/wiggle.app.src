@@ -2,7 +2,7 @@
  [{description, ""},
   {vsn, "0.2.0"},
   {registered, []},
-  {applications, [mdns,
+  {applications, [nodefinder,
 		  erlydtl,
 		  cowboy,
 		  jsx,

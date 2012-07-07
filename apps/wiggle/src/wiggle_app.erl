@@ -6,14 +6,16 @@
 -export([start/2, stop/1, load/0]).
 
 load() ->
-    application:start(mdns),
+
     application:start(sasl),
     application:start(alog),
     application:start(lager),
     application:start(libsniffle),
+    application:start(crypto),
+    application:start(nodefinder),
+    application:start(backyard),
     application:start(uuid),
     application:start(cowboy),
-    application:start(gproc),
     application:start(compiler),
     application:start(syntax_tools),
     application:start(erlydtl),
