@@ -35,7 +35,7 @@ $(APP_DIR)/ebin/%.beam: $(APP_DIR)/src/%.erl
 	$(REBAR) compile
 
 shell: all
-	ERL_LIBS="$(ERL_LIBS)" $(ERL) -pa $(PA) -config standalone -sname $(APP_NAME)
+	ERL_LIBS="$(ERL_LIBS)" $(ERL) -pa $(PA) -config standalone -name $(APP_NAME)@Schroedinger.local
 	[ -f *.beam ] && rm *.beam || true
 	[ -f erl_crash.dump ] && rm erl_crash.dump || true
 
