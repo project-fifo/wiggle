@@ -1,43 +1,48 @@
 <div class="row-fluid">
   <div class="span12"><center><h1>Host: {{uuid}}</h1></center></div>
-  <div class="span4 well">
-    <center>
-      <h4>CPU Stats</h4>
-      <div id="{{uuid}}-mpstat">
-      </div>
-    </center>
-  </div>
-  <div class="span7">
+  <div class="span12 well">
     <div class="row-fluid">
-      <div class="span12">
-      </div>
-      <div class="span2 well">
+      <div class="span4 well">
 	<center>
-	  <canvas id="{{uuid}}-memory">
-	  </canvas>
-	  Memory usage in GB
+	  <h4>CPU Stats</h4>
+	  <div id="{{uuid}}-mpstat">
+	  </div>
 	</center>
       </div>
-      <div class="span2 well">
-	<center>
-	  <canvas id="{{uuid}}-cpu">
-	  </canvas>
-	  CPU usage %
-	</center>
-      </div>
-      <div class="span2 well">
-	<center>
-	  <canvas id="{{uuid}}-ioblock">
-	  </canvas>
-	  IO Blocked Threads
-	</center>
-      </div>
-      <div class="span2 well">
-	<center>
-	  <canvas id="{{uuid}}-paging">
-	  </canvas>
-	  Page ins/outs
-	</center>
+      <div class="span7">
+	<div class="row-fluid">
+	  <div class="span12">
+	  </div>
+	  <div class="span2 well">
+	    <center>
+	      <canvas id="{{uuid}}-memory">
+	      </canvas>
+	      Memory usage in GB
+	    </center>
+	  </div>
+	  <div class="span2 well">
+	    <center>
+	      <canvas id="{{uuid}}-cpu">
+	      </canvas>
+	      CPU usage %
+	    </center>
+	  </div>
+	  <div class="span2 well">
+	    <center>
+	      <canvas id="{{uuid}}-ioblock">
+	      </canvas>
+	      IO Blocked Threads
+	    </center>
+	  </div>
+	  <div class="span2 well">
+	    <center>
+	      <canvas id="{{uuid}}-paging">
+	      </canvas>
+	      Page ins/outs
+	    </center>
+	  </div>
+	</div>
       </div>
     </div>
+  </div>
 </div>
