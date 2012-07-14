@@ -515,7 +515,14 @@ request('POST', [<<"my">>, <<"machines">>], Auth, Req, State) ->
     Name = proplists:get_value(<<"name">>, Vals),
     Package = proplists:get_value(<<"package">>, Vals),
     Dataset = proplists:get_value(<<"dataset">>, Vals),
-    case libsniffle:create_machine(Auth, Name, Package, Dataset, [], []) of
+    Host = proplists:get_value(<<"host">>, Vals),
+    CreateRes = case Host of
+	      <<"">> ->
+		  libsniffle:create_machine(Auth, Name, Package, Dataset, [], []);
+	      _ ->
+		  libsniffle:create_machine(Auth, Host, Name, Package, Dataset, [], [])
+	  end,
+    case CreateRes of
 	{ok, Res} ->
 	    io:format("create-ok: ~p~n", [Res]),
 	    reply_json(Req1, Res, State);

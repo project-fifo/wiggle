@@ -342,7 +342,18 @@ var stats = new Object();
 		
 	    };
 	});
-	
+	var host = $("#machine-new-host").
+	    empty().
+	    append($("<option value=''>auto</option>"));
+	$.getJSON("/my/hosts", function (data) {
+	    for (var i = 0; i < data.length; i++) {
+		var d = data[i];
+		var option = $("<option></option>").
+		    attr("value", d).
+		    append(d).data("pkg", d);
+		select.append(option);
+	    };
+	});
 	var select = $("#machine-new-package");
 	select.empty();
 	select.append($("<option></option>"));

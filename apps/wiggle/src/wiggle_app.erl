@@ -21,8 +21,9 @@ load() ->
     application:start(erlydtl),
     application:start(nicedecimal),
     application:start(jsx),
-    application:start(libsniffle),
     application:start(libsnarl),
+    application:start(statsderl),
+    application:start(vmstats),
     application:start(wiggle),
     ok.
 
