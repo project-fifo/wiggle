@@ -87,6 +87,8 @@ var stats = new Object();
 	var pkg = $("#machine-new-package").val();
 	var dataset = $("#machine-new-dataset").val();
 	var name = $("#machine-new-name").val();
+	var host = $("#machine-new-host").val();
+
 	$.ajax({
 	    url: "/my/machines",
 	    type: 'POST',
@@ -94,7 +96,8 @@ var stats = new Object();
 	    data:{
 		"name": name,
 		"package": pkg,
-		"dataset": dataset
+		"dataset": dataset,
+		"host": host
 	    },
 	    success: function (vm) {
 		if (vm) {
@@ -351,7 +354,7 @@ var stats = new Object();
 		var option = $("<option></option>").
 		    attr("value", d).
 		    append(d).data("pkg", d);
-		select.append(option);
+		host.append(option);
 	    };
 	});
 	var select = $("#machine-new-package");
