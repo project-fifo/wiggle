@@ -606,7 +606,8 @@ reply_json(Req, Data, State) ->
 
 
 page_permissions(Auth) ->
-    [{<<"user">>, libsnarl:user_name(Auth, Auth)},
+    {ok, User} = libsnarl:user_name(Auth, Auth),
+    [{<<"user">>, User},
      {<<"home">>, libsnarl:allowed(Auth, Auth, [service, wiggle, module, home])},
      {<<"admin">>, libsnarl:allowed(Auth, Auth, [service, wiggle, module, admin])},
      {<<"analytics">>, libsnarl:allowed(Auth, Auth, [service, wiggle, module, analytics])},

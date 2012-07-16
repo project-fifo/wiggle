@@ -26,8 +26,7 @@
               <li{% if page=="about" %} class="active"{% endif %}><a href="/about">About</a></li>
             </ul>
 	    <ul class="nav pull-right">
-	      <li>{{ user }}</li>
-              <li{% if page=="account" %} class="active"{% endif %}><a href="/account">Account</a></li>
+              <li{% if page=="account" %} class="active"{% endif %}><a href="/account">Account ({{ user }})</a></li>
               <li><a href="/logout">Logout</a></li>
 	    </ul>
           </div><!--/.nav-collapse -->
