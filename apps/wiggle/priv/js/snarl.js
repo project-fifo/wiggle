@@ -187,7 +187,7 @@ var debug;
 		"_": vm_permissions,
 		"create": true
 	    }
-	}
+	},
 	"UUID": {
 	    "vm": {
 		"Name": vm_permissions,
