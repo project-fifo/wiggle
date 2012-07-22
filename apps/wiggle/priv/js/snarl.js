@@ -13,6 +13,8 @@ var debug;
 	"vnc": true,
 	"info": true
     };
+
+
     var wiggle = {
 	"login": true,
 	"module": {
@@ -25,6 +27,7 @@ var debug;
 	    "events": true
 	}
     };
+	    
     var sniffle ={
 	"info": true,
 	"host": {
@@ -176,10 +179,22 @@ var debug;
 	"Name": package_package,
 	"_": package_package
     };
-    permissions.data["vm"] = {
-	"Name": vm_permissions,
-	"_": vm_permissions,
-	"create": true
+
+    permissions.data["host"] = {
+	'_': {
+	    "vm": {
+		"Name": vm_permissions,
+		"_": vm_permissions,
+		"create": true
+	    }
+	}
+	"UUID": {
+	    "vm": {
+		"Name": vm_permissions,
+		"_": vm_permissions,
+		"create": true
+	    }
+	}
     };
     permissions.get = function(ks, current) {
 	if (current == undefined) {
