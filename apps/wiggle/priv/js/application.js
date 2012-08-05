@@ -359,7 +359,6 @@ var stats = new Object();
 	});
 	var select = $("#machine-new-package");
 	select.empty();
-	select.append($("<option></option>"));
 	$.getJSON("/my/packages", function (data) {
 	    for (var i = 0; i < data.length; i++) {
 		var d = data[i];
