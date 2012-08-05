@@ -259,12 +259,20 @@ var stats = new Object();
 	var li = ich.machine_list_item(data).
 	    data("id", data.id).
 	    click(machine_click_fn);
-	$("#machines").after(li);
+	var host = $("#host-" + data.hypervisor);
+	if (!host.length) {
+	    host = $('<li class="nav-header" id="host-'+data.hypervisor+'">'+
+		     data.hypervisor +
+		     '</li>')
+	    $("#machines").after(host)
+	}
+	    
+	host.after(li);
 	update_state(data.id, data.state);
 	if (show)
 	    activate_machine(data.id)
     }
-
+/
     function get_machines() {
 	$.getJSON("/my/machines", function (data) {
 	    for (var i = 0; i < data.length; i++) {
