@@ -76,10 +76,11 @@ var stats = new Object();
     }
     
     function extend_machine_data(data) {
-	if (data.type == "kvm")
+	if (data.type == "kvm") {
 	    data.kvm = true;
-	else
+	} else {
 	    data.zone = true;
+	}
 	data[data.state] = true;
 	return data;
     }
@@ -244,14 +245,14 @@ var stats = new Object();
 	};
 	
 	var s = $("#" + uuid + "-state");
-	s.attr("class","badge");
 
 	if (state == "running")
-	    s.addClass("badge-success");
+	    s.attr("class","icon-ok-sign");
 	else if (state == "stopped")
-	    s.addClass("badge-error");
+	    s.attr("class","icon-remove-sign");
 	else
-	    s.addClass("badge-warning");
+	    s.attr("class","icon-question-sign");
+
     };
 
     function add_machine(data, show) {
@@ -272,7 +273,7 @@ var stats = new Object();
 	if (show)
 	    activate_machine(data.id)
     }
-/
+
     function get_machines() {
 	$.getJSON("/my/machines", function (data) {
 	    for (var i = 0; i < data.length; i++) {
