@@ -41,7 +41,7 @@ var mpstat = new Object();
 	var y = d3.scale.linear()
 	    .domain([0, 100])
 	    .rangeRound([0, h]);
-	chart = [];
+	var chart = [];
 	for (var i = 0; i < obj.cpu_count; i++) {
 	    chart[i] = d3.select($("div#" + uuid + "-mpstat")[0]).append("svg")
 		.attr("class", "chart")

@@ -549,4 +549,3 @@ var stats = new Object();
 		   "machine_form",
 		   "host"]);
 }(window.jQuery);
-
