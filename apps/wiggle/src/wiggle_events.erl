@@ -89,8 +89,8 @@ websocket_info({msg, Type, Msg}, Req, State) ->
 websocket_info({msg, Type, Msg, Timeout}, Req, State) ->
     Reply = [{event, <<"message">>},
 	     {type, type},
-	     {text, ensure_bin(Msg),
-	      {text, Timeout}],
+	     {text, ensure_bin(Msg)},
+	     {timeout, Timeout}],
     {reply, {text, jsx:to_json(Reply)}, Req, State};
 
 
