@@ -36,15 +36,17 @@
     <br/>
     <br/>
     <br/>
-    <div id="messages">
-      {% if messages %}
-      {% for message in messages %}
-      <div class="alert alert-block{%if message.class %} alert-{{message.class}}{%endif%}" onclick="$(this).remove(500);">
-	{{message.text}}
+    <div class="container-fluid">
+      <div class="row-fluid" id="messages">
+	{% if messages %}
+	{% for message in messages %}
+	<div class="alert alert-block{%if message.class %} alert-{{message.class}}{%endif%}" onclick="$(this).remove(500);">
+	  {{message.text}}
+	</div>
+	{% empty %}
+	{% endfor %}
+	{% endif %}
       </div>
-      {% empty %}
-      {% endfor %}
-      {% endif %}
     </div>
     <div class="modal" id="modal" style="display: none;">
       <div class="modal-header">
@@ -65,7 +67,7 @@
       </div>
       <hr>
       <footer>
-	<p>&copy; licenser.net 2012</p>
+	<p>&copy; project-fifo.net 2012</p>
       </footer>
       
     </div> <!-- /container -->
