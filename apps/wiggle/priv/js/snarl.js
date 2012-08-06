@@ -186,7 +186,8 @@ var debug;
 		"Name": vm_permissions,
 		"_": vm_permissions,
 		"create": true
-	    }
+	    },
+	    "get": true
 	},
 	"UUID": {
 	    "vm": {
