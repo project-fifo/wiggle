@@ -41,6 +41,9 @@ var stats = new Object();
 	var message = ich.msg({text: text,
 			      type: type});
 	messages.append(message);
+	if (timeout > ) {
+	    window.setTimeout(function() { messages.alert('close'); }, timeout);
+	}
 	message.alert();
     };
 
@@ -112,7 +115,7 @@ var stats = new Object();
 		if (vm) {
 		    add_machine(vm, true);
 		}
-	    }/*
+	    }*/
 	});
     }
 
