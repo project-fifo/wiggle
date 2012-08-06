@@ -41,7 +41,7 @@ var stats = new Object();
 	var message = ich.msg({text: text,
 			      type: type});
 	messages.append(message);
-	if (timeout > ) {
+	if (timeout > 0) {
 	    window.setTimeout(function() { messages.alert('close'); }, timeout);
 	}
 	message.alert();
