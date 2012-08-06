@@ -25,8 +25,9 @@ websocket_init(_Any, Req, []) ->
 	Auth  ->
 	    case libsnarl:allowed(Auth, Auth, [service, wiggle, module, event]) of
 		true ->
-		    {ok, Req, undefined, hibernate},
-		    gproc:reg({p, g, {user, Auth}});
+		    gproc:reg({p, g, {user, Auth}}),
+		    {ok, Req, undefined, hibernate};
+
 		false ->
 		    {ok, Req2} = cowboy_http_req:reply(401, [{'Content-Type', <<"text/html">>}],
 						       <<"">>, Req),
