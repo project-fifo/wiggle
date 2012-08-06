@@ -107,12 +107,12 @@ var stats = new Object();
 		"package": pkg,
 		"dataset": dataset,
 		"host": host
-	    },
+	    }/*,
 	    success: function (vm) {
 		if (vm) {
 		    add_machine(vm, true);
 		}
-	    }
+	    }/*
 	});
     }
 
