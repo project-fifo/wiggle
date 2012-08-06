@@ -516,21 +516,14 @@ request('POST', [<<"my">>, <<"machines">>], Auth, Req, State) ->
     Package = proplists:get_value(<<"package">>, Vals),
     Dataset = proplists:get_value(<<"dataset">>, Vals),
     Host = proplists:get_value(<<"host">>, Vals),
-    CreateRes = case Host of
-	      <<"">> ->
-		  libsniffle:create_machine(Auth, Name, Package, Dataset, [], []);
-	      _ ->
-		  libsniffle:create_machine(Auth, Host, Name, Package, Dataset, [], [])
-	  end,
-    case CreateRes of
-	{ok, Res} ->
-	    io:format("create-ok: ~p~n", [Res]),
-	    reply_json(Req1, Res, State);
-	Error ->
-	    io:format("create-err: ~p~n", [Error]),
-	    {ok, Req2} = cowboy_http_req:reply(500, [], <<"error">>, Req1),
-	    {ok, Req2, State}
-    end;
+    case Host of
+	<<"">> ->
+	    libsniffle:create_machine(Auth, Name, Package, Dataset, [], []);
+	_ ->
+	    libsniffle:create_machine(Auth, Host, Name, Package, Dataset, [], [])
+    end,
+    reply_json(Req1, [], State);
+
 
 request('DELETE', [<<"my">>, <<"machines">>, VMUUID], Auth, Req, State) ->
     case libsniffle:delete_machine(Auth, VMUUID) of
