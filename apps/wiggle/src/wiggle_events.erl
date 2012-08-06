@@ -25,7 +25,8 @@ websocket_init(_Any, Req, []) ->
 	Auth  ->
 	    case libsnarl:allowed(Auth, Auth, [service, wiggle, module, event]) of
 		true ->
-		    {ok, Req, undefined, hibernate};
+		    {ok, Req, undefined, hibernate},
+		    gproc:reg({p, g, {user, Auth}});
 		false ->
 		    {ok, Req2} = cowboy_http_req:reply(401, [{'Content-Type', <<"text/html">>}],
 						       <<"">>, Req),
@@ -43,9 +44,9 @@ websocket_handle({text, JSON}, Req, State) ->
 	    try
 		case Type of
 		    <<"vm">> ->
-			gproc:reg({p, g, {vm,UUID}});
+			gproc:reg({p, g, {vm, UUID}});
 		    <<"host">> ->
-			gproc:reg({p, g, {host,UUID}});
+			gproc:reg({p, g, {host, UUID}});
 		    _ ->
 			ok
 		end
@@ -75,6 +76,21 @@ websocket_info({vm, state, UUID, NewState}, Req, State) ->
     Reply = [{event, <<"state change">>},
 	     {uuid, UUID},
 	     {state, ensure_bin(NewState)}],
+    {reply, {text, jsx:to_json(Reply)}, Req, State};
+
+websocket_info({vm, add, Data}, Req, State) ->
+    Reply = [{event, <<"add vm">>},
+	     {data, Data}],
+    {reply, {text, jsx:to_json(Reply)}, Req, State};
+
+websocket_info({msg, Type, Msg}, Req, State) ->
+    websocket_info({msg, Type, Msg, 0}, Req, State);
+
+websocket_info({msg, Type, Msg, Timeout}, Req, State) ->
+    Reply = [{event, <<"message">>},
+	     {type, type},
+	     {text, ensure_bin(Msg),
+	      {text, Timeout}],
     {reply, {text, jsx:to_json(Reply)}, Req, State};
 
 

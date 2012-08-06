@@ -36,6 +36,14 @@ var stats = new Object();
     };
 
 
+    function display_message(type, text, timeout) {
+	var messages= $("#messages");
+	var message = ich.msg({text: text,
+			      type: type});
+	messages.append(message);
+	message.alert();
+    };
+
 
     function delete_vm() {
 	var id=$(".machine.active").data("id");
@@ -438,8 +446,15 @@ var stats = new Object();
 		switch (json.event) {
 		    case "stat":
 		    update_host_stats(json.uuid, json.stats);
+		    break;
 		    case "state change":
 		    update_state(json.uuid, json.state);
+		    break;
+		    case "add vm":
+		    add_machine(json.data);
+		    break;
+		    case "message":
+		    display_message(json.type, json.text, json.timeout);
 		    break;
 		}
 	    };
@@ -555,5 +570,6 @@ var stats = new Object();
 		   "machine_list_item",
 		   "other_list_item",
 		   "machine_form",
+		   "msg",
 		   "host"]);
 }(window.jQuery);
