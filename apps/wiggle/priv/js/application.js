@@ -190,11 +190,11 @@ var stats = new Object();
 		}
 	    });
 	}
+	$("#machine-details-delete").click(delete_vm);
 	update_detail_buttons(data.id, data.state);
     }
     function show_machine(data) {	
 	update_machine(data);
-	
     };
 
     function click_package(e, i) {
@@ -406,7 +406,6 @@ var stats = new Object();
 	    $("#packages-nav-del").click(delete_pkg);
 	    
 	    $("#machines-nav-add").click(view_add_vm);
-	    $("#machines-nav-del").click(delete_vm);
 	});
     };
     

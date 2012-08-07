@@ -12,7 +12,6 @@
 	Machines
 	<div class='btn-group' style='float: right'>
 	  <button class='btn' id='machines-nav-add'>+</button>
-	  <button class='btn' id='machines-nav-del'>-</button>
 	</div>	
       </li>
       <hr/>
