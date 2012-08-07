@@ -4,6 +4,7 @@
     <title>Wiggle - {% block page_title %}{% endblock %}</title>
     <link type="text/css" rel="stylesheet" href="/css/bootstrap.css" />
     <link type="text/css" rel="stylesheet" href="/css/application.css" />
+    <link type="text/css" rel="stylesheet" href="/css/jquery.pnotify.default.css" />
   </head>
   <body>
     <div class="navbar">
@@ -81,6 +82,7 @@
     <script type="application/javascript" src="/js/cpu_charts.js"></script>
     <script type="application/javascript" src="/js/snarl.js"></script>
     <script type="application/javascript" src="/js/gauge.js"></script>
+    <script type="application/javascript" src="/js/jquery.pnotify.min.js"></script>
     <script type="application/javascript" src="/js/application.js"></script>
     <script type="application/javascript">
       $('#modal').hide();

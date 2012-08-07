@@ -35,18 +35,13 @@ var stats = new Object();
 	watcher_action("unsubscribe", "host", id);
     };
 
-
     function display_message(type, text, timeout) {
-	var messages= $("#messages");
-	var message = ich.msg({text: text,
-			      type: type});
-	messages.append(message);
-	if (timeout > 0) {
-	    window.setTimeout(function() { messages.alert('close'); }, timeout);
-	}
-	message.alert();
+	$.pnotify({
+	    title: type,
+	    type: type,
+	    text: text
+	});
     };
-
 
     function delete_vm() {
 	var id=$(".machine.active").data("id");
