@@ -5,12 +5,12 @@
     <a class='btn' href="/machines/{{id}}/vnc" target="_new">VNC</a>
     {{/kvm}}
 
+    <button style='float: right; margin-left:50px' class='btn btn-danger' id='machine-details-delete'>Delete!</button>
     <div class='btn-group' style='float: right'> 
       <button class='btn btn-success' id='machine-detail-start' disabled='true'>Start</button>
       <button class='btn btn-warning' id='machine-detail-reboot' disabled='true'>Reboot</button>
       <button class='btn btn-danger' id='machine-detail-stop' disabled='true'>Stop</button>
     </div>
-    <button class='btn btn-danger' id='machine-details-delete' disabled='false>Delete</button>
   </div>
   {{#kvm}}
   <!-- div class='span11'>
