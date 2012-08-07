@@ -258,11 +258,11 @@ var stats = new Object();
 	var s = $("#" + uuid + "-state");
 
 	if (state == "running")
-	    s.attr("class","icon-ok-sign");
+	    s.attr("class","icon-ok-sign icon-green");
 	else if (state == "stopped")
-	    s.attr("class","icon-remove-sign");
+	    s.attr("class","icon-remove-sign icon-red");
 	else
-	    s.attr("class","icon-question-sign");
+	    s.attr("class","icon-question-sign icon-yellow");
 
     };
 
