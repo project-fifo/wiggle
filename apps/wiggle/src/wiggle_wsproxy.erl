@@ -56,11 +56,11 @@ websocket_init(_Any, Req, []) ->
 								       list_to_binary(io_lib:format("~p", E)), Req1),
 				    {shutdown, Req2}
 			    end;
-			_ ->
+			E ->
 			    {ok, Req2} = cowboy_http_req:reply(505, [{'Content-Type', <<"text/html">>}],
 							       list_to_binary(io_lib:format("~p", E)), Req1),
 			    {shutdown, Req2}
-		    end
+		    end;
 		false ->
 		    {ok, Req2} = cowboy_http_req:reply(401, [{'Content-Type', <<"text/html">>}],
 						       <<"">>, Req),
