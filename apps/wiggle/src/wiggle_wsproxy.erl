@@ -33,8 +33,8 @@ websocket_init(_Any, Req, []) ->
 	    {[<<"machines">>, ID, <<"vnc">>], Req1} = cowboy_http_req:path(Req),
 	    case libsniffle:get_machine(Auth, ID) of
 		{ok, VM} ->
-		    {hypervisor, Host} =  lists:keyfind(hypervisor, 1, VM),
-		    case libsnarl:allowed(Auth, Auth, [host, Host, vm, ID, vnc]) of
+		    {hypervisor, Hypervisor} =  lists:keyfind(hypervisor, 1, VM),
+		    case libsnarl:allowed(Auth, Auth, [host, Hypervisor, vm, ID, vnc]) of
 			true ->
 			    case libsniffle:get_machine_info(Auth, ID) of
 				{ok, Info} ->
