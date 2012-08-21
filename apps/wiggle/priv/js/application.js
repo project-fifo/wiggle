@@ -498,8 +498,8 @@ var stats = new Object();
 
 	var gauge_mem = new Gauge({ 
 	    renderTo: host+'-memory',
-	    width: 150,
-	    height: 150,
+	    width: 120,
+	    height: 120,
 	    highlights: [{ from: 20, to: 60, color: green }, 
 			 { from: 60, to: 80, color: yellow }, 
 			 { from: 80, to: 100, color: red}],
@@ -511,8 +511,8 @@ var stats = new Object();
 
 	gauge_cpu = new Gauge({ 
 	    renderTo: host+'-cpu',
-	    width: 150,
-	    height: 150,
+	    width: 120,
+	    height: 120,
 	    highlights: [{ from: 0, to: 30, color: green}, 
 			 { from: 30, to: 80, color: yellow}, 
 			 { from: 80, to: 100, color: red}],
@@ -522,8 +522,8 @@ var stats = new Object();
 	gauge_cpu.draw();
 	var gauge_ioblock = new Gauge({
 	    renderTo: host+'-ioblock',
-	    width: 150,
-	    height: 150,
+	    width: 120,
+	    height: 120,
 	    highlights: [{ from: 0, to: 10, color: green}, 
 			 { from: 10, to: 50, color: yellow}, 
 			 { from: 50, to: 100, color: red}],
@@ -535,8 +535,8 @@ var stats = new Object();
 
 	var gauge_paging = new Gauge({
 	    renderTo: host+'-paging',
-	    width: 150,
-	    height: 150,
+	    width: 120,
+	    height: 120,
 	    highlights: [{ from: 0, to: 10, color: green}, 
 			 { from: 10, to: 50, color: yellow}, 
 			 { from: 50, to: 100, color: red}],

@@ -130,7 +130,8 @@ var debug;
 	"delete": true
     };
     var pkg = {
-	"create": true,	
+	"create": true,
+	"list": true,	
 	"Name": pkg_pkg,
 	"_": pkg_pkg
     };

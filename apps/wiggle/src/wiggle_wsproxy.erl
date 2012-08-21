@@ -31,22 +31,30 @@ websocket_init(_Any, Req, []) ->
 
 	Auth  ->
 	    {[<<"machines">>, ID, <<"vnc">>], Req1} = cowboy_http_req:path(Req),
-	    case libsnarl:allowed(Auth, Auth, [vm, ID, vnc]) of
-		true ->
-		    case libsniffle:get_machine_info(Auth, ID) of
-			{ok, Info} ->
-			    VNC = proplists:get_value(vnc, Info),
-			    Port = proplists:get_value(port, VNC),
-			    Host = proplists:get_value(host, VNC),
-			    case gen_tcp:connect(binary_to_list(Host), Port, 
-						 [binary,{nodelay, true}, {packet, 0}]) of
-				{ok, Socket} ->
-				    gen_tcp:controlling_process(Socket, self()),
-				    Req2 = cowboy_http_req:compact(Req),
-				    {ok, Req2, {Socket}, hibernate};
-				_ ->
-				    Req2 = cowboy_http_req:compact(Req),
-				    {ok, Req2, undefined, hibernate}
+	    case libsniffle:get_machine(Auth, ID) of
+		{ok, VM} ->
+		    {hypervisor, Hypervisor} =  lists:keyfind(hypervisor, 1, VM),
+		    case libsnarl:allowed(Auth, Auth, [host, Hypervisor, vm, ID, vnc]) of
+			true ->
+			    case libsniffle:get_machine_info(Auth, ID) of
+				{ok, Info} ->
+				    VNC = proplists:get_value(vnc, Info),
+				    Port = proplists:get_value(port, VNC),
+				    Host = proplists:get_value(host, VNC),
+				    case gen_tcp:connect(binary_to_list(Host), Port, 
+							 [binary,{nodelay, true}, {packet, 0}]) of
+					{ok, Socket} ->
+					    gen_tcp:controlling_process(Socket, self()),
+					    Req2 = cowboy_http_req:compact(Req),
+					    {ok, Req2, {Socket}, hibernate};
+					_ ->
+					    Req2 = cowboy_http_req:compact(Req),
+					    {ok, Req2, undefined, hibernate}
+				    end;
+				E ->
+				    {ok, Req2} = cowboy_http_req:reply(505, [{'Content-Type', <<"text/html">>}],
+								       list_to_binary(io_lib:format("~p", E)), Req1),
+				    {shutdown, Req2}
 			    end;
 			E ->
 			    {ok, Req2} = cowboy_http_req:reply(505, [{'Content-Type', <<"text/html">>}],
