@@ -4,6 +4,7 @@
     <title>Wiggle - {% block page_title %}{% endblock %}</title>
     <link type="text/css" rel="stylesheet" href="/css/bootstrap.css" />
     <link type="text/css" rel="stylesheet" href="/css/application.css" />
+    <link type="text/css" rel="stylesheet" href="/css/jquery.pnotify.default.css" />
   </head>
   <body>
     <div class="navbar">
@@ -26,7 +27,7 @@
               <li{% if page=="about" %} class="active"{% endif %}><a href="/about">About</a></li>
             </ul>
 	    <ul class="nav pull-right">
-              <li{% if page=="account" %} class="active"{% endif %}><a href="/account">Account</a></li>
+              <li{% if page=="account" %} class="active"{% endif %}><a href="/account">Account ({{ user }})</a></li>
               <li><a href="/logout">Logout</a></li>
 	    </ul>
           </div><!--/.nav-collapse -->
@@ -36,14 +37,18 @@
     <br/>
     <br/>
     <br/>
-    {% if messages %}
-    {% for message in messages %}
-    <div class="alert alert-block{%if message.class %} alert-{{message.class}}{%endif%}" onclick="$(this).remove(500);">
-      {{message.text}}
+    <div class="container-fluid">
+      <div class="row-fluid" id="messages">
+	{% if messages %}
+	{% for message in messages %}
+	<div class="alert alert-block{%if message.class %} alert-{{message.class}}{%endif%}" onclick="$(this).remove(500);">
+	  {{message.text}}
+	</div>
+	{% empty %}
+	{% endfor %}
+	{% endif %}
+      </div>
     </div>
-    {% empty %}
-    {% endfor %}
-    {% endif %}
     <div class="modal" id="modal" style="display: none;">
       <div class="modal-header">
 	<button class="close" data-dismiss="modal">x</button>
@@ -63,7 +68,7 @@
       </div>
       <hr>
       <footer>
-	<p>&copy; licenser.net 2012</p>
+	<p>&copy; project-fifo.net 2012</p>
       </footer>
       
     </div> <!-- /container -->
@@ -73,7 +78,11 @@
     <script type="application/javascript" src="/js/ICanHaz.js"></script>
     <script type="application/javascript" src="/js/vnc/vnc.js"></script>
     <script type="application/javascript" src="/js/jquery.validate.min.js"></script>
+    <script type="application/javascript" src="/js/d3.v2.js"></script>
+    <script type="application/javascript" src="/js/cpu_charts.js"></script>
     <script type="application/javascript" src="/js/snarl.js"></script>
+    <script type="application/javascript" src="/js/gauge.js"></script>
+    <script type="application/javascript" src="/js/jquery.pnotify.min.js"></script>
     <script type="application/javascript" src="/js/application.js"></script>
     <script type="application/javascript">
       $('#modal').hide();

@@ -3,10 +3,11 @@
 {% block page_title %}System{% endblock %}
 
 {% block body_content %}
-<div class="span12">
-  <div class="hero-unit">
-    <h1>Systems status</h1>
-    here might come some fancy system status stuff!
-  </div>
+<div class="row-fluid" id="hosts">
 </div>
+
 {% endblock %}
+{% block script %}
+stats.init();
+{% endblock %}
+

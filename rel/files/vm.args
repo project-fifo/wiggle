@@ -1,5 +1,5 @@
 ## Name of the node
--name wiggle@_OWN_IP_
+-name wiggle@_HOST_
 
 ## Cookie for distributed erlang
 -setcookie _FIFOCOOKIE_

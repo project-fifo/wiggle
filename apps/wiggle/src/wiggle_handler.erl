@@ -273,6 +273,11 @@ request('GET', [<<"my">>, <<"users">>], Auth, Req, State) ->
     {ok, Res} = libsnarl:user_list(Auth),
     reply_json(Req, Res, State);
 
+request('GET', [<<"my">>, <<"hosts">>], Auth, Req, State) ->
+    {ok, Res} = libsniffle:list_hosts(Auth),
+    reply_json(Req, Res, State);
+
+
 request('GET', [<<"my">>, <<"users">>, User, <<"permissions">>], Auth, Req, State) ->
     case libsnarl:user_get(system, User) of
 	{ok, UUID} ->
@@ -510,15 +515,15 @@ request('POST', [<<"my">>, <<"machines">>], Auth, Req, State) ->
     Name = proplists:get_value(<<"name">>, Vals),
     Package = proplists:get_value(<<"package">>, Vals),
     Dataset = proplists:get_value(<<"dataset">>, Vals),
-    case libsniffle:create_machine(Auth, Name, Package, Dataset, [], []) of
-	{ok, Res} ->
-	    io:format("create-ok: ~p~n", [Res]),
-	    reply_json(Req1, Res, State);
-	Error ->
-	    io:format("create-err: ~p~n", [Error]),
-	    {ok, Req2} = cowboy_http_req:reply(500, [], <<"error">>, Req1),
-	    {ok, Req2, State}
-    end;
+    Host = proplists:get_value(<<"host">>, Vals),
+    case Host of
+	<<"">> ->
+	    libsniffle:create_machine(Auth, Name, Package, Dataset, [], []);
+	_ ->
+	    libsniffle:create_machine(Auth, Host, Name, Package, Dataset, [], [])
+    end,
+    reply_json(Req1, [], State);
+
 
 request('DELETE', [<<"my">>, <<"machines">>, VMUUID], Auth, Req, State) ->
     case libsniffle:delete_machine(Auth, VMUUID) of
@@ -594,7 +599,9 @@ reply_json(Req, Data, State) ->
 
 
 page_permissions(Auth) ->
-    [{<<"home">>, libsnarl:allowed(Auth, Auth, [service, wiggle, module, home])},
+    {ok, User} = libsnarl:user_name(Auth, Auth),
+    [{<<"user">>, User},
+     {<<"home">>, libsnarl:allowed(Auth, Auth, [service, wiggle, module, home])},
      {<<"admin">>, libsnarl:allowed(Auth, Auth, [service, wiggle, module, admin])},
      {<<"analytics">>, libsnarl:allowed(Auth, Auth, [service, wiggle, module, analytics])},
      {<<"system">>, libsnarl:allowed(Auth, Auth, [service, wiggle, module, system])},

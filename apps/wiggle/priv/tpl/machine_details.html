@@ -5,6 +5,7 @@
     <a class='btn' href="/machines/{{id}}/vnc" target="_new">VNC</a>
     {{/kvm}}
 
+    <button style='float: right; margin-left:50px' class='btn btn-danger' id='machine-details-delete'>Delete!</button>
     <div class='btn-group' style='float: right'> 
       <button class='btn btn-success' id='machine-detail-start' disabled='true'>Start</button>
       <button class='btn btn-warning' id='machine-detail-reboot' disabled='true'>Reboot</button>
@@ -12,11 +13,13 @@
     </div>
   </div>
   {{#kvm}}
-  <div class='span11'>
-    <select id="boot-image" style='float: right'></select>
-  </div>
+  <!-- div class='span11'>
+       <h1>This will return once image booting is implemented.</h1>
+       <select id="boot-image" style='float: right'></select>
+  </div-->
   {{/kvm}}
-  <div class='span2 detail-field'>ID</div><div class='span9' id='machine-detail-id'>{{id}}</div>
+  <div class='span2 detail-field'>VM ID</div><div class='span9' id='machine-detail-id'>{{id}}</div>
+  <div class='span2 detail-field'>Hypervisor ID</div><div class='span9' id='machine-detail-id'>{{hypervisor}}</div>
   <div class='span2 detail-field'>Name</div><div class='span9' id='machine-detail-name'>{{name}}</div>
   <div class='span2 detail-field'>Type</div><div class='span9' id='machine-detail-type'>{{type}}</div>
   <div class='span2 detail-field'>State</div><div class='span9' id='machine-detail-state'>{{state}}</div>
@@ -27,6 +30,9 @@
   {{/max_physical_memory}}
   {{/kvm}}
   <div class='span2 detail-field'>IPs</div><div class='span9' id='machine-detail-ips'>{{ips}}</div>
-  <div class='span2 detail-field'>Dataset</div><div class='span9' id='machine-detail-dataset'>{{dataset}}</div>
-  <div class='span2 detail-field'>Created</div><div class='span9' id='machine-detail-created'>{{created}}</div>
+  {{#dataset_uuid}}
+  <div class='span2 detail-field'>Dataset</div><div class='span9' id='machine-detail-dataset'>{{dataset_uuid}}</div>
+  {{/dataset_uuid}}
+  
+  <div class='span2 detail-field'>Created</div><div class='span9' id='machine-detail-created'>{{create_timestamp}}</div>
 </div>

@@ -1811,6 +1811,17 @@ input[type="submit"].btn.btn-mini {
 .icon-white {
   background-image: url("../img/glyphicons-halflings-white.png");
 }
+.icon-red {
+  background-image: url("../img/mark-halflings-red.png");
+}
+.icon-green {
+  background-image: url("../img/mark-halflings-green.png");
+}
+.icon-yellow {
+  background-image: url("../img/mark-halflings-yellow.png");
+}
+
+
 .icon-glass {
   background-position: 0      0;
 }

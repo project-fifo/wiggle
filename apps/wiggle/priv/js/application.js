@@ -1,34 +1,47 @@
 var ui = new Object();
+var stats = new Object();
 
 !function ($) {
     var ws;
     var rfb;
     var ws_problem = 0;
     var center=$("#center");
-
-    function watch_machine(id) {
+    var context;
+    function watcher_action(action, type, uuid) {
 	try {
-	    ws.send(JSON.stringify({"action": "subscribe", "uuid": id}));
+	    var json = JSON.stringify({"action": action, "type": type, "uuid": uuid});
+	    ws.send(json);
 	} catch (e) {
 	    ws_problem++;
-	    setInterval(function(){
-		watch_machine(id);
-	    }, 200);
+	    if (ws_problem == 100) {
+		alert("Websocket died!");
+	    }
+	//   setInterval(function(){
+	//	watcher_action(action, type, uuid);
+	//    }, 200);
 	}
-	    
+    }	
+    function watch_machine(id) {
+	watcher_action("subscribe", "vm", id);
+    };
+    function watch_host(id) {
+	watcher_action("subscribe", "host", id);
     };
     function unwatch_machine(id) {
-	try {
-	    ws.send(JSON.stringify({"action": "unsubscribe", "uuid": id}));
-	} catch (e) {
-	    ws_problem++;
-	    setInterval(function(){
-		unwatch_machine(id);
-	    }, 200);
-	}
-    
+	watcher_action("unsubscribe", "vm", id);
     };
 
+    function unwatch_machine(id) {
+	watcher_action("unsubscribe", "host", id);
+    };
+
+    function display_message(type, text, timeout) {
+	$.pnotify({
+	    title: type,
+	    type: type,
+	    text: text
+	});
+    };
 
     function delete_vm() {
 	var id=$(".machine.active").data("id");
@@ -69,10 +82,11 @@ var ui = new Object();
     }
     
     function extend_machine_data(data) {
-	if (data.type == "kvm")
+	if (data.type == "kvm") {
 	    data.kvm = true;
-	else
+	} else {
 	    data.zone = true;
+	}
 	data[data.state] = true;
 	return data;
     }
@@ -80,6 +94,8 @@ var ui = new Object();
 	var pkg = $("#machine-new-package").val();
 	var dataset = $("#machine-new-dataset").val();
 	var name = $("#machine-new-name").val();
+	var host = $("#machine-new-host").val();
+
 	$.ajax({
 	    url: "/my/machines",
 	    type: 'POST',
@@ -87,13 +103,14 @@ var ui = new Object();
 	    data:{
 		"name": name,
 		"package": pkg,
-		"dataset": dataset
-	    },
+		"dataset": dataset,
+		"host": host
+	    }/*,
 	    success: function (vm) {
 		if (vm) {
 		    add_machine(vm, true);
 		}
-	    }
+	    }*/
 	});
     }
 
@@ -168,11 +185,11 @@ var ui = new Object();
 		}
 	    });
 	}
+	$("#machine-details-delete").click(delete_vm);
 	update_detail_buttons(data.id, data.state);
     }
     function show_machine(data) {	
 	update_machine(data);
-	
     };
 
     function click_package(e, i) {
@@ -234,14 +251,14 @@ var ui = new Object();
 	};
 	
 	var s = $("#" + uuid + "-state");
-	s.attr("class","badge");
 
 	if (state == "running")
-	    s.addClass("badge-success");
+	    s.attr("class","icon-ok-sign icon-green");
 	else if (state == "stopped")
-	    s.addClass("badge-error");
+	    s.attr("class","icon-remove-sign icon-red");
 	else
-	    s.addClass("badge-warning");
+	    s.attr("class","icon-question-sign icon-yellow");
+
     };
 
     function add_machine(data, show) {
@@ -249,7 +266,15 @@ var ui = new Object();
 	var li = ich.machine_list_item(data).
 	    data("id", data.id).
 	    click(machine_click_fn);
-	$("#machines").after(li);
+	var host = $("#host-" + data.hypervisor);
+	if (!host.length) {
+	    host = $('<li class="nav-header" id="host-'+data.hypervisor+'">'+
+		     data.hypervisor +
+		     '</li>')
+	    $("#machines").after(host)
+	}
+	    
+	host.after(li);
 	update_state(data.id, data.state);
 	if (show)
 	    activate_machine(data.id)
@@ -335,10 +360,20 @@ var ui = new Object();
 		
 	    };
 	});
-	
+	var host = $("#machine-new-host").
+	    empty().
+	    append($("<option value=''>auto</option>"));
+	$.getJSON("/my/hosts", function (data) {
+	    for (var i = 0; i < data.length; i++) {
+		var d = data[i];
+		var option = $("<option></option>").
+		    attr("value", d).
+		    append(d).data("pkg", d);
+		host.append(option);
+	    };
+	});
 	var select = $("#machine-new-package");
 	select.empty();
-	select.append($("<option></option>"));
 	$.getJSON("/my/packages", function (data) {
 	    for (var i = 0; i < data.length; i++) {
 		var d = data[i];
@@ -351,21 +386,22 @@ var ui = new Object();
 	$("#machine-new-btn").click(machine_add_fn)
     };
     ui.init = function () {
-	get_machines();
-	init_event_socket();
-	get_other("packages", false, "name", click_package);
-	get_other("datasets",
-		  function (data) {
-		      return data.name +
-			  " v" + 
-			  data.urn.split(":")[3];
-		  });
-
-	$("#packages-nav-add").click(view_add_pkg);
-	$("#packages-nav-del").click(delete_pkg);
-	
-	$("#machines-nav-add").click(view_add_vm);
-	$("#machines-nav-del").click(delete_vm);
+	init_event_socket(function() {
+	    get_machines();
+	    
+	    get_other("packages", false, "name", click_package);
+	    get_other("datasets",
+		      function (data) {
+			  return data.name +
+			      " v" + 
+			      data.urn.split(":")[3];
+		      });
+	    
+	    $("#packages-nav-add").click(view_add_pkg);
+	    $("#packages-nav-del").click(delete_pkg);
+	    
+	    $("#machines-nav-add").click(view_add_vm);
+	});
     };
     
     function load_template(id) {
@@ -383,7 +419,7 @@ var ui = new Object();
 	}
     }
     
-    function init_event_socket(){
+    function init_event_socket(initfn){
 	if ("MozWebSocket" in window) {
 	    WebSocket = MozWebSocket;
 	}
@@ -398,15 +434,24 @@ var ui = new Object();
 	    ws.onopen = function() {
 		// websocket is connected
 		ws_problem = 0;
+		initfn();
 	    };
 	    ws.onmessage = function (evt) {
 		var receivedMsg = evt.data;
 		var json = JSON.parse(receivedMsg);
 		
 		switch (json.event) {
+		    case "stat":
+		    update_host_stats(json.uuid, json.stats);
+		    break;
 		    case "state change":
-		    console.log(receivedMsg);
 		    update_state(json.uuid, json.state);
+		    break;
+		    case "add vm":
+		    add_machine(json.data);
+		    break;
+		    case "message":
+		    display_message(json.type, json.text, json.timeout);
 		    break;
 		}
 	    };
@@ -424,12 +469,104 @@ var ui = new Object();
 	    addStatus("sorry, your browser does not support websockets.");
 	}
     }
+
+    function update_host_stats(host, stats) {
+	var gauge_mem = $("#" + host+'-memory').data("gauge");
+	if ($("#" + host+'-memory').data("first")) {
+	    gauge_mem.config.maxValue = stats.memory.total/(1024* 1024);
+	    gauge_mem.draw();
+	    $("#" + host+'-memory').data("false")
+	}
+	gauge_mem.setValue((stats.memory.total - stats.memory.free)/(1024*1024));
+	$("#" + host+'-cpu').data("gauge").setValue(stats.cpu.user + stats.cpu.system);
+	$("#" + host+'-ioblock').data("gauge").setValue(stats.kthr.blocked);
+	$("#" + host+'-paging').data("gauge").setValue(stats.page.in + stats.page.out);
+	var mpstat_chart = $("#" + host+'-mpstat').data("chart");
+	if (mpstat_chart) {
+	    mpstat_chart.update(stats.cpu.details);
+	} else {
+	    console.log(stats.cpu);
+	    $("#" + host+'-mpstat').data("chart",mpstat.create(host, stats.cpu.details));
+	}
+	
+    }
+    function add_stat_host(host) {
+	$("#hosts").append(ich.host({uuid: host}));
+	var green = "#eee";
+	var yellow = "#ccc";
+	var red = "#999";
+
+	var gauge_mem = new Gauge({ 
+	    renderTo: host+'-memory',
+	    width: 120,
+	    height: 120,
+	    highlights: [{ from: 20, to: 60, color: green }, 
+			 { from: 60, to: 80, color: yellow }, 
+			 { from: 80, to: 100, color: red}],
+	    valueFormat:{"int": 3, "dec": 0}
+	});
+	$("#" + host+'-memory').data("gauge",gauge_mem);
+	$("#" + host+'-memory').data("first",true);
+	gauge_mem.draw();
+
+	gauge_cpu = new Gauge({ 
+	    renderTo: host+'-cpu',
+	    width: 120,
+	    height: 120,
+	    highlights: [{ from: 0, to: 30, color: green}, 
+			 { from: 30, to: 80, color: yellow}, 
+			 { from: 80, to: 100, color: red}],
+	    valueFormat:{"int": 3, "dec": 0}
+	});
+ 	$("#" + host+'-cpu').data("gauge",gauge_cpu);
+	gauge_cpu.draw();
+	var gauge_ioblock = new Gauge({
+	    renderTo: host+'-ioblock',
+	    width: 120,
+	    height: 120,
+	    highlights: [{ from: 0, to: 10, color: green}, 
+			 { from: 10, to: 50, color: yellow}, 
+			 { from: 50, to: 100, color: red}],
+	    valueFormat:{"int": 3, "dec": 0}
+
+	}); 
+	$("#" + host+'-ioblock').data("gauge",gauge_ioblock);
+	gauge_ioblock.draw();
+
+	var gauge_paging = new Gauge({
+	    renderTo: host+'-paging',
+	    width: 120,
+	    height: 120,
+	    highlights: [{ from: 0, to: 10, color: green}, 
+			 { from: 10, to: 50, color: yellow}, 
+			 { from: 50, to: 100, color: red}],
+	    valueFormat:{"int": 3, "dec": 0}
+	}); 
+	$("#" + host+'-paging').data("gauge",gauge_paging);
+	gauge_paging.draw();
+    }
+    function stat_hosts() {
+	$.getJSON("/my/hosts", function (data) {
+	    for (var i = 0; i < data.length; i++) {
+		add_stat_host(data[i]);
+		watch_host(data[i]);
+	    };
+	});
+
+    }
     
+    stats.init = function() {
+	init_event_socket(function(){
+	    stat_hosts();
+	});
+    }
     
     load_templtes(["machine_details",
 		   "details",
 		   "package",
 		   "machine_list_item",
 		   "other_list_item",
-		   "machine_form"]);
+		   "machine_form",
+		   "msg",
+		   "host"]);
 }(window.jQuery);
