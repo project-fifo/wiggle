@@ -127,7 +127,8 @@ var debug;
     }
     var pkg_pkg = {
 	"get": true,
-	"delete": true
+	"delete": true,
+	"edit": true
     };
     var pkg = {
 	"create": true,
@@ -169,16 +170,6 @@ var debug;
     permissions.data["service"] = {
 	"wiggle": wiggle,
 	"sniffle": sniffle,
-    };
-    var package_package = {
-	"add": true,
-	"delete": true,
-	"edit": true,
-	"get": true
-    }
-    permissions.data["package"] = {
-	"Name": package_package,
-	"_": package_package
     };
 
     permissions.data["host"] = {
