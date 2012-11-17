@@ -5,7 +5,13 @@
   {registered, []},
   {applications, [
                   kernel,
-                  stdlib
+                  stdlib,
+		  libsnarl,
+		  libsniffle,
+		  jsx,
+		  lager,
+		  mimetypes,
+		  cowboy
                  ]},
   {mod, { wiggle_app, []}},
   {env, []}

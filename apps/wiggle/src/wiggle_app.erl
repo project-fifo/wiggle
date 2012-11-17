@@ -9,7 +9,17 @@
 %% Application callbacks
 %% ===================================================================
 
+
 start(_StartType, _StartArgs) ->
+    Dispatch = [
+		{'_', [
+		       {[<<"api">>, '_', <<"users">>, '...'], wiggle_user_handler, []}
+		      ]}
+	       ],
+    {ok, _} = cowboy:start_listener(http, 100,
+				    cowboy_tcp_transport, [{port, 8080}],
+				    cowboy_http_protocol, [{dispatch, Dispatch}]
+				   ),
     wiggle_sup:start_link().
 
 stop(_State) ->
