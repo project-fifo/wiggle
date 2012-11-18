@@ -32,13 +32,10 @@ rest_init(Req, _) ->
 			    {ok, ReqX1} = cowboy_http_req:set_resp_header(<<"X-Snarl-Token">>, TokenX, ReqX),
 			    {TokenX, ReqX1}
 		    end,
-    io:format("token: ~p~n", [Token]),
     State =  #state{version = Version, 
 		    method = Method,
 		    token = Token,
 		    path = Path},
-    io:format("state: ~p~n", [State]),
-
     {ok, Req3, State}.
 
 content_types_provided(Req, State) ->
@@ -82,7 +79,6 @@ resource_exists(Req, State = #state{path = [User, <<"permissions">> | Permission
 	{[], {reply, {ok, _}}} ->
 	    {true, Req, State};
 	{P, {reply, {ok, {user, _Name, _, Permissions, _Groups, _}}}} ->
-	    io:format("~p in ~p~n", [P, Permissions]),
 	    {lists:member(P, Permissions), Req, State}
     end;
 
@@ -129,11 +125,9 @@ is_authorized(Req, State) ->
     {true, Req, State}.
 
 forbidden(Req, State = #state{path = [_, <<"sessions">>]}) ->
-    io:format("test: default login.~n"),
     {false, Req, State};
 
 forbidden(Req, State = #state{token = undefined}) -> 
-    io:format("test: default no token.~n"),
     {true, Req, State};
 
 forbidden(Req, State = #state{path = []}) ->
@@ -180,7 +174,6 @@ forbidden(Req, State) ->
 %%--------------------------------------------------------------------
 
 to_json(Req, State) ->
-    io:format("to_json: ~p~n", [State]),
     {Reply, Req1, State1} = handle_request(Req, State),
     {jsx:encode(Reply), Req1, State1}.
 
@@ -208,7 +201,6 @@ handle_request(Req, State = #state{path = [User, <<"groups">>]}) ->
 %%--------------------------------------------------------------------
 
 from_json(Req, State) ->
-    io:format("from_json: ~p~n", [State]),
     {ok, Body, Req1} = cowboy_http_req:body(Req),
     {Reply, Req2, State1} = case Body of
 				<<>> ->
@@ -230,13 +222,11 @@ handle_write(Req, State = #state{path =  [User]}, [{<<"password">>, Password}]) 
     {true, Req, State};
 
 handle_write(Req, State = #state{path = [User, <<"groups">>, Group]}, []) ->
-    io:format("join: ~p - ~p~n", [User, Group]),
     {reply, {ok, joined}} = libsnarl:user_join(User, Group),
     {true, Req, State};
 
 handle_write(Req, State = #state{path = [User, <<"permissions">> | Permission]}, []) ->
     P = erlangify_permission(Permission),
-    io:format("grant: ~p - ~p~n", [User, P]),
     {reply, ok} = libsnarl:user_grant(User, P),
     {true, Req, State}.
 
@@ -247,7 +237,6 @@ handle_write(Req, State = #state{path = [User, <<"permissions">> | Permission]},
 
 delete_resource(Req, State = #state{path = [User, <<"permissions">> | Permission]}) ->
     P = erlangify_permission(Permission),
-    io:format("revoke: ~p - ~p~n", [User, P]),
     {reply, ok} = libsnarl:user_revoke(User, P),
     {true, Req, State};
 
@@ -256,7 +245,6 @@ delete_resource(Req, State = #state{path = [User]}) ->
     {true, Req, State};
 
 delete_resource(Req, State = #state{path = [User, <<"groups">>, Group]}) ->
-    io:format("leave: ~p - ~p~n", [User, Group]),
     {reply, ok} = libsnarl:user_leave(User, Group),
     {true, Req, State}.
 
@@ -272,7 +260,6 @@ erlangify_permission(P) ->
 	      end, P).
 
 allowed(Token, Perm) ->
-    io:format("test: ~p vs. ~p~n", [Token, Perm]),
     case libsnarl:allowed({token, Token}, Perm) of
 	{reply,not_found} ->
 	    true;

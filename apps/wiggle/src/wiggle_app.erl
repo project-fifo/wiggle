@@ -14,7 +14,14 @@ start(_StartType, _StartArgs) ->
     Dispatch = [
 		{'_', [
 		       {[<<"api">>, '_', <<"users">>, '...'], wiggle_user_handler, []},
-		       {[<<"api">>, '_', <<"groups">>, '...'], wiggle_group_handler, []}
+		       {[<<"api">>, '_', <<"groups">>, '...'], wiggle_group_handler, []},
+
+		       {[<<"api">>, '_', <<"hypervisors">>, '...'], wiggle_hypervisor_handler, []},
+		       {[<<"api">>, '_', <<"vms">>, '...'], wiggle_vm_handler, []},
+		       {[<<"api">>, '_', <<"ipranges">>, '...'], wiggle_iprange_handler, []},
+		       {[<<"api">>, '_', <<"datasets">>, '...'], wiggle_dataset_handler, []},
+		       {[<<"api">>, '_', <<"packages">>, '...'], wiggle_package_handler, []}
+		       
 		      ]}
 	       ],
     {ok, _} = cowboy:start_listener(http, 100,

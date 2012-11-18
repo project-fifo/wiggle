@@ -1,10 +1,11 @@
 %% Feel free to use, reuse and abuse the code in this file.
 
 %% @doc Hello world handler.
--module(wiggle_group_handler).
+-module(wiggle_iprange_handler).
 
 -export([init/3, 
 	 rest_init/2]).
+
 -export([content_types_provided/2, 
 	 content_types_accepted/2,
 	 allowed_methods/2,

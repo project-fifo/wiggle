@@ -1,7 +1,7 @@
 %% Feel free to use, reuse and abuse the code in this file.
 
 %% @doc Hello world handler.
--module(wiggle_group_handler).
+-module(wiggle_vm_handler).
 
 -export([init/3, 
 	 rest_init/2]).
