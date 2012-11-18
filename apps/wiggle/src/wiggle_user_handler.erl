@@ -90,7 +90,7 @@ resource_exists(Req, State = #state{method = 'DELETE', path = [User, <<"groups">
     case libsnarl:user_get(User) of
 	{reply, {ok, not_found}} ->
 	    {false, Req, State};
-	{reply, {ok, {user, _Name, _, _Permissions, Groups, _}}} ->
+	{reply, {ok, {user, _Name, _, _Permissions, _, Groups}}} ->
 	    {lists:member(Group, Groups), Req, State}
     end;
 
@@ -199,7 +199,7 @@ handle_request(Req, State = #state{path = [User, <<"permissions">>]}) ->
     {Permissions, Req, State};
 
 handle_request(Req, State = #state{path = [User, <<"groups">>]}) ->
-    {reply, {ok, {user, _Name, _, _Permissions, Groups, _}}} = libsnarl:user_get(User),
+    {reply, {ok, {user, _Name, _, _Permissions, _, Groups}}} = libsnarl:user_get(User),
     {Groups, Req, State}.
 
 
@@ -231,7 +231,7 @@ handle_write(Req, State = #state{path =  [User]}, [{<<"password">>, Password}]) 
 
 handle_write(Req, State = #state{path = [User, <<"groups">>, Group]}, []) ->
     io:format("join: ~p - ~p~n", [User, Group]),
-    {reply, ok} = libsnarl:user_join(User, Group),
+    {reply, {ok, joined}} = libsnarl:user_join(User, Group),
     {true, Req, State};
 
 handle_write(Req, State = #state{path = [User, <<"permissions">> | Permission]}, []) ->

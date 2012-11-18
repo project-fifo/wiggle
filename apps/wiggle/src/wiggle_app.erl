@@ -13,7 +13,8 @@
 start(_StartType, _StartArgs) ->
     Dispatch = [
 		{'_', [
-		       {[<<"api">>, '_', <<"users">>, '...'], wiggle_user_handler, []}
+		       {[<<"api">>, '_', <<"users">>, '...'], wiggle_user_handler, []},
+		       {[<<"api">>, '_', <<"groups">>, '...'], wiggle_group_handler, []}
 		      ]}
 	       ],
     {ok, _} = cowboy:start_listener(http, 100,
