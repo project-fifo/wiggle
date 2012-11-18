@@ -9,7 +9,9 @@
 	 content_types_accepted/2,
 	 allowed_methods/2,
 	 delete_resource/2,
-	 resource_exists/2]).
+	 resource_exists/2,
+	 forbidden/2,
+	 is_authorized/2]).
 -export([to_json/2,
 	 from_json/2]).
 
@@ -31,7 +33,6 @@ rest_init(Req, _) ->
 			    {TokenX, ReqX1}
 		    end,
     io:format("token: ~p~n", [Token]),
-
     State =  #state{version = Version, 
 		    method = Method,
 		    token = Token,
@@ -74,11 +75,6 @@ allowed_methods(_Version, _Token, [_Login, <<"groups">>]) ->
 allowed_methods(_Version, _Token, [_Login, <<"groups">>, _Group]) ->
     ['PUT', 'DELETE'].
 
-
-%% Internal Functions
-
-
-
 resource_exists(Req, State = #state{path = [User, <<"permissions">> | Permission]}) ->
     case {erlangify_permission(Permission), libsnarl:user_get(User)} of
 	{_, {reply, {ok, not_found}}} ->
@@ -111,6 +107,9 @@ resource_exists(Req, State = #state{method = 'PUT', path = [User, <<"groups">>, 
 	    end
     end;
 
+resource_exists(Req, State = #state{path = []}) ->
+    {true, Req, State};
+
 resource_exists(Req, State = #state{path = [User | _]}) ->
     case libsnarl:user_get(User) of
 	{reply, {ok, not_found}} ->
@@ -118,6 +117,67 @@ resource_exists(Req, State = #state{path = [User | _]}) ->
 	{reply, {ok, _}} ->
 	    {true, Req, State}
     end.
+
+
+is_authorized(Req, State = #state{path = [_, <<"sessions">>]}) -> 
+    {true, Req, State};
+
+is_authorized(Req, State = #state{token = undefined}) -> 
+    {{false, <<"X-Snarl-Token">>}, Req, State};
+
+is_authorized(Req, State) -> 
+    {true, Req, State}.
+
+forbidden(Req, State = #state{path = [_, <<"sessions">>]}) ->
+    io:format("test: default login.~n"),
+    {false, Req, State};
+
+forbidden(Req, State = #state{token = undefined}) -> 
+    io:format("test: default no token.~n"),
+    {true, Req, State};
+
+forbidden(Req, State = #state{path = []}) ->
+    {allowed(State#state.token, [<<"users">>]), Req, State};
+
+forbidden(Req, State = #state{method = 'GET', path = [User]}) ->
+    {allowed(State#state.token, [<<"users">>, User, <<"get">>]), Req, State};
+
+forbidden(Req, State = #state{method = 'PUT', path = [User]}) ->
+    {allowed(State#state.token, [<<"users">>, User, <<"passwd">>]), Req, State};
+
+forbidden(Req, State = #state{method = 'DELETE', path = [User]}) ->
+    {allowed(State#state.token, [<<"users">>, User, <<"delete">>]), Req, State};
+
+forbidden(Req, State = #state{method = 'GET', path = [User, <<"permissions">>]}) ->
+    {allowed(State#state.token, [<<"users">>, User, <<"get">>]), Req, State};
+
+forbidden(Req, State = #state{method = 'PUT', path = [User, <<"permissions">> | Permission]}) ->
+    P = erlangify_permission(Permission),
+    {allowed(State#state.token, [<<"users">>, User, <<"grant">>])
+     andalso allowed(State#state.token, [<<"permissions">>, P, <<"grant">>]), Req, State};
+
+forbidden(Req, State = #state{method = 'DELETE', path = [User, <<"permissions">> | Permission]}) ->
+    P = erlangify_permission(Permission),
+    {allowed(State#state.token, [<<"users">>, User, <<"revoke">>])
+     andalso allowed(State#state.token, [<<"permissions">>, P, <<"revoke">>]), Req, State};
+
+forbidden(Req, State = #state{method = 'GET', path = [User, <<"groups">>]}) ->
+    {allowed(State#state.token, [<<"users">>, User, <<"get">>]), Req, State};
+
+forbidden(Req, State = #state{method = 'PUT', path = [User, <<"groups">>, Group]}) ->
+    {allowed(State#state.token, [<<"users">>, User, <<"join">>])
+     andalso allowed(State#state.token, [<<"groups">>, Group, <<"join">>]), Req, State};
+
+forbidden(Req, State = #state{method = 'DELETE', path = [User, <<"groups">>, Group]}) ->
+    {allowed(State#state.token, [<<"users">>, User, <<"leave">>])
+     andalso allowed(State#state.token, [<<"groups">>, Group, <<"leave">>]), Req, State};
+
+forbidden(Req, State) ->
+    {true, Req, State}.
+
+%%--------------------------------------------------------------------
+%% GET
+%%--------------------------------------------------------------------
 
 to_json(Req, State) ->
     io:format("to_json: ~p~n", [State]),
@@ -142,6 +202,11 @@ handle_request(Req, State = #state{path = [User, <<"groups">>]}) ->
     {reply, {ok, {user, _Name, _, _Permissions, Groups, _}}} = libsnarl:user_get(User),
     {Groups, Req, State}.
 
+
+%%--------------------------------------------------------------------
+%% PUT
+%%--------------------------------------------------------------------
+
 from_json(Req, State) ->
     io:format("from_json: ~p~n", [State]),
     {ok, Body, Req1} = cowboy_http_req:body(Req),
@@ -154,26 +219,40 @@ from_json(Req, State) ->
 			    end,
     {Reply, Req2, State1}.
 
-handle_write(Req, State = #state{method = 'PUT', path = [User]}, [{<<"password">>, Password}]) ->
+handle_write(Req, State = #state{path = [User, <<"sessions">>]}, [{<<"password">>, Password}]) ->
     {reply, {ok, {token, Token}}} = libsnarl:auth(User, Password),
     {ok, Req1} = cowboy_http_req:set_resp_header(<<"X-Snarl-Token">>, Token, Req),
     {true, Req1, State};
 
+handle_write(Req, State = #state{path =  [User]}, [{<<"password">>, Password}]) ->
+    libsnarl:user_add(User),
+    {reply, ok} = libsnarl:user_passwd(User, Password),
+    {true, Req, State};
 
-handle_write(Req, State = #state{method = 'PUT', path = [User, <<"groups">>, Group]}, []) ->
+handle_write(Req, State = #state{path = [User, <<"groups">>, Group]}, []) ->
     io:format("join: ~p - ~p~n", [User, Group]),
     {reply, ok} = libsnarl:user_join(User, Group),
     {true, Req, State};
 
-handle_write(Req, State = #state{method = 'PUT', path = [User, <<"permissions">> | Permission]}, []) ->
+handle_write(Req, State = #state{path = [User, <<"permissions">> | Permission]}, []) ->
     P = erlangify_permission(Permission),
     io:format("grant: ~p - ~p~n", [User, P]),
     {reply, ok} = libsnarl:user_grant(User, P),
     {true, Req, State}.
 
+
+%%--------------------------------------------------------------------
+%% DEETE
+%%--------------------------------------------------------------------
+
 delete_resource(Req, State = #state{path = [User, <<"permissions">> | Permission]}) ->
-    io:format("revoke: ~p - ~p~n", [User, Permission]),
-    {reply, ok} = libsnarl:user_revoke(User, Permission),
+    P = erlangify_permission(Permission),
+    io:format("revoke: ~p - ~p~n", [User, P]),
+    {reply, ok} = libsnarl:user_revoke(User, P),
+    {true, Req, State};
+
+delete_resource(Req, State = #state{path = [User]}) ->
+    {reply, ok} = libsnarl:user_delete(User),
     {true, Req, State};
 
 delete_resource(Req, State = #state{path = [User, <<"groups">>, Group]}) ->
@@ -181,6 +260,7 @@ delete_resource(Req, State = #state{path = [User, <<"groups">>, Group]}) ->
     {reply, ok} = libsnarl:user_leave(User, Group),
     {true, Req, State}.
 
+%% Internal Functions
 
 erlangify_permission(P) ->
     lists:map(fun(<<"...">>) ->
@@ -190,3 +270,14 @@ erlangify_permission(P) ->
 		 (E) ->
 		      E
 	      end, P).
+
+allowed(Token, Perm) ->
+    io:format("test: ~p vs. ~p~n", [Token, Perm]),
+    case libsnarl:allowed({token, Token}, Perm) of
+	{reply,not_found} ->
+	    true;
+	{reply, true} ->
+	    false;
+	{reply, false} ->
+	    true
+    end.
