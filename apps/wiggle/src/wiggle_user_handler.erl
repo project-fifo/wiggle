@@ -90,12 +90,25 @@ resource_exists(Req, State = #state{path = [User, <<"permissions">> | Permission
 	    {lists:member(P, Permissions), Req, State}
     end;
 
-resource_exists(Req, State = #state{path = [User, <<"groups">>, Group]}) ->
+resource_exists(Req, State = #state{method = 'DELETE', path = [User, <<"groups">>, Group]}) ->
     case libsnarl:user_get(User) of
 	{reply, {ok, not_found}} ->
 	    {false, Req, State};
 	{reply, {ok, {user, _Name, _, _Permissions, Groups, _}}} ->
 	    {lists:member(Group, Groups), Req, State}
+    end;
+
+resource_exists(Req, State = #state{method = 'PUT', path = [User, <<"groups">>, Group]}) ->
+    case libsnarl:user_get(User) of
+	{reply, {ok, not_found}} ->
+	    {false, Req, State};
+	{reply, {ok, _}} ->
+	    case libsnarl:group_get(Group) of 
+		{reply, {ok, not_found}} ->
+		    {false, Req, State};
+		{reply, {ok, _}} ->
+		    {true, Req, State}
+	    end
     end;
 
 resource_exists(Req, State = #state{path = [User | _]}) ->
@@ -132,14 +145,31 @@ handle_request(Req, State = #state{path = [User, <<"groups">>]}) ->
 from_json(Req, State) ->
     io:format("from_json: ~p~n", [State]),
     {ok, Body, Req1} = cowboy_http_req:body(Req),
-    Decoded = jsx:decode(Body),
-    {Reply, Req2, State1} = handle_write(Req1, State, Decoded),
+    {Reply, Req2, State1} = case Body of
+				<<>> ->
+				    handle_write(Req1, State, []);
+				_ ->
+				    Decoded = jsx:decode(Body),
+				    handle_write(Req1, State, Decoded)
+			    end,
     {Reply, Req2, State1}.
 
 handle_write(Req, State = #state{method = 'PUT', path = [User]}, [{<<"password">>, Password}]) ->
     {reply, {ok, {token, Token}}} = libsnarl:auth(User, Password),
     {ok, Req1} = cowboy_http_req:set_resp_header(<<"X-Snarl-Token">>, Token, Req),
-    {true, Req1, State}.
+    {true, Req1, State};
+
+
+handle_write(Req, State = #state{method = 'PUT', path = [User, <<"groups">>, Group]}, []) ->
+    io:format("join: ~p - ~p~n", [User, Group]),
+    {reply, ok} = libsnarl:user_join(User, Group),
+    {true, Req, State};
+
+handle_write(Req, State = #state{method = 'PUT', path = [User, <<"permissions">> | Permission]}, []) ->
+    P = erlangify_permission(Permission),
+    io:format("grant: ~p - ~p~n", [User, P]),
+    {reply, ok} = libsnarl:user_grant(User, P),
+    {true, Req, State}.
 
 delete_resource(Req, State = #state{path = [User, <<"permissions">> | Permission]}) ->
     io:format("revoke: ~p - ~p~n", [User, Permission]),
