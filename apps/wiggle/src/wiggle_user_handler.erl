@@ -11,6 +11,7 @@
 	 delete_resource/2,
 	 resource_exists/2,
 	 forbidden/2,
+	 options/2,
 	 is_authorized/2]).
 -export([to_json/2,
 	 from_json/2]).
@@ -25,18 +26,38 @@ init(_Transport, _Req, []) ->
 rest_init(Req, _) ->
     {Method, Req1} = cowboy_http_req:method(Req),
     {[<<"api">>, Version, <<"users">> | Path], Req2} = cowboy_http_req:path(Req1),
-    {Token, Req3} = case cowboy_http_req:header(<<"X-Snarl-Token">>, Req2) of
+    {ok, Req3} = cowboy_http_req:set_resp_header(<<"Access-Control-Allow-Origin">>, <<"*">>, Req2),
+    {Token, Req4} = case cowboy_http_req:header(<<"X-Snarl-Token">>, Req3) of
 			{undefined, ReqX} -> 
 			    {undefined, ReqX};
 			{TokenX, ReqX} ->
 			    {ok, ReqX1} = cowboy_http_req:set_resp_header(<<"X-Snarl-Token">>, TokenX, ReqX),
 			    {TokenX, ReqX1}
 		    end,
+    {ok, Req5} = cowboy_http_req:set_resp_header(
+		   <<"Access-Control-Allow-Headers">>, 
+		   <<"Content-Type, X-Snarl-Token">>, Req4),
+    {ok, Req6} = cowboy_http_req:set_resp_header(
+		   <<"Access-Control-Expose-Headers">>, 
+		   <<"X-Snarl-Token">>, Req5),
+
+
     State =  #state{version = Version, 
 		    method = Method,
 		    token = Token,
 		    path = Path},
-    {ok, Req3, State}.
+    io:format("[~p] - ~p~n", [Method, Path]),
+    {ok, Req6, State}.
+
+
+options(Req, State) ->
+    Methods = allowed_methods(Req, State, State#state.path),
+    {ok, Req1} = cowboy_http_req:set_resp_header(
+		   <<"Access-Control-Allow-Methods">>, 
+		   string:join(
+		     lists:map(fun erlang:atom_to_list/1,
+			       ['HEAD', 'GET', 'OPTIONS' | Methods]), ", "), Req),    
+    {ok, Req1, State}.
 
 content_types_provided(Req, State) ->
     {[
@@ -45,11 +66,12 @@ content_types_provided(Req, State) ->
 
 content_types_accepted(Req, State) ->
     {[
-      {<<"application/json; charset=UTF-8">>, from_json}
+      {<<"application/json; charset=UTF-8">>, from_json},
+      {<<"application/json; charset=utf-8">>, from_json}
      ], Req, State}.
 
 allowed_methods(Req, State) ->
-    {['HEAD' | allowed_methods(State#state.version, State#state.token, State#state.path)], Req, State}.
+    {['HEAD', 'OPTIONS' | allowed_methods(State#state.version, State#state.token, State#state.path)], Req, State}.
 
 allowed_methods(_Version, _Token, []) ->
     ['GET'];
@@ -118,6 +140,9 @@ resource_exists(Req, State = #state{path = [User | _]}) ->
 is_authorized(Req, State = #state{path = [_, <<"sessions">>]}) -> 
     {true, Req, State};
 
+is_authorized(Req, State = #state{method = 'OPTIONS'}) -> 
+    {true, Req, State};
+
 is_authorized(Req, State = #state{token = undefined}) -> 
     {{false, <<"X-Snarl-Token">>}, Req, State};
 
@@ -125,6 +150,9 @@ is_authorized(Req, State) ->
     {true, Req, State}.
 
 forbidden(Req, State = #state{path = [_, <<"sessions">>]}) ->
+    {false, Req, State};
+
+forbidden(Req, State = #state{method = 'OPTIONS'}) -> 
     {false, Req, State};
 
 forbidden(Req, State = #state{token = undefined}) -> 
@@ -184,17 +212,16 @@ handle_request(Req, State = #state{path = []}) ->
 handle_request(Req, State = #state{path = [User]}) ->
     {reply, {ok, {user, Name, _, Permissions, Groups, _}}} = libsnarl:user_get(User),
     {[{name, Name},
-      {permissions, Permissions},
+      {permissions, lists:map(fun jsonify_permissions/1, Permissions)},
       {groups, Groups}], Req, State};
 
 handle_request(Req, State = #state{path = [User, <<"permissions">>]}) ->
     {reply, {ok, {user, _Name, _, Permissions, _Groups, _}}} = libsnarl:user_get(User),
-    {Permissions, Req, State};
+    {lists:map(fun jsonify_permissions/1, Permissions), Req, State};
 
 handle_request(Req, State = #state{path = [User, <<"groups">>]}) ->
     {reply, {ok, {user, _Name, _, _Permissions, _, Groups}}} = libsnarl:user_get(User),
     {Groups, Req, State}.
-
 
 %%--------------------------------------------------------------------
 %% PUT
@@ -202,6 +229,7 @@ handle_request(Req, State = #state{path = [User, <<"groups">>]}) ->
 
 from_json(Req, State) ->
     {ok, Body, Req1} = cowboy_http_req:body(Req),
+    io:format("[PUT] ~p", [Body]),
     {Reply, Req2, State1} = case Body of
 				<<>> ->
 				    handle_write(Req1, State, []);
@@ -209,6 +237,7 @@ from_json(Req, State) ->
 				    Decoded = jsx:decode(Body),
 				    handle_write(Req1, State, Decoded)
 			    end,
+
     {Reply, Req2, State1}.
 
 handle_write(Req, State = #state{path = [User, <<"sessions">>]}, [{<<"password">>, Password}]) ->
@@ -259,6 +288,15 @@ erlangify_permission(P) ->
 		      E
 	      end, P).
 
+jsonify_permissions(P) ->
+    lists:map(fun('...') ->
+		      <<"...">>;
+		 ('_') ->
+		      <<"_">>;
+		 (E) ->
+		      E
+	      end, P).
+    
 allowed(Token, Perm) ->
     case libsnarl:allowed({token, Token}, Perm) of
 	{reply,not_found} ->

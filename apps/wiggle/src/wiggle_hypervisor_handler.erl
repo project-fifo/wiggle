@@ -11,6 +11,7 @@
 	 allowed_methods/2,
 	 resource_exists/2,
 	 forbidden/2,
+	 options/2,
 	 is_authorized/2]).
 
 -export([to_json/2,
@@ -31,11 +32,27 @@ rest_init(Req, _) ->
 			    {ok, ReqX1} = cowboy_http_req:set_resp_header(<<"X-Snarl-Token">>, TokenX, ReqX),
 			    {TokenX, ReqX1}
 		    end,
+    {ok, Req4} = cowboy_http_req:set_resp_header(<<"Access-Control-Allow-Origin">>, <<"*">>, Req3),
+    {ok, Req5} = cowboy_http_req:set_resp_header(
+		   <<"Access-Control-Allow-Headers">>, 
+		   <<"Content-Type, X-Snarl-Token">>, Req4),
+    {ok, Req6} = cowboy_http_req:set_resp_header(
+		   <<"Access-Control-Expose-Headers">>, 
+		   <<"X-Snarl-Token">>, Req5),
     State =  #state{version = Version, 
 		    method = Method,
 		    token = Token,
 		    path = Path},
-    {ok, Req3, State}.
+    {ok, Req6, State}.
+
+options(Req, State) ->
+    Methods = allowed_methods(Req, State, State#state.path),
+    {ok, Req1} = cowboy_http_req:set_resp_header(
+		   <<"Access-Control-Allow-Methods">>, 
+		   string:join(
+		     lists:map(fun erlang:atom_to_list/1,
+			       ['HEAD', 'OPTIONS' | Methods]), ", "), Req),    
+    {ok, Req1, State}.
 
 content_types_provided(Req, State) ->
     {[
@@ -48,7 +65,7 @@ content_types_accepted(Req, State) ->
      ], Req, State}.
 
 allowed_methods(Req, State) ->
-    {['HEAD' | allowed_methods(State#state.version, State#state.token, State#state.path)], Req, State}.
+    {['HEAD', 'OPTIONS' | allowed_methods(State#state.version, State#state.token, State#state.path)], Req, State}.
 
 allowed_methods(_Version, _Token, []) ->
     ['GET'];
@@ -67,11 +84,17 @@ resource_exists(Req, State = #state{path = [Hypervisor | _]}) ->
 	    {true, Req, State}
     end.
 
+is_authorized(Req, State = #state{method = 'OPTIONS'}) -> 
+    {true, Req, State};
+
 is_authorized(Req, State = #state{token = undefined}) -> 
     {{false, <<"X-Snarl-Token">>}, Req, State};
 
 is_authorized(Req, State) -> 
     {true, Req, State}.
+
+forbidden(Req, State = #state{method = 'OPTIONS'}) -> 
+    {false, Req, State};
 
 forbidden(Req, State = #state{token = undefined}) -> 
     {true, Req, State};
