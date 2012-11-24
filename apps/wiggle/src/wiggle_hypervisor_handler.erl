@@ -122,7 +122,7 @@ handle_request(Req, State = #state{path = []}) ->
 
 handle_request(Req, State = #state{path = [Hypervisor]}) ->
     {reply, Dict} = libsniffle:hypervisor_resource_get(Hypervisor),
-    {dict:to_list(Dict), Req, State}.
+    {[{name, Hypervisor}|dict:to_list(Dict)], Req, State}.
 
 %%--------------------------------------------------------------------
 %% PUT

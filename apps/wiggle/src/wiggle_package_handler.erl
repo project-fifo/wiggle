@@ -129,7 +129,7 @@ handle_request(Req, State = #state{path = []}) ->
 
 handle_request(Req, State = #state{path = [Package]}) ->
     {reply, Res} = libsniffle:package_attribute_get(Package),
-    {Res, Req, State}.
+    {[{name, Package}|Res], Req, State}.
 
 
 %%--------------------------------------------------------------------
