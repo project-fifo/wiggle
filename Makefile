@@ -7,9 +7,11 @@ PA=$(shell pwd)/$(APP_DIR)/ebin
 ERL_LIBS=`pwd`/deps/
 REBAR=./rebar
 
+.PHONY: rel clean package
+
 all: $(DEPS) $(OBJ)
 
-rel: all remove_trash FORCE
+rel: all remove_trash
 	-rm -r rel/$(APP_NAME)
 	cd rel; ../rebar generate
 echo:
@@ -18,7 +20,7 @@ echo:
 tar: rel
 	cd rel; tar jcvf $(APP_NAME).tar.bz2 $(APP_NAME)
 
-clean: FORCE
+clean:
 	$(REBAR) clean
 	-rm *.beam erl_crash.dump
 	-rm -r rel/$(APP_NAME)
@@ -38,11 +40,6 @@ shell: all
 	ERL_LIBS="$(ERL_LIBS)" $(ERL) -pa $(PA) -config standalone -sname $(APP_NAME)
 	[ -f *.beam ] && rm *.beam || true
 	[ -f erl_crash.dump ] && rm erl_crash.dump || true
-
-FORCE:
-
-manifest: rel
-	./tools/mkmanifest > manifest
 
 remove_trash:
 	-find . -name "*~" -exec rm {} \;.

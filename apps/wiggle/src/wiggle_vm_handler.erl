@@ -155,6 +155,7 @@ create_path(Req, State = #state{path = [], version = Version, token = Token}) ->
 			      D = jsx:decode(Body),
 			      {D, Req1}
 		      end,
+    io:format("~p", [Decoded]),
     {<<"dataset">>, Dataset} = lists:keyfind(<<"dataset">>, 1, Decoded),
     {<<"package">>, Package} = lists:keyfind(<<"package">>, 1, Decoded),
     {<<"config">>, Config} = lists:keyfind(<<"config">>, 1, Decoded),
