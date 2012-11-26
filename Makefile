@@ -22,6 +22,7 @@ tar: rel
 
 clean:
 	$(REBAR) clean
+	make -C rel/pkg clean
 	-rm *.beam erl_crash.dump
 	-rm -r rel/$(APP_NAME)
 	-rm rel/$(APP_NAME).tar.bz2
@@ -44,3 +45,6 @@ shell: all
 remove_trash:
 	-find . -name "*~" -exec rm {} \;.
 	-rm *.beam erl_crash.dump
+
+package: rel
+	make -C rel/pkg package
