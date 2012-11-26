@@ -3,9 +3,14 @@
 %% @doc Hello world handler.
 -module(wiggle_user_handler).
 
--export([init/3, 
+
+-ifdef(TEST).
+-include_lib("eunit/include/eunit.hrl").
+-endif.
+
+-export([init/3,
 	 rest_init/2]).
--export([content_types_provided/2, 
+-export([content_types_provided/2,
 	 content_types_accepted/2,
 	 allowed_methods/2,
 	 delete_resource/2,
@@ -19,7 +24,7 @@
 
 -record(state, {path, method, version, token, content, reply}).
 
- 
+
 init(_Transport, _Req, []) ->
 	{upgrade, protocol, cowboy_http_rest}.
 
@@ -28,21 +33,21 @@ rest_init(Req, _) ->
     {[<<"api">>, Version, <<"users">> | Path], Req2} = cowboy_http_req:path(Req1),
     {ok, Req3} = cowboy_http_req:set_resp_header(<<"Access-Control-Allow-Origin">>, <<"*">>, Req2),
     {Token, Req4} = case cowboy_http_req:header(<<"X-Snarl-Token">>, Req3) of
-			{undefined, ReqX} -> 
+			{undefined, ReqX} ->
 			    {undefined, ReqX};
 			{TokenX, ReqX} ->
 			    {ok, ReqX1} = cowboy_http_req:set_resp_header(<<"X-Snarl-Token">>, TokenX, ReqX),
 			    {TokenX, ReqX1}
 		    end,
     {ok, Req5} = cowboy_http_req:set_resp_header(
-		   <<"Access-Control-Allow-Headers">>, 
+		   <<"Access-Control-Allow-Headers">>,
 		   <<"Content-Type, X-Snarl-Token">>, Req4),
     {ok, Req6} = cowboy_http_req:set_resp_header(
-		   <<"Access-Control-Expose-Headers">>, 
+		   <<"Access-Control-Expose-Headers">>,
 		   <<"X-Snarl-Token">>, Req5),
 
 
-    State =  #state{version = Version, 
+    State =  #state{version = Version,
 		    method = Method,
 		    token = Token,
 		    path = Path},
@@ -53,10 +58,10 @@ rest_init(Req, _) ->
 options(Req, State) ->
     Methods = allowed_methods(Req, State, State#state.path),
     {ok, Req1} = cowboy_http_req:set_resp_header(
-		   <<"Access-Control-Allow-Methods">>, 
+		   <<"Access-Control-Allow-Methods">>,
 		   string:join(
 		     lists:map(fun erlang:atom_to_list/1,
-			       ['HEAD', 'GET', 'OPTIONS' | Methods]), ", "), Req),    
+			       ['HEAD', 'GET', 'OPTIONS' | Methods]), ", "), Req),
     {ok, Req1, State}.
 
 content_types_provided(Req, State) ->
@@ -117,7 +122,7 @@ resource_exists(Req, State = #state{method = 'PUT', path = [User, <<"groups">>, 
 	{reply, {ok, not_found}} ->
 	    {false, Req, State};
 	{reply, {ok, _}} ->
-	    case libsnarl:group_get(Group) of 
+	    case libsnarl:group_get(Group) of
 		{reply, {ok, not_found}} ->
 		    {false, Req, State};
 		{reply, {ok, _}} ->
@@ -137,25 +142,25 @@ resource_exists(Req, State = #state{path = [User | _]}) ->
     end.
 
 
-is_authorized(Req, State = #state{path = [_, <<"sessions">>]}) -> 
+is_authorized(Req, State = #state{path = [_, <<"sessions">>]}) ->
     {true, Req, State};
 
-is_authorized(Req, State = #state{method = 'OPTIONS'}) -> 
+is_authorized(Req, State = #state{method = 'OPTIONS'}) ->
     {true, Req, State};
 
-is_authorized(Req, State = #state{token = undefined}) -> 
+is_authorized(Req, State = #state{token = undefined}) ->
     {{false, <<"X-Snarl-Token">>}, Req, State};
 
-is_authorized(Req, State) -> 
+is_authorized(Req, State) ->
     {true, Req, State}.
 
 forbidden(Req, State = #state{path = [_, <<"sessions">>]}) ->
     {false, Req, State};
 
-forbidden(Req, State = #state{method = 'OPTIONS'}) -> 
+forbidden(Req, State = #state{method = 'OPTIONS'}) ->
     {false, Req, State};
 
-forbidden(Req, State = #state{token = undefined}) -> 
+forbidden(Req, State = #state{token = undefined}) ->
     {true, Req, State};
 
 forbidden(Req, State = #state{path = []}) ->
@@ -296,7 +301,7 @@ jsonify_permissions(P) ->
 		 (E) ->
 		      E
 	      end, P).
-    
+
 allowed(Token, Perm) ->
     case libsnarl:allowed({token, Token}, Perm) of
 	{reply,not_found} ->
@@ -306,3 +311,15 @@ allowed(Token, Perm) ->
 	{reply, false} ->
 	    true
     end.
+
+-ifdef(TEST).
+
+erlangify_permission_test() ->
+    ?assertEqual(['_', <<"a">>, '...'],
+		 erlangify_permission([<<"_">>, <<"a">>, <<"...">>])).
+
+jsonify_permission_test() ->
+    ?assertEqual([<<"_">>, <<"a">>, <<"...">>],
+		 jsonify_permissions(['_', <<"a">>, '...'])).
+
+-endif.
