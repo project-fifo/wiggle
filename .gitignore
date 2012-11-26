@@ -1,3 +1,4 @@
+apps/wiggle/.eunit/
 rel/pkg/packlist
 rel/pkg/*.tgz
 rel/pkg/build-info

@@ -11,6 +11,9 @@ REBAR=./rebar
 
 all: $(DEPS) $(OBJ)
 
+deps:
+	$(REBAR) deps
+
 rel: all remove_trash
 	-rm -r rel/$(APP_NAME)
 	cd rel; ../rebar generate
@@ -19,6 +22,9 @@ echo:
 
 tar: rel
 	cd rel; tar jcvf $(APP_NAME).tar.bz2 $(APP_NAME)
+
+test:
+	$(REBAR) skip_deps=true eunit
 
 clean:
 	$(REBAR) clean
