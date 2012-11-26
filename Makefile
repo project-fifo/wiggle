@@ -7,12 +7,13 @@ PA=$(shell pwd)/$(APP_DIR)/ebin
 ERL_LIBS=`pwd`/deps/
 REBAR=./rebar
 
-.PHONY: rel clean package
+.PHONY: rel clean package deps
 
 all: $(DEPS) $(OBJ)
 
 deps:
-	$(REBAR) deps
+	$(REBAR) get-deps
+	$(REBAR) update-deps
 
 rel: all remove_trash
 	-rm -r rel/$(APP_NAME)
