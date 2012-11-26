@@ -13,4 +13,4 @@ clean:
 	-rm *.tgz build-info packlist
 
 package: package_list build_info
-	pkg_create -B build-info -c comment -d description -f packlist -I /opt/local/$(COMPONENT) -p ../$(COMPONENT) -U $(COMPONENT)-$(VERSION).tgz
+	pkg_create -B build-info -c comment -d description -f packlist -I /opt/local/$(COMPONENT) -p ../$(COMPONENT) -U $(COMPONENT)-$(VERSION)$(SUFFIX).tgz
