@@ -15,7 +15,7 @@ deps:
 	$(REBAR) get-deps
 	$(REBAR) update-deps
 
-rel: all remove_trash
+rel: all
 	-rm -r rel/$(APP_NAME)
 	cd rel; ../rebar generate
 echo:
@@ -48,10 +48,6 @@ shell: all
 	ERL_LIBS="$(ERL_LIBS)" $(ERL) -pa $(PA) -config standalone -sname $(APP_NAME)
 	[ -f *.beam ] && rm *.beam || true
 	[ -f erl_crash.dump ] && rm erl_crash.dump || true
-
-remove_trash:
-	-find . -name "*~" -exec rm {} \;.
-	-rm *.beam erl_crash.dump
 
 package: rel
 	make -C rel/pkg package
