@@ -1,0 +1,19 @@
+     Congratulations the Wiggle API server is now installed on the system.
+.------------------------------------------------------------------------------.
+| By default the service is disabled since it's common that you will need to   |
+| do some additional configurations.                                           |
+|                                                                              |
+| Please have a look at the configuraiton files:                               |
+|                                                                              |
+|  * /opt/local/wiggle/etc/app.config                                          |
+|    * You can change the listening port."                                     |
+|    * You can change the number of acceptors to spawn.                        |
+|                                                                              |
+|  * /opt/local/wiggle/etc/vm.args                                             |
+|    * You will need to change the IP in the nodename to either a resolvable   |
+|      hostname or the IP in the controll network.                             |
+|                                                                              |
+| Note: To enable Wiggle you first need to enable the epmd service.            |
+|                                                                              |
+`------------------------------------------------------------------------------'
+

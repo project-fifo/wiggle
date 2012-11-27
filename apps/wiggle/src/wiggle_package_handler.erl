@@ -151,7 +151,7 @@ handle_write(Req, State = #state{path = [Package]}, Body) ->
     {<<"ram">>, Ram} = lists:keyfind(<<"ram">>, 1, Body),
     {<<"quota">>, Quota} = lists:keyfind(<<"quota">>, 1, Body),
     libsniffle:package_create(Package),
-    {reply,ok} = libsniffle:package_attribute_set(Package, 
+    {reply,ok} = libsniffle:package_attribute_set(Package,
 						  [{<<"quota">>, Quota},
 						   {<<"ram">>, Ram}]),
     {true, Req, State};
