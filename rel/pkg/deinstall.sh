@@ -12,6 +12,5 @@ case $2 in
 	echo "deleted! Neither have the wiggle user or gorup."
 	echo "If you don't need them any more remove the directories:"
 	echo " /var/log/wiggle"
-	echo " /var/db/wiggle"
 	;;
 esac

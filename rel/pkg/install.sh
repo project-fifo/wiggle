@@ -20,9 +20,7 @@ case $2 in
 	    useradd -g $GROUP -d /var/db/wiggle -s /bin/false $USER
 	fi
 	echo Creating directories ...
-	mkdir -p /var/db/wiggle/ring
-	mkdir -p /var/db/wiggle/users
-	mkdir -p /var/db/wiggle/groups
+	mkdir -p /var/db/wiggle
 	chown -R wiggle:wiggle /var/db/wiggle
 	mkdir -p /var/log/wiggle/sasl
 	chown -R wiggle:wiggle /var/log/wiggle
