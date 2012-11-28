@@ -215,13 +215,13 @@ handle_request(Req, State = #state{path = []}) ->
     {Res, Req, State};
 
 handle_request(Req, State = #state{path = [User]}) ->
-    {reply, {ok, {user, Name, _, Permissions, Groups, _}}} = libsnarl:user_get(User),
+    {reply, {ok, {user, Name, _, Permissions, _, Groups}}} = libsnarl:user_get(User),
     {[{name, Name},
       {permissions, lists:map(fun jsonify_permissions/1, Permissions)},
       {groups, Groups}], Req, State};
 
 handle_request(Req, State = #state{path = [User, <<"permissions">>]}) ->
-    {reply, {ok, {user, _Name, _, Permissions, _Groups, _}}} = libsnarl:user_get(User),
+    {reply, {ok, {user, _Name, _, Permissions, _, _Groups}}} = libsnarl:user_get(User),
     {lists:map(fun jsonify_permissions/1, Permissions), Req, State};
 
 handle_request(Req, State = #state{path = [User, <<"groups">>]}) ->
@@ -255,11 +255,11 @@ handle_write(Req, State = #state{path =  [User]}, [{<<"password">>, Password}]) 
     {reply, ok} = libsnarl:user_passwd(User, Password),
     {true, Req, State};
 
-handle_write(Req, State = #state{path = [User, <<"groups">>, Group]}, []) ->
+handle_write(Req, State = #state{path = [User, <<"groups">>, Group]}, _) ->
     {reply, {ok, joined}} = libsnarl:user_join(User, Group),
     {true, Req, State};
 
-handle_write(Req, State = #state{path = [User, <<"permissions">> | Permission]}, []) ->
+handle_write(Req, State = #state{path = [User, <<"permissions">> | Permission]}, _) ->
     P = erlangify_permission(Permission),
     {reply, ok} = libsnarl:user_grant(User, P),
     {true, Req, State}.
