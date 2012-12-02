@@ -239,7 +239,7 @@ handle_write(Req, State = #state{path = [User, <<"sessions">>]}, [{<<"password">
     {ok, {token, Token}} = libsnarl:auth(User, Password),
     {ok, Req1} = cowboy_http_req:set_resp_header(<<"X-Snarl-Token">>, Token, Req),
     {ok, Req2} = cowboy_http_req:set_resp_cookie(<<"X-Snarl-Token">>, Token, [{max_age, 60*60*24*365}], Req1),
-    {true, Req2, State};
+    {jsx:encode([{<<"token">>, Token}]), Req2, State};
 
 handle_write(Req, State = #state{path =  [User]}, [{<<"password">>, Password}]) ->
     libsnarl:user_add(User),
