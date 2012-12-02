@@ -17,8 +17,22 @@
 	 forbidden/2,
 	 options/2,
 	 is_authorized/2]).
+
 -export([to_json/2,
 	 from_json/2]).
+
+-ignore_xref([to_json/2,
+	      from_json/2,
+	      allowed_methods/2,
+	      content_types_accepted/2,
+	      content_types_provided/2,
+	      delete_resource/2,
+	      forbidden/2,
+	      init/3,
+	      is_authorized/2,
+	      options/2,
+	      resource_exists/2,
+	      rest_init/2]).
 
 -record(state, {path, method, version, token, content, reply}).
 
@@ -86,11 +100,11 @@ allowed_methods(_Version, _Token, [_Group, <<"permissions">> | _Permission]) ->
 
 resource_exists(Req, State = #state{path = [Group, <<"permissions">> | Permission]}) ->
     case {erlangify_permission(Permission), libsnarl:group_get(Group)} of
-	{_, {reply, {ok, not_found}}} ->
+	{_, not_found} ->
 	    {false, Req, State};
-	{[], {reply, {ok, _}}} ->
+	{[], {ok, _}} ->
 	    {true, Req, State};
-	{P, {reply, {ok, {group, _Name, Permissions, _}}}} ->
+	{P, {ok, {group, _Name, Permissions, _}}} ->
 	    {lists:member(P, Permissions), Req, State}
     end;
 
@@ -99,9 +113,9 @@ resource_exists(Req, State = #state{path = []}) ->
 
 resource_exists(Req, State = #state{path = [Group | _]}) ->
     case libsnarl:group_get(Group) of
-	{reply, {ok, not_found}} ->
+	{ok, not_found} ->
 	    {false, Req, State};
-	{reply, {ok, _}} ->
+	{ok, _} ->
 	    {true, Req, State}
     end.
 
@@ -163,16 +177,16 @@ to_json(Req, State) ->
     {jsx:encode(Reply), Req1, State1}.
 
 handle_request(Req, State = #state{path = []}) ->
-    {reply, {ok, Res}} = libsnarl:group_list(),
+    {ok, Res} = libsnarl:group_list(),
     {Res, Req, State};
 
 handle_request(Req, State = #state{path = [Group]}) ->
-    {reply, {ok, {group, Name, Permissions, _}}} = libsnarl:group_get(Group),
+    {ok, {group, Name, Permissions, _}} = libsnarl:group_get(Group),
     {[{name, Name},
       {permissions, lists:map(fun jsonify_permissions/1, Permissions)}], Req, State};
 
 handle_request(Req, State = #state{path = [Group, <<"permissions">>]}) ->
-    {reply, {ok, {group, _Name, Permissions, _}}} = libsnarl:group_get(Group),
+    {ok, {group, _Name, Permissions, _}} = libsnarl:group_get(Group),
     {lists:map(fun jsonify_permissions/1, Permissions), Req, State}.
 
 %%--------------------------------------------------------------------
@@ -191,12 +205,12 @@ from_json(Req, State) ->
     {Reply, Req2, State1}.
 
 handle_write(Req, State = #state{path = [Group]}, _Body) ->
-    libsnarl:group_add(Group),
+    ok = libsnarl:group_add(Group),
     {true, Req, State};
 
 handle_write(Req, State = #state{path = [Group, <<"permissions">> | Permission]}, _Body) ->
     P = erlangify_permission(Permission),
-    {reply, ok} = libsnarl:group_grant(Group, P),
+    ok = libsnarl:group_grant(Group, P),
     {true, Req, State}.
 
 
@@ -206,11 +220,11 @@ handle_write(Req, State = #state{path = [Group, <<"permissions">> | Permission]}
 
 delete_resource(Req, State = #state{path = [Group, <<"permissions">> | Permission]}) ->
     P = erlangify_permission(Permission),
-    {reply, ok} = libsnarl:group_revoke(Group, P),
+    ok = libsnarl:group_revoke(Group, P),
     {true, Req, State};
 
 delete_resource(Req, State = #state{path = [Group]}) ->
-    {reply, ok} = libsnarl:group_delete(Group),
+    ok = libsnarl:group_delete(Group),
     {true, Req, State}.
 
 %% Internal Functions
@@ -235,11 +249,11 @@ jsonify_permissions(P) ->
 
 allowed(Token, Perm) ->
     case libsnarl:allowed({token, Token}, Perm) of
-	{reply,not_found} ->
+	not_found ->
 	    true;
-	{reply, true} ->
+	true ->
 	    false;
-	{reply, false} ->
+	false ->
 	    true
     end.
 

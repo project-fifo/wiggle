@@ -2,6 +2,8 @@
 
 -export([start/0]).
 
+-ignore_xref([start/0]).
+
 start() ->
     application:start(mdns_client_lib),
     application:start(libsnarl),

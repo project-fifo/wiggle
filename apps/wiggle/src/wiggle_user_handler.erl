@@ -18,9 +18,22 @@
 	 forbidden/2,
 	 options/2,
 	 is_authorized/2]).
+
 -export([to_json/2,
 	 from_json/2]).
 
+-ignore_xref([to_json/2,
+	      from_json/2,
+	      allowed_methods/2,
+	      content_types_accepted/2,
+	      content_types_provided/2,
+	      delete_resource/2,
+	      forbidden/2,
+	      init/3,
+	      is_authorized/2,
+	      options/2,
+	      resource_exists/2,
+	      rest_init/2]).
 
 -record(state, {path, method, version, token, content, reply}).
 
@@ -101,31 +114,31 @@ allowed_methods(_Version, _Token, [_Login, <<"groups">>, _Group]) ->
 
 resource_exists(Req, State = #state{path = [User, <<"permissions">> | Permission]}) ->
     case {erlangify_permission(Permission), libsnarl:user_get(User)} of
-	{_, {reply, {ok, not_found}}} ->
+	{_, not_found} ->
 	    {false, Req, State};
-	{[], {reply, {ok, _}}} ->
+	{[], {ok, _}} ->
 	    {true, Req, State};
-	{P, {reply, {ok, {user, _Name, _, Permissions, _Groups, _}}}} ->
+	{P, {ok, {user, _Name, _, Permissions, _Groups, _}}} ->
 	    {lists:member(P, Permissions), Req, State}
     end;
 
 resource_exists(Req, State = #state{method = 'DELETE', path = [User, <<"groups">>, Group]}) ->
     case libsnarl:user_get(User) of
-	{reply, {ok, not_found}} ->
+	not_found ->
 	    {false, Req, State};
-	{reply, {ok, {user, _Name, _, _Permissions, _, Groups}}} ->
+	{ok, {user, _Name, _, _Permissions, _, Groups}} ->
 	    {lists:member(Group, Groups), Req, State}
     end;
 
 resource_exists(Req, State = #state{method = 'PUT', path = [User, <<"groups">>, Group]}) ->
     case libsnarl:user_get(User) of
-	{reply, {ok, not_found}} ->
+	not_found ->
 	    {false, Req, State};
-	{reply, {ok, _}} ->
+	{ok, _} ->
 	    case libsnarl:group_get(Group) of
-		{reply, {ok, not_found}} ->
+	        not_found ->
 		    {false, Req, State};
-		{reply, {ok, _}} ->
+		{ok, _} ->
 		    {true, Req, State}
 	    end
     end;
@@ -135,9 +148,9 @@ resource_exists(Req, State = #state{path = []}) ->
 
 resource_exists(Req, State = #state{path = [User | _]}) ->
     case libsnarl:user_get(User) of
-	{reply, {ok, not_found}} ->
+	 not_found ->
 	    {false, Req, State};
-	{reply, {ok, _}} ->
+	{ok, _} ->
 	    {true, Req, State}
     end.
 
@@ -211,21 +224,21 @@ to_json(Req, State) ->
     {jsx:encode(Reply), Req1, State1}.
 
 handle_request(Req, State = #state{path = []}) ->
-    {reply, {ok, Res}} = libsnarl:user_list(),
+    {ok, Res} = libsnarl:user_list(),
     {Res, Req, State};
 
 handle_request(Req, State = #state{path = [User]}) ->
-    {reply, {ok, {user, Name, _, Permissions, _, Groups}}} = libsnarl:user_get(User),
+    {ok, {user, Name, _, Permissions, _, Groups}} = libsnarl:user_get(User),
     {[{name, Name},
       {permissions, lists:map(fun jsonify_permissions/1, Permissions)},
       {groups, Groups}], Req, State};
 
 handle_request(Req, State = #state{path = [User, <<"permissions">>]}) ->
-    {reply, {ok, {user, _Name, _, Permissions, _, _Groups}}} = libsnarl:user_get(User),
+    {ok, {user, _Name, _, Permissions, _, _Groups}} = libsnarl:user_get(User),
     {lists:map(fun jsonify_permissions/1, Permissions), Req, State};
 
 handle_request(Req, State = #state{path = [User, <<"groups">>]}) ->
-    {reply, {ok, {user, _Name, _, _Permissions, _, Groups}}} = libsnarl:user_get(User),
+    {ok, {user, _Name, _, _Permissions, _, Groups}} = libsnarl:user_get(User),
     {Groups, Req, State}.
 
 %%--------------------------------------------------------------------
@@ -246,22 +259,22 @@ from_json(Req, State) ->
     {Reply, Req2, State1}.
 
 handle_write(Req, State = #state{path = [User, <<"sessions">>]}, [{<<"password">>, Password}]) ->
-    {reply, {ok, {token, Token}}} = libsnarl:auth(User, Password),
+    {ok, {token, Token}} = libsnarl:auth(User, Password),
     {ok, Req1} = cowboy_http_req:set_resp_header(<<"X-Snarl-Token">>, Token, Req),
     {true, Req1, State};
 
 handle_write(Req, State = #state{path =  [User]}, [{<<"password">>, Password}]) ->
     libsnarl:user_add(User),
-    {reply, ok} = libsnarl:user_passwd(User, Password),
+    ok = libsnarl:user_passwd(User, Password),
     {true, Req, State};
 
 handle_write(Req, State = #state{path = [User, <<"groups">>, Group]}, _) ->
-    {reply, {ok, joined}} = libsnarl:user_join(User, Group),
+    {ok, joined} = libsnarl:user_join(User, Group),
     {true, Req, State};
 
 handle_write(Req, State = #state{path = [User, <<"permissions">> | Permission]}, _) ->
     P = erlangify_permission(Permission),
-    {reply, ok} = libsnarl:user_grant(User, P),
+    ok = libsnarl:user_grant(User, P),
     {true, Req, State}.
 
 
@@ -271,15 +284,15 @@ handle_write(Req, State = #state{path = [User, <<"permissions">> | Permission]},
 
 delete_resource(Req, State = #state{path = [User, <<"permissions">> | Permission]}) ->
     P = erlangify_permission(Permission),
-    {reply, ok} = libsnarl:user_revoke(User, P),
+    ok = libsnarl:user_revoke(User, P),
     {true, Req, State};
 
 delete_resource(Req, State = #state{path = [User]}) ->
-    {reply, ok} = libsnarl:user_delete(User),
+    ok = libsnarl:user_delete(User),
     {true, Req, State};
 
 delete_resource(Req, State = #state{path = [User, <<"groups">>, Group]}) ->
-    {reply, ok} = libsnarl:user_leave(User, Group),
+    ok = libsnarl:user_leave(User, Group),
     {true, Req, State}.
 
 %% Internal Functions
@@ -304,11 +317,11 @@ jsonify_permissions(P) ->
 
 allowed(Token, Perm) ->
     case libsnarl:allowed({token, Token}, Perm) of
-	{reply,not_found} ->
+        not_found ->
 	    true;
-	{reply, true} ->
+	true ->
 	    false;
-	{reply, false} ->
+	false ->
 	    true
     end.
 

@@ -3,10 +3,10 @@
 %% @doc Hello world handler.
 -module(wiggle_package_handler).
 
--export([init/3, 
+-export([init/3,
 	 rest_init/2]).
 
--export([content_types_provided/2, 
+-export([content_types_provided/2,
 	 content_types_accepted/2,
 	 allowed_methods/2,
 	 resource_exists/2,
@@ -18,8 +18,22 @@
 -export([to_json/2,
 	 from_json/2]).
 
+-ignore_xref([to_json/2,
+	      from_json/2,
+	      allowed_methods/2,
+	      content_types_accepted/2,
+	      content_types_provided/2,
+	      delete_resource/2,
+	      forbidden/2,
+	      init/3,
+	      is_authorized/2,
+	      options/2,
+	      resource_exists/2,
+	      rest_init/2]).
+
+
 -record(state, {path, method, version, token, content, reply}).
- 
+
 init(_Transport, _Req, []) ->
     {upgrade, protocol, cowboy_http_rest}.
 
@@ -27,7 +41,7 @@ rest_init(Req, _) ->
     {Method, Req1} = cowboy_http_req:method(Req),
     {[<<"api">>, Version, <<"packages">> | Path], Req2} = cowboy_http_req:path(Req1),
     {Token, Req3} = case cowboy_http_req:header(<<"X-Snarl-Token">>, Req2) of
-			{undefined, ReqX} -> 
+			{undefined, ReqX} ->
 			    {undefined, ReqX};
 			{TokenX, ReqX} ->
 			    {ok, ReqX1} = cowboy_http_req:set_resp_header(<<"X-Snarl-Token">>, TokenX, ReqX),
@@ -35,12 +49,12 @@ rest_init(Req, _) ->
 		    end,
     {ok, Req4} = cowboy_http_req:set_resp_header(<<"Access-Control-Allow-Origin">>, <<"*">>, Req3),
     {ok, Req5} = cowboy_http_req:set_resp_header(
-		   <<"Access-Control-Allow-Headers">>, 
+		   <<"Access-Control-Allow-Headers">>,
 		   <<"Content-Type, X-Snarl-Token">>, Req4),
     {ok, Req6} = cowboy_http_req:set_resp_header(
-		   <<"Access-Control-Expose-Headers">>, 
+		   <<"Access-Control-Expose-Headers">>,
 		   <<"X-Snarl-Token">>, Req5),
-    State =  #state{version = Version, 
+    State =  #state{version = Version,
 		    method = Method,
 		    token = Token,
 		    path = Path},
@@ -49,10 +63,10 @@ rest_init(Req, _) ->
 options(Req, State) ->
     Methods = allowed_methods(Req, State, State#state.path),
     {ok, Req1} = cowboy_http_req:set_resp_header(
-		   <<"Access-Control-Allow-Methods">>, 
+		   <<"Access-Control-Allow-Methods">>,
 		   string:join(
 		     lists:map(fun erlang:atom_to_list/1,
-			       ['HEAD', 'OPTIONS' | Methods]), ", "), Req),    
+			       ['HEAD', 'OPTIONS' | Methods]), ", "), Req),
     {ok, Req1, State}.
 
 content_types_provided(Req, State) ->
@@ -79,25 +93,25 @@ resource_exists(Req, State = #state{path = []}) ->
 
 resource_exists(Req, State = #state{path = [Package]}) ->
     case libsniffle:package_attribute_get(Package) of
-	{reply, not_found} ->
+	not_found ->
 	    {false, Req, State};
-	{reply, _} ->
+	{ok, _} ->
 	    {true, Req, State}
     end.
 
-is_authorized(Req, State = #state{method = 'OPTIONS'}) -> 
+is_authorized(Req, State = #state{method = 'OPTIONS'}) ->
     {true, Req, State};
 
-is_authorized(Req, State = #state{token = undefined}) -> 
+is_authorized(Req, State = #state{token = undefined}) ->
     {{false, <<"X-Snarl-Token">>}, Req, State};
 
-is_authorized(Req, State) -> 
+is_authorized(Req, State) ->
     {true, Req, State}.
 
-forbidden(Req, State = #state{method = 'OPTIONS'}) -> 
+forbidden(Req, State = #state{method = 'OPTIONS'}) ->
     {false, Req, State};
 
-forbidden(Req, State = #state{token = undefined}) -> 
+forbidden(Req, State = #state{token = undefined}) ->
     {true, Req, State};
 
 forbidden(Req, State = #state{path = []}) ->
@@ -124,12 +138,12 @@ to_json(Req, State) ->
     {jsx:encode(Reply), Req1, State1}.
 
 handle_request(Req, State = #state{path = []}) ->
-    {reply, {ok, Res}} = libsniffle:package_list(),
+    {ok, Res} = libsniffle:package_list(),
     {Res, Req, State};
 
 handle_request(Req, State = #state{path = [Package]}) ->
-    {reply, Res} = libsniffle:package_attribute_get(Package),
-    {[{name, Package}|Res], Req, State}.
+    {ok, Res} = libsniffle:package_attribute_get(Package),
+    {[{name, Package}| Res], Req, State}.
 
 
 %%--------------------------------------------------------------------
@@ -150,10 +164,10 @@ from_json(Req, State) ->
 handle_write(Req, State = #state{path = [Package]}, Body) ->
     {<<"ram">>, Ram} = lists:keyfind(<<"ram">>, 1, Body),
     {<<"quota">>, Quota} = lists:keyfind(<<"quota">>, 1, Body),
-    libsniffle:package_create(Package),
-    {reply,ok} = libsniffle:package_attribute_set(Package,
-						  [{<<"quota">>, Quota},
-						   {<<"ram">>, Ram}]),
+    ok = libsniffle:package_create(Package),
+    ok = libsniffle:package_attribute_set(Package,
+					  [{<<"quota">>, Quota},
+					   {<<"ram">>, Ram}]),
     {true, Req, State};
 
 handle_write(Req, State, _Body) ->
@@ -164,15 +178,15 @@ handle_write(Req, State, _Body) ->
 %%--------------------------------------------------------------------
 
 delete_resource(Req, State = #state{path = [Package]}) ->
-    {reply, ok} = libsniffle:package_delete(Package),
+    ok = libsniffle:package_delete(Package),
     {true, Req, State}.
 
 allowed(Token, Perm) ->
     case libsnarl:allowed({token, Token}, Perm) of
-	{reply,not_found} ->
+	not_found ->
 	    true;
-	{reply, true} ->
+	true ->
 	    false;
-	{reply, false} ->
+	false ->
 	    true
     end.
