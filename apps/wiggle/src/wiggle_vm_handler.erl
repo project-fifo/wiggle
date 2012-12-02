@@ -41,27 +41,7 @@ init(_Transport, _Req, []) ->
     {upgrade, protocol, cowboy_http_rest}.
 
 rest_init(Req, _) ->
-    {Method, Req1} = cowboy_http_req:method(Req),
-    {[<<"api">>, Version, <<"vms">> | Path], Req2} = cowboy_http_req:path(Req1),
-    {Token, Req3} = case cowboy_http_req:header(<<"X-Snarl-Token">>, Req2) of
-			{undefined, ReqX} ->
-			    {undefined, ReqX};
-			{TokenX, ReqX} ->
-			    {ok, ReqX1} = cowboy_http_req:set_resp_header(<<"X-Snarl-Token">>, TokenX, ReqX),
-			    {TokenX, ReqX1}
-		    end,
-    {ok, Req4} = cowboy_http_req:set_resp_header(<<"Access-Control-Allow-Origin">>, <<"*">>, Req3),
-    {ok, Req5} = cowboy_http_req:set_resp_header(
-		   <<"Access-Control-Allow-Headers">>,
-		   <<"Content-Type, X-Snarl-Token">>, Req4),
-    {ok, Req6} = cowboy_http_req:set_resp_header(
-		   <<"Access-Control-Expose-Headers">>,
-		   <<"X-Snarl-Token">>, Req5),
-    State =  #state{version = Version,
-		    method = Method,
-		    token = Token,
-		    path = Path},
-    {ok, Req6, State}.
+    wiggle_handler:initial_state(Req, <<"vms">>).
 
 options(Req, State) ->
     Methods = allowed_methods(Req, State, State#state.path),
