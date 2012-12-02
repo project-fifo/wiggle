@@ -144,10 +144,16 @@ from_json(Req, State) ->
 handle_write(Req, State = #state{path = [Package]}, Body) ->
     {<<"ram">>, Ram} = lists:keyfind(<<"ram">>, 1, Body),
     {<<"quota">>, Quota} = lists:keyfind(<<"quota">>, 1, Body),
+    Data = [{<<"quota">>, Quota},
+	    {<<"ram">>, Ram}],
+    Data1 = case lists:keyfind(<<"cpu_cap">>, 1, Body) of
+		{<<"cpu_cap">>, VCPUS} ->
+		    [{<<"cpu_cap">>, VCPUS} | Data];
+		_ ->
+		    Data
+	    end,
     ok = libsniffle:package_create(Package),
-    ok = libsniffle:package_attribute_set(Package,
-					  [{<<"quota">>, Quota},
-					   {<<"ram">>, Ram}]),
+    ok = libsniffle:package_attribute_set(Package,Data1),
     {true, Req, State};
 
 handle_write(Req, State, _Body) ->
