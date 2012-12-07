@@ -19,6 +19,7 @@ start(_StartType, _StartArgs) ->
 		       {[<<"api">>, '_', <<"users">>, '...'], wiggle_user_handler, []},
 		       {[<<"api">>, '_', <<"groups">>, '...'], wiggle_group_handler, []},
 
+		       {[<<"api">>, '_', <<"cloud">>, '...'], wiggle_cloud_handler, []},
 		       {[<<"api">>, '_', <<"hypervisors">>, '...'], wiggle_hypervisor_handler, []},
 		       {[<<"api">>, '_', <<"vms">>, '...'], wiggle_vm_handler, []},
 		       {[<<"api">>, '_', <<"ipranges">>, '...'], wiggle_iprange_handler, []},

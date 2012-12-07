@@ -38,27 +38,7 @@ init(_Transport, _Req, []) ->
     {upgrade, protocol, cowboy_http_rest}.
 
 rest_init(Req, _) ->
-    {Method, Req1} = cowboy_http_req:method(Req),
-    {[<<"api">>, Version, <<"packages">> | Path], Req2} = cowboy_http_req:path(Req1),
-    {Token, Req3} = case cowboy_http_req:header(<<"X-Snarl-Token">>, Req2) of
-			{undefined, ReqX} ->
-			    {undefined, ReqX};
-			{TokenX, ReqX} ->
-			    {ok, ReqX1} = cowboy_http_req:set_resp_header(<<"X-Snarl-Token">>, TokenX, ReqX),
-			    {TokenX, ReqX1}
-		    end,
-    {ok, Req4} = cowboy_http_req:set_resp_header(<<"Access-Control-Allow-Origin">>, <<"*">>, Req3),
-    {ok, Req5} = cowboy_http_req:set_resp_header(
-		   <<"Access-Control-Allow-Headers">>,
-		   <<"Content-Type, X-Snarl-Token">>, Req4),
-    {ok, Req6} = cowboy_http_req:set_resp_header(
-		   <<"Access-Control-Expose-Headers">>,
-		   <<"X-Snarl-Token">>, Req5),
-    State =  #state{version = Version,
-		    method = Method,
-		    token = Token,
-		    path = Path},
-    {ok, Req6, State}.
+    wiggle_handler:initial_state(Req, <<"packages">>).
 
 options(Req, State) ->
     Methods = allowed_methods(Req, State, State#state.path),
@@ -164,10 +144,16 @@ from_json(Req, State) ->
 handle_write(Req, State = #state{path = [Package]}, Body) ->
     {<<"ram">>, Ram} = lists:keyfind(<<"ram">>, 1, Body),
     {<<"quota">>, Quota} = lists:keyfind(<<"quota">>, 1, Body),
+    Data = [{<<"quota">>, Quota},
+	    {<<"ram">>, Ram}],
+    Data1 = case lists:keyfind(<<"cpu_cap">>, 1, Body) of
+		{<<"cpu_cap">>, VCPUS} ->
+		    [{<<"cpu_cap">>, VCPUS} | Data];
+		_ ->
+		    Data
+	    end,
     ok = libsniffle:package_create(Package),
-    ok = libsniffle:package_attribute_set(Package,
-					  [{<<"quota">>, Quota},
-					   {<<"ram">>, Ram}]),
+    ok = libsniffle:package_attribute_set(Package,Data1),
     {true, Req, State};
 
 handle_write(Req, State, _Body) ->

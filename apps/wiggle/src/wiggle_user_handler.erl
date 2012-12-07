@@ -38,35 +38,12 @@
 -record(state, {path, method, version, token, content, reply}).
 
 
+
 init(_Transport, _Req, []) ->
 	{upgrade, protocol, cowboy_http_rest}.
 
 rest_init(Req, _) ->
-    {Method, Req1} = cowboy_http_req:method(Req),
-    {[<<"api">>, Version, <<"users">> | Path], Req2} = cowboy_http_req:path(Req1),
-    {ok, Req3} = cowboy_http_req:set_resp_header(<<"Access-Control-Allow-Origin">>, <<"*">>, Req2),
-    {Token, Req4} = case cowboy_http_req:header(<<"X-Snarl-Token">>, Req3) of
-			{undefined, ReqX} ->
-			    {undefined, ReqX};
-			{TokenX, ReqX} ->
-			    {ok, ReqX1} = cowboy_http_req:set_resp_header(<<"X-Snarl-Token">>, TokenX, ReqX),
-			    {TokenX, ReqX1}
-		    end,
-    {ok, Req5} = cowboy_http_req:set_resp_header(
-		   <<"Access-Control-Allow-Headers">>,
-		   <<"Content-Type, X-Snarl-Token">>, Req4),
-    {ok, Req6} = cowboy_http_req:set_resp_header(
-		   <<"Access-Control-Expose-Headers">>,
-		   <<"X-Snarl-Token">>, Req5),
-
-
-    State =  #state{version = Version,
-		    method = Method,
-		    token = Token,
-		    path = Path},
-    io:format("[~p] - ~p~n", [Method, Path]),
-    {ok, Req6, State}.
-
+    wiggle_handler:initial_state(Req, <<"users">>).
 
 options(Req, State) ->
     Methods = allowed_methods(Req, State, State#state.path),
@@ -261,7 +238,9 @@ from_json(Req, State) ->
 handle_write(Req, State = #state{path = [User, <<"sessions">>]}, [{<<"password">>, Password}]) ->
     {ok, {token, Token}} = libsnarl:auth(User, Password),
     {ok, Req1} = cowboy_http_req:set_resp_header(<<"X-Snarl-Token">>, Token, Req),
-    {true, Req1, State};
+    {ok, Req2} = cowboy_http_req:set_resp_cookie(<<"X-Snarl-Token">>, Token, [{max_age, 60*60*24*365}], Req1),
+    {ok, Req3} = cowboy_http_req:set_resp_body(jsx:encode([{<<"token">>, Token}]), Req2),
+    {true, Req3, State};
 
 handle_write(Req, State = #state{path =  [User]}, [{<<"password">>, Password}]) ->
     libsnarl:user_add(User),
@@ -281,6 +260,10 @@ handle_write(Req, State = #state{path = [User, <<"permissions">> | Permission]},
 %%--------------------------------------------------------------------
 %% DEETE
 %%--------------------------------------------------------------------
+
+delete_resource(Req, State = #state{path = [_User, <<"sessions">>]}) ->
+    {ok, Req1} = cowboy_http_req:set_resp_cookie(<<"X-Snarl-Token">>, <<"">>, [{max_age, 0}], Req),
+    {true, Req1, State};
 
 delete_resource(Req, State = #state{path = [User, <<"permissions">> | Permission]}) ->
     P = erlangify_permission(Permission),
