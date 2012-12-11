@@ -30,7 +30,15 @@ case $2 in
 	svccfg import /opt/local/wiggle/etc/wiggle.xml
 	echo Trying to guess configuration ...
 	IP=`ifconfig net0 | grep inet | awk -e '{print $2}'`
-	sed --in-place=.bak -e "s/127.0.0.1/${IP}/g" /opt/local/wiggle/etc/vm.args
-	sed --in-place=.bak -e "s/127.0.0.1/${IP}/g" /opt/local/wiggle/etc/app.config
+	if [ ! -f /opt/local/wiggle/etc/vm.args ]
+	then
+	    cp /opt/local/wiggle/etc/vm.args.example /opt/local/wiggle/etc/vm.args
+	    sed --in-place -e "s/127.0.0.1/${IP}/g" /opt/local/wiggle/etc/vm.args
+	fi
+	if [ ! -f /opt/local/wiggle/etc/app.config ]
+	then
+	    cp /opt/local/wiggle/etc/app.config.example /opt/local/wiggle/etc/app.config
+	    sed --in-place -e "s/127.0.0.1/${IP}/g" /opt/local/wiggle/etc/app.config
+	fi
 	;;
 esac
