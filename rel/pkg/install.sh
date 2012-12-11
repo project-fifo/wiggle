@@ -26,8 +26,12 @@ case $2 in
 	chown -R wiggle:wiggle /var/log/wiggle
 	;;
     POST-INSTALL)
-	echo Importing service ...
-	svccfg import /opt/local/wiggle/etc/wiggle.xml
+	if svcs svc:/network/wiggle:default1 > /dev/null 2&>1
+	    echo Importing service ...
+	    svccfg import /opt/local/wiggle/etc/wiggle.xml
+	else
+	    echo Service already existings ...
+	fi
 	echo Trying to guess configuration ...
 	IP=`ifconfig net0 | grep inet | awk -e '{print $2}'`
 	if [ ! -f /opt/local/wiggle/etc/vm.args ]
