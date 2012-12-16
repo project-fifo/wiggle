@@ -126,9 +126,10 @@ to_json(Req, State) ->
     {Reply, Req1, State1} = handle_request(Req, State),
     {jsx:encode(Reply), Req1, State1}.
 
-handle_request(Req, State = #state{path = []}) ->
-    {ok, Res} = libsniffle:vm_list(),
-    {Res, Req, State};
+handle_request(Req, State = #state{token = Token, path = []}) ->
+    {ok, Permissions} = libsnarl:user_cache({token, Token}),
+    {ok, Res} = libsniffle:vm_list({must, 'allowed', [<<"vm">>, {<<"res">>, <<"uuid">>}, <<"get">>], Permissions}),
+    {lists:map(fun ({_, E}) -> E end,  Res), Req, State};
 
 handle_request(Req, State = #state{path = [Vm]}) ->
     {ok, {vm, Name, _, Hypervisor, Dict}} = libsniffle:vm_get(Vm),

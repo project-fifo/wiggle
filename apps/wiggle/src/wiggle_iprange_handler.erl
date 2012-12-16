@@ -116,9 +116,10 @@ to_json(Req, State) ->
     {Reply, Req1, State1} = handle_request(Req, State),
     {jsx:encode(Reply), Req1, State1}.
 
-handle_request(Req, State = #state{path = []}) ->
-    {ok, Res} = libsniffle:iprange_list(),
-    {Res, Req, State};
+handle_request(Req, State = #state{token = Token, path = []}) ->
+    {ok, Permissions} = libsnarl:user_cache({token, Token}),
+    {ok, Res} = libsniffle:iprange_list({must, 'allowed', [<<"iprange">>, {<<"res">>, <<"name">>}, <<"get">>], Permissions}),
+    {lists:map(fun ({_, E}) -> E end,  Res), Req, State};
 
 handle_request(Req, State = #state{path = [Iprange]}) ->
     {ok, {iprange,

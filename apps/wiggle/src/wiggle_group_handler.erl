@@ -155,8 +155,9 @@ to_json(Req, State) ->
     {Reply, Req1, State1} = handle_request(Req, State),
     {jsx:encode(Reply), Req1, State1}.
 
-handle_request(Req, State = #state{path = []}) ->
-    {ok, Res} = libsnarl:group_list(),
+handle_request(Req, State = #state{token = _Token, path = []}) ->
+%    {ok, Permissions} = libsnarl:user_cache({token, Token}),
+    {ok, Res} = libsnarl:group_list(), %{must, 'allowed', [<<"vm">>, {<<"res">>, <<"uuid">>}, <<"get">>], Permissions}),
     {Res, Req, State};
 
 handle_request(Req, State = #state{path = [Group]}) ->
