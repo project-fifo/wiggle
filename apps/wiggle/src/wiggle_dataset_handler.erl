@@ -110,7 +110,7 @@ to_json(Req, State) ->
 handle_request(Req, State = #state{token = Token, path = []}) ->
     {ok, Permissions} = libsnarl:user_cache({token, Token}),
     {ok, Res} = libsniffle:dataset_list([{must, 'allowed', [<<"datast">>, {<<"res">>, <<"name">>}, <<"get">>], Permissions}]),
-    {lists:map(fun ({_, E}) -> E end,  Res), Req, State};
+    {lists:map(fun ({E, _}) -> E end,  Res), Req, State};
 
 handle_request(Req, State = #state{path = [Dataset]}) ->
     {ok, Res} = libsniffle:dataset_attribute_get(Dataset),

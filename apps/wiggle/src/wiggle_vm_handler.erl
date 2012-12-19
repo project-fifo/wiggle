@@ -129,7 +129,7 @@ to_json(Req, State) ->
 handle_request(Req, State = #state{token = Token, path = []}) ->
     {ok, Permissions} = libsnarl:user_cache({token, Token}),
     {ok, Res} = libsniffle:vm_list([{must, 'allowed', [<<"vm">>, {<<"res">>, <<"uuid">>}, <<"get">>], Permissions}]),
-    {lists:map(fun ({_, E}) -> E end,  Res), Req, State};
+    {lists:map(fun ({E, _}) -> E end,  Res), Req, State};
 
 handle_request(Req, State = #state{path = [Vm]}) ->
     {ok, {vm, Name, _Alias, Hypervisor, _Log, Dict}} = libsniffle:vm_get(Vm),
