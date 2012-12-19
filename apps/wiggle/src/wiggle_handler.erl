@@ -1,7 +1,8 @@
 -module(wiggle_handler).
 
 -export([
-	 initial_state/2
+	 initial_state/2,
+	 accepted/0
 	]).
 
 -record(state, {path, method, version, token, content, reply}).
@@ -30,3 +31,11 @@ initial_state(Req, Component) ->
 		    path = Path},
     io:format("[~p] - ~p~n", [Method, Path]),
     {ok, Req6, State}.
+
+
+accepted() ->
+    [
+     {<<"application/json; charset=UTF-8">>, from_json},
+     {<<"application/json; charset=utf-8">>, from_json},
+     {<<"application/json">>, from_json}
+    ].

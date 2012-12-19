@@ -53,9 +53,7 @@ content_types_provided(Req, State) ->
      ], Req, State}.
 
 content_types_accepted(Req, State) ->
-    {[
-      {<<"application/json; charset=UTF-8">>, from_json}
-     ], Req, State}.
+    {wiggle_handler:accepted(), Req, State}.
 
 allowed_methods(Req, State) ->
     {['HEAD', 'OPTIONS' | allowed_methods(State#state.version, State#state.token, State#state.path)], Req, State}.
