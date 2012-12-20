@@ -9,38 +9,38 @@
 -endif.
 
 -export([init/3,
-	 rest_init/2]).
+         rest_init/2]).
 -export([content_types_provided/2,
-	 content_types_accepted/2,
-	 allowed_methods/2,
-	 delete_resource/2,
-	 resource_exists/2,
-	 forbidden/2,
-	 options/2,
-	 is_authorized/2]).
+         content_types_accepted/2,
+         allowed_methods/2,
+         delete_resource/2,
+         resource_exists/2,
+         forbidden/2,
+         options/2,
+         is_authorized/2]).
 
 -export([to_json/2,
-	 from_json/2]).
+         from_json/2]).
 
 -ignore_xref([to_json/2,
-	      from_json/2,
-	      allowed_methods/2,
-	      content_types_accepted/2,
-	      content_types_provided/2,
-	      delete_resource/2,
-	      forbidden/2,
-	      init/3,
-	      is_authorized/2,
-	      options/2,
-	      resource_exists/2,
-	      rest_init/2]).
+              from_json/2,
+              allowed_methods/2,
+              content_types_accepted/2,
+              content_types_provided/2,
+              delete_resource/2,
+              forbidden/2,
+              init/3,
+              is_authorized/2,
+              options/2,
+              resource_exists/2,
+              rest_init/2]).
 
 -record(state, {path, method, version, token, content, reply}).
 
 
 
 init(_Transport, _Req, []) ->
-	{upgrade, protocol, cowboy_http_rest}.
+    {upgrade, protocol, cowboy_http_rest}.
 
 rest_init(Req, _) ->
     wiggle_handler:initial_state(Req, <<"users">>).
@@ -48,10 +48,10 @@ rest_init(Req, _) ->
 options(Req, State) ->
     Methods = allowed_methods(Req, State, State#state.path),
     {ok, Req1} = cowboy_http_req:set_resp_header(
-		   <<"Access-Control-Allow-Methods">>,
-		   string:join(
-		     lists:map(fun erlang:atom_to_list/1,
-			       ['HEAD', 'GET', 'OPTIONS' | Methods]), ", "), Req),
+                   <<"Access-Control-Allow-Methods">>,
+                   string:join(
+                     lists:map(fun erlang:atom_to_list/1,
+                               ['HEAD', 'GET', 'OPTIONS' | Methods]), ", "), Req),
     {ok, Req1, State}.
 
 content_types_provided(Req, State) ->
@@ -91,33 +91,33 @@ allowed_methods(_Version, _Token, [_Login, <<"groups">>, _Group]) ->
 
 resource_exists(Req, State = #state{path = [User, <<"permissions">> | Permission]}) ->
     case {erlangify_permission(Permission), libsnarl:user_get(User)} of
-	{_, not_found} ->
-	    {false, Req, State};
-	{[], {ok, _}} ->
-	    {true, Req, State};
-	{P, {ok, {user, _Name, _, Permissions, _Groups, _}}} ->
-	    {lists:member(P, Permissions), Req, State}
+        {_, not_found} ->
+            {false, Req, State};
+        {[], {ok, _}} ->
+            {true, Req, State};
+        {P, {ok, {user, _Name, _, Permissions, _Groups, _}}} ->
+            {lists:member(P, Permissions), Req, State}
     end;
 
 resource_exists(Req, State = #state{method = 'DELETE', path = [User, <<"groups">>, Group]}) ->
     case libsnarl:user_get(User) of
-	not_found ->
-	    {false, Req, State};
-	{ok, {user, _Name, _, _Permissions, _, Groups}} ->
-	    {lists:member(Group, Groups), Req, State}
+        not_found ->
+            {false, Req, State};
+        {ok, {user, _Name, _, _Permissions, _, Groups}} ->
+            {lists:member(Group, Groups), Req, State}
     end;
 
 resource_exists(Req, State = #state{method = 'PUT', path = [User, <<"groups">>, Group]}) ->
     case libsnarl:user_get(User) of
-	not_found ->
-	    {false, Req, State};
-	{ok, _} ->
-	    case libsnarl:group_get(Group) of
-	        not_found ->
-		    {false, Req, State};
-		{ok, _} ->
-		    {true, Req, State}
-	    end
+        not_found ->
+            {false, Req, State};
+        {ok, _} ->
+            case libsnarl:group_get(Group) of
+                not_found ->
+                    {false, Req, State};
+                {ok, _} ->
+                    {true, Req, State}
+            end
     end;
 
 resource_exists(Req, State = #state{path = []}) ->
@@ -125,10 +125,10 @@ resource_exists(Req, State = #state{path = []}) ->
 
 resource_exists(Req, State = #state{path = [User | _]}) ->
     case libsnarl:user_get(User) of
-	 not_found ->
-	    {false, Req, State};
-	{ok, _} ->
-	    {true, Req, State}
+        not_found ->
+            {false, Req, State};
+        {ok, _} ->
+            {true, Req, State}
     end.
 
 
@@ -226,12 +226,12 @@ from_json(Req, State) ->
     {ok, Body, Req1} = cowboy_http_req:body(Req),
     io:format("[PUT] ~p", [Body]),
     {Reply, Req2, State1} = case Body of
-				<<>> ->
-				    handle_write(Req1, State, []);
-				_ ->
-				    Decoded = jsx:decode(Body),
-				    handle_write(Req1, State, Decoded)
-			    end,
+                                <<>> ->
+                                    handle_write(Req1, State, []);
+                                _ ->
+                                    Decoded = jsx:decode(Body),
+                                    handle_write(Req1, State, Decoded)
+                            end,
 
     {Reply, Req2, State1}.
 
@@ -282,40 +282,40 @@ delete_resource(Req, State = #state{path = [User, <<"groups">>, Group]}) ->
 
 erlangify_permission(P) ->
     lists:map(fun(<<"...">>) ->
-		      '...';
-		 (<<"_">>) ->
-		      '_';
-		 (E) ->
-		      E
-	      end, P).
+                      '...';
+                 (<<"_">>) ->
+                      '_';
+                 (E) ->
+                      E
+              end, P).
 
 jsonify_permissions(P) ->
     lists:map(fun('...') ->
-		      <<"...">>;
-		 ('_') ->
-		      <<"_">>;
-		 (E) ->
-		      E
-	      end, P).
+                      <<"...">>;
+                 ('_') ->
+                      <<"_">>;
+                 (E) ->
+                      E
+              end, P).
 
 allowed(Token, Perm) ->
     case libsnarl:allowed({token, Token}, Perm) of
         not_found ->
-	    true;
-	true ->
-	    false;
-	false ->
-	    true
+            true;
+        true ->
+            false;
+        false ->
+            true
     end.
 
 -ifdef(TEST).
 
 erlangify_permission_test() ->
     ?assertEqual(['_', <<"a">>, '...'],
-		 erlangify_permission([<<"_">>, <<"a">>, <<"...">>])).
+                 erlangify_permission([<<"_">>, <<"a">>, <<"...">>])).
 
 jsonify_permission_test() ->
     ?assertEqual([<<"_">>, <<"a">>, <<"...">>],
-		 jsonify_permissions(['_', <<"a">>, '...'])).
+                 jsonify_permissions(['_', <<"a">>, '...'])).
 
 -endif.

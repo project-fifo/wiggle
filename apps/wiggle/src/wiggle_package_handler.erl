@@ -55,9 +55,7 @@ content_types_provided(Req, State) ->
      ], Req, State}.
 
 content_types_accepted(Req, State) ->
-    {[
-      {<<"application/json; charset=UTF-8">>, from_json}
-     ], Req, State}.
+    {wiggle_handler:accepted(), Req, State}.
 
 allowed_methods(Req, State) ->
     {['HEAD', 'OPTIONS' | allowed_methods(State#state.version, State#state.token, State#state.path)], Req, State}.
@@ -117,9 +115,10 @@ to_json(Req, State) ->
     {Reply, Req1, State1} = handle_request(Req, State),
     {jsx:encode(Reply), Req1, State1}.
 
-handle_request(Req, State = #state{path = []}) ->
-    {ok, Res} = libsniffle:package_list(),
-    {Res, Req, State};
+handle_request(Req, State = #state{token = Token, path = []}) ->
+    {ok, Permissions} = libsnarl:user_cache({token, Token}),
+    {ok, Res} = libsniffle:package_list([{must, 'allowed', [<<"package">>, {<<"res">>, <<"name">>}, <<"get">>], Permissions}]),
+    {lists:map(fun ({E, _}) -> E end,  Res), Req, State};
 
 handle_request(Req, State = #state{path = [Package]}) ->
     {ok, Res} = libsniffle:package_attribute_get(Package),
