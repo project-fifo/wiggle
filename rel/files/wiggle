@@ -6,9 +6,9 @@ RUNNER_SCRIPT_DIR=$(cd ${0%/*} && pwd)
 
 RUNNER_BASE_DIR=${RUNNER_SCRIPT_DIR%/*}
 RUNNER_ETC_DIR=$RUNNER_BASE_DIR/etc
-RUNNER_LOG_DIR=$RUNNER_BASE_DIR/log
+RUNNER_LOG_DIR=/var/log/wiggle
 # Note the trailing slash on $PIPE_DIR/
-PIPE_DIR=/tmp/$RUNNER_BASE_DIR/
+PIPE_DIR=/tmp/wiggle/
 RUNNER_USER=
 
 # Make sure this script is running as the appropriate user
@@ -160,7 +160,7 @@ case "$1" in
         BINDIR=$ROOTDIR/erts-$ERTS_VSN/bin
         EMU=beam
         PROGNAME=`echo $0 | sed 's/.*\\///'`
-        CMD="$BINDIR/erlexec -boot $RUNNER_BASE_DIR/releases/$APP_VSN/$BOOTFILE -mode embedded -config $CONFIG_PATH -args_file $VMARGS_PATH -- ${1+"$@"}"
+        CMD="$BINDIR/erlexec -boot $RUNNER_BASE_DIR/releases/$APP_VSN/$BOOTFILE -embedded -config $CONFIG_PATH -args_file $VMARGS_PATH -- ${1+"$@"}"
         export EMU
         export ROOTDIR
         export BINDIR

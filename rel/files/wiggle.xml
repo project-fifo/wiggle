@@ -1,25 +1,25 @@
 <?xml version="1.0"?>
 <!DOCTYPE service_bundle SYSTEM "/usr/share/lib/xml/dtd/service_bundle.dtd.1">
 <!--
-        Copyright 2012 Heinz N. Gies
+        Copyright 2012 Project FiFo / Heinz N. Gies
 -->
 
 <service_bundle type='manifest' name='wiggle'>
   <service
     name='network/wiggle'
     type='service'
-    version='1'>
-    <create_default_instance enabled='true' />
+    version='0.3.0'>
+    <create_default_instance enabled='false' />
     <single_instance />
-    <dependency 
+    <dependency
 	name='net-loopback'
 	grouping='require_all'
 	restart_on='none'
 	type='service'>
       <service_fmri value='svc:/network/loopback' />
     </dependency>
-    
-    <dependency 
+
+    <dependency
 	name='net-physical'
 	grouping='require_all'
 	restart_on='none'
@@ -27,53 +27,58 @@
       <service_fmri value='svc:/network/physical' />
     </dependency>
 
-    <dependency 
+    <dependency
 	name='fs'
-	grouping='require_all' 
+	grouping='require_all'
 	restart_on='none' type='service'>
       <service_fmri value='svc:/system/filesystem/local'/>
     </dependency>
 
-    <dependency 
+    <dependency
 	name='epmd'
-	grouping='require_all' 
+	grouping='require_all'
 	restart_on='none' type='service'>
-      <service_fmri value='svc:/network/epmd:default'/>
+      <service_fmri value='svc:/pkgsrc/epmd:default'/>
     </dependency>
-
 
     <exec_method
       type='method'
       name='start'
-      exec='/fifo/wiggle/bin/wiggle %m'
+      exec='/opt/local/wiggle/bin/wiggle %m'
       timeout_seconds='30'>
       <method_context>
+	<method_credential user='wiggle' group='wiggle' />
 	<method_environment>
-	  <envvar name='HOME' value='/fifo/wiggle'/>
-	</method_environment>
-      </method_context>
-    </exec_method>
-    
-    <exec_method 
-	name='restart' 
-	type='method' 
-        exec='/fifo/wiggle/bin/wiggle %m'
-	timeout_seconds='60'>
-      <method_context>
-	<method_environment>
-	  <envvar name='HOME' value='/fifo/wiggle'/>
+	  <envvar name='PATH' value='/opt/local/gnu/bin:/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin'/>
+	  <envvar name='HOME' value='/var/db/wiggle'/>
 	</method_environment>
       </method_context>
     </exec_method>
 
-    <exec_method 
-	name='stop' 
-	type='method' 
-        exec='/fifo/wiggle/bin/wiggle %m'
+    <exec_method
+	name='restart'
+	type='method'
+        exec='/opt/local/wiggle/bin/wiggle %m'
 	timeout_seconds='60'>
       <method_context>
+	<method_credential user='wiggle' group='wiggle' />
 	<method_environment>
-	  <envvar name='HOME' value='/fifo/wiggle'/>
+	  <envvar name='PATH' value='/opt/local/gnu/bin:/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin'/>
+	  <envvar name='HOME' value='/var/db/wiggle'/>
+	</method_environment>
+      </method_context>
+    </exec_method>
+
+    <exec_method
+	name='stop'
+	type='method'
+        exec='/opt/local/wiggle/bin/wiggle %m'
+	timeout_seconds='60'>
+      <method_context>
+	<method_credential user='wiggle' group='wiggle' />
+	<method_environment>
+	  <envvar name='PATH' value='/opt/local/gnu/bin:/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin'/>
+	  <envvar name='HOME' value='/var/db/wiggle'/>
 	</method_environment>
       </method_context>
     </exec_method>
@@ -81,7 +86,7 @@
     <template>
       <common_name>
         <loctext xml:lang='C'>
-          Wiggle Web GUI Service
+          Project FiFo's API Server.
         </loctext>
       </common_name>
     </template>
