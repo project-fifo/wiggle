@@ -141,7 +141,6 @@ handle_request(Req, State = #state{path = [Vm]}) ->
 %% PUT
 %%--------------------------------------------------------------------
 
-
 create_path(Req, State = #state{path = [], version = Version, token = Token}) ->
     {ok, Body, Req1} = cowboy_http_req:body(Req),
     {Decoded, Req2} = case Body of
