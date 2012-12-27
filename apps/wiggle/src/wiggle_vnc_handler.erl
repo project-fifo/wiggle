@@ -21,7 +21,7 @@ terminate(_Req, _State) ->
     ok.
 
 websocket_init(_Any, Req, []) ->
-    {[<<"api">>, '_', <<"vms">>, ID, <<"vnc">>], Req1} = cowboy_http_req:path(Req),
+    {[<<"api">>, _, <<"vms">>, ID, <<"vnc">>], Req1} = cowboy_http_req:path(Req),
     {ok, Req2} = cowboy_http_req:set_resp_header(
                    <<"Access-Control-Allow-Headers">>,
                    <<"X-Snarl-Token">>, Req1),
@@ -43,21 +43,28 @@ websocket_init(_Any, Req, []) ->
         true ->
             case libsniffle:vm_attribute_get(ID, <<"info">>) of
                 {ok, Info} ->
-                    Host = proplists:get_value(<<"vnc-host">>, Info),
-                    Port = proplists:get_value(<<"vnc-port">>, Info),
-                    case gen_tcp:connect(binary_to_list(Host), Port,
-                                         [binary,{nodelay, true}, {packet, 0}]) of
-                        {ok, Socket} ->
-                            gen_tcp:controlling_process(Socket, self()),
-                            Req6 = cowboy_http_req:compact(Req5),
-                            {ok, Req6, {Socket}, hibernate};
+                    case lists:keyfind(<<"vnc">>, 1, Info) of
+                        {<<"vnc">>, VNC} ->
+                            Host = proplists:get_value(<<"host">>, VNC),
+                            Port = proplists:get_value(<<"port">>, VNC),
+                            case gen_tcp:connect(binary_to_list(Host), Port,
+                                                 [binary,{nodelay, true}, {packet, 0}]) of
+                                {ok, Socket} ->
+                                    gen_tcp:controlling_process(Socket, self()),
+                                    Req6 = cowboy_http_req:compact(Req5),
+                                    {ok, Req6, {Socket}, hibernate};
+                                _ ->
+                                    Req6 = cowboy_http_req:compact(Req5),
+                                    {ok, Req6, undefined, hibernate}
+                            end;
                         _ ->
-                            Req6 = cowboy_http_req:compact(Req5),
-                            {ok, Req6, undefined, hibernate}
+                            {ok, Req6} = cowboy_http_req:reply(505, [{'Content-Type', <<"text/html">>}],
+                                                               <<"could not find vnc">>, Req5),
+                            {shutdown, Req6}
                     end;
                 E ->
                     {ok, Req6} = cowboy_http_req:reply(505, [{'Content-Type', <<"text/html">>}],
-                                                       list_to_binary(io_lib:format("~p", E)), Req5),
+                                                       list_to_binary(io_lib:format("~p", [E])), Req5),
                     {shutdown, Req6}
             end;
         false ->
