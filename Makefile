@@ -30,6 +30,9 @@ relclean:
 package: rel
 	make -C rel/pkg package
 
+console: all
+	erl -pa deps/*/ebin apps/*/ebin -s wiggle -config standalone.config
+
 ###
 ### Docs
 ###
