@@ -56,7 +56,7 @@ case $2 in
             openssl req \
                 -new \
                 -batch \
-                -subj "$(/opt/local/gnu/bin/echo -n "$subj" | /opt/local/gnu/bin/tr "\n" "/")" \
+                -subj "$(/opt/local/gnu/bin/echo -n "$SUBJ" | /opt/local/gnu/bin/tr "\n" "/")" \
                 -key $CERTDIR/$DOMAIN.key \
                 -out $CERTDIR/$DOMAIN.csr \
                 -passin env:PASSPHRASE
