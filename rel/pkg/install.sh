@@ -39,7 +39,7 @@ case $2 in
         chown -R $USER:$GROUP /var/log/wiggle
         if [ ! -d /var/db/fifo ]
         then
-            PASSPHRASE=$(head -c 128 /dev/random  | uuencode - | grep -v "^end" | tr "\n" "d")
+            export PASSPHRASE=$(head -c 128 /dev/random  | uuencode - | grep -v "^end" | tr "\n" "d")
             echo "Creating certificates"
             mkdir -p $CERTDIR
             chgrp -R $GROUP $CERTDIR
@@ -59,6 +59,7 @@ case $2 in
             openssl rsa -in $CERTDIR/$DOMAIN.key.org -out $CERTDIR/$DOMAIN.key -passin env:PASSPHRASE
 
             openssl x509 -req -days 365 -in $CERTDIR/$DOMAIN.csr -signkey $CERTDIR/$DOMAIN.key -out $CERTDIR/$DOMAIN.crt
+            unset PASSPHRASE
         fi
 
 
