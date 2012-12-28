@@ -47,7 +47,7 @@
       exec='/opt/local/wiggle/bin/wiggle %m'
       timeout_seconds='30'>
       <method_context>
-	<method_credential user='wiggle' group='wiggle' />
+	<method_credential user='wiggle' group='www' />
 	<method_environment>
 	  <envvar name='PATH' value='/opt/local/gnu/bin:/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin'/>
 	  <envvar name='HOME' value='/var/db/wiggle'/>
@@ -61,7 +61,7 @@
         exec='/opt/local/wiggle/bin/wiggle %m'
 	timeout_seconds='60'>
       <method_context>
-	<method_credential user='wiggle' group='wiggle' />
+	<method_credential user='wiggle' group='www' />
 	<method_environment>
 	  <envvar name='PATH' value='/opt/local/gnu/bin:/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin'/>
 	  <envvar name='HOME' value='/var/db/wiggle'/>
@@ -75,7 +75,7 @@
         exec='/opt/local/wiggle/bin/wiggle %m'
 	timeout_seconds='60'>
       <method_context>
-	<method_credential user='wiggle' group='wiggle' />
+	<method_credential user='wiggle' group='www' />
 	<method_environment>
 	  <envvar name='PATH' value='/opt/local/gnu/bin:/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin'/>
 	  <envvar name='HOME' value='/var/db/wiggle'/>

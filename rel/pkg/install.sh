@@ -1,7 +1,20 @@
 #!/usr/bin/bash
 
 USER=wiggle
-GROUP=$USER
+GROUP=www
+DOMAIN="project-fifo.net"
+CERTDIR="/var/db/fifo"
+SUBJ="
+C=AU
+ST=Victoria
+O=Company
+localityName=Melbourne
+commonName=$DOMAIN
+organizationalUnitName=Widgets
+emailAddress=blah@blah.com
+"
+
+
 
 case $2 in
     PRE-INSTALL)
@@ -21,9 +34,36 @@ case $2 in
 	fi
 	echo Creating directories ...
 	mkdir -p /var/db/wiggle
-	chown -R wiggle:wiggle /var/db/wiggle
+	chown -R $USER:$GROUP /var/db/wiggle
 	mkdir -p /var/log/wiggle/sasl
-	chown -R wiggle:wiggle /var/log/wiggle
+	chown -R $USER:$GROUP /var/log/wiggle
+    mkdir -p $CERTDIR
+    chgrp -R $GROUP $CERTDIR
+	if [ ! -d /var/db/fifo ]
+	then
+		echo "Creating certificates"
+		mkdir -p /var/db/fifo
+		chgrp -R www /var/db/fifo
+
+        openssl genrsa -des3 -out $CERTDIR/$DOMAIN.key -passout env:PASSPHRASE 2048
+        fail_if_error $?
+
+        openssl req \
+            -new \
+            -batch \
+            -subj "$(echo -n "$subj" | tr "\n" "/")" \
+            -key $CERTDIR/$DOMAIN.key \
+            -out $CERTDIR/$DOMAIN.csr \
+            -passin env:PASSPHRASE
+
+        cp $CERTDIR/$DOMAIN.key $CERTDIR/$DOMAIN.key.org
+
+        openssl rsa -in $CERTDIR/$DOMAIN.key.org -out $CERTDIR/$DOMAIN.key -passin env:PASSPHRASE
+
+        openssl x509 -req -days 365 -in $CERTDIR/$DOMAIN.csr -signkey $CERTDIR/$DOMAIN.key -out $CERTDIR/$DOMAIN.crt
+    fi
+
+
 	;;
     POST-INSTALL)
 	if svcs svc:/network/wiggle:default > /dev/null 2>&1
