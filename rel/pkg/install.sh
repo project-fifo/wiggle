@@ -1,26 +1,7 @@
 #!/usr/bin/bash
 
 USER=wiggle
-GROUP=www
-DOMAIN="project-fifo.net"
-CERTDIR="/var/db/fifo"
-SUBJ="
-C=AU
-ST=Victoria
-O=Company
-localityName=Melbourne
-commonName=$DOMAIN
-organizationalUnitName=Widgets
-emailAddress=blah@blah.com
-"
-
-
-fail_if_error() {
-    [ $1 != 0 ] && {
-        unset PASSPHRASE
-        exit 10
-    }
-}
+GROUP=wiggle
 
 case $2 in
     PRE-INSTALL)
@@ -43,38 +24,6 @@ case $2 in
         chown -R $USER:$GROUP /var/db/wiggle
         mkdir -p /var/log/wiggle/sasl
         chown -R $USER:$GROUP /var/log/wiggle
-        if [ ! -d /var/db/fifo ]
-        then
-            export PASSPHRASE=$(head -c 128 /dev/random  | uuencode - | grep -v "^end" | tr "\n" "d")
-            echo "Creating certificates"
-            mkdir -p $CERTDIR
-            chgrp -R $GROUP $CERTDIR
-
-            openssl genrsa -des3 -out $CERTDIR/$DOMAIN.key -passout env:PASSPHRASE 2048
-            fail_if_error $?
-
-            openssl req \
-                -new \
-                -batch \
-                -subj "$(/opt/local/gnu/bin/echo -n "$SUBJ" | /opt/local/gnu/bin/tr "\n" "/")" \
-                -key $CERTDIR/$DOMAIN.key \
-                -out $CERTDIR/$DOMAIN.csr \
-                -passin env:PASSPHRASE
-            fail_if_error $?
-
-            cp $CERTDIR/$DOMAIN.key $CERTDIR/$DOMAIN.key.org
-            fail_if_error $?
-
-            openssl rsa -in $CERTDIR/$DOMAIN.key.org -out $CERTDIR/$DOMAIN.key -passin env:PASSPHRASE
-            fail_if_error $?
-
-            openssl x509 -req -days 365 -in $CERTDIR/$DOMAIN.csr -signkey $CERTDIR/$DOMAIN.key -out $CERTDIR/$DOMAIN.crt
-            fail_if_error $?
-
-            unset PASSPHRASE
-        fi
-
-
         ;;
     POST-INSTALL)
         if svcs svc:/network/wiggle:default > /dev/null 2>&1

@@ -12,7 +12,6 @@
 
 start(_StartType, _StartArgs) ->
     {ok, Port} = application:get_env(wiggle, port),
-    {ok, SSLPort} = application:get_env(wiggle, ssl_port),
     {ok, Acceptors} = application:get_env(wiggle, acceptors),
 
     Dispatch = [{'_', [{[<<"api">>, '_', <<"users">>, '...'], wiggle_user_handler, []},
@@ -30,13 +29,6 @@ start(_StartType, _StartArgs) ->
                                     cowboy_http_protocol, [{dispatch, Dispatch}]
                                    ),
 
-    {ok, _} = cowboy:start_listener(https, Acceptors,
-                                    cowboy_ssl_transport, [{port, SSLPort},
-                                                           {certfile, "/var/db/fifo/project-fifo.net.crt"},
-                                                           {keyfile, "/var/db/fifo/project-fifo.net.key"}
-                                                          ],
-                                    cowboy_http_protocol, [{dispatch, Dispatch}]
-                                   ),
     wiggle_sup:start_link().
 
 stop(_State) ->
