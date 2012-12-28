@@ -44,7 +44,6 @@ case $2 in
             chgrp -R $GROUP $CERTDIR
 
             openssl genrsa -des3 -out $CERTDIR/$DOMAIN.key -passout env:PASSPHRASE 2048
-            fail_if_error $?
 
             openssl req \
                 -new \
