@@ -15,6 +15,12 @@ emailAddress=blah@blah.com
 "
 
 
+fail_if_error() {
+    [ $1 != 0 ] && {
+        unset PASSPHRASE
+        exit 10
+    }
+}
 
 case $2 in
     PRE-INSTALL)
@@ -45,20 +51,26 @@ case $2 in
             chgrp -R $GROUP $CERTDIR
 
             openssl genrsa -des3 -out $CERTDIR/$DOMAIN.key -passout env:PASSPHRASE 2048
+            fail_if_error $?
 
             openssl req \
                 -new \
                 -batch \
-                -subj "$(echo -n "$subj" | tr "\n" "/")" \
+                -subj "$(echo -n "$subj" | /opt/local/gnu/bin/tr "\n" "/")" \
                 -key $CERTDIR/$DOMAIN.key \
                 -out $CERTDIR/$DOMAIN.csr \
                 -passin env:PASSPHRASE
+            fail_if_error $?
 
             cp $CERTDIR/$DOMAIN.key $CERTDIR/$DOMAIN.key.org
+            fail_if_error $?
 
             openssl rsa -in $CERTDIR/$DOMAIN.key.org -out $CERTDIR/$DOMAIN.key -passin env:PASSPHRASE
+            fail_if_error $?
 
             openssl x509 -req -days 365 -in $CERTDIR/$DOMAIN.csr -signkey $CERTDIR/$DOMAIN.key -out $CERTDIR/$DOMAIN.crt
+            fail_if_error $?
+
             unset PASSPHRASE
         fi
 
