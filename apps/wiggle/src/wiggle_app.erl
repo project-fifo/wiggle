@@ -31,9 +31,9 @@ start(_StartType, _StartArgs) ->
                                    ),
 
     {ok, _} = cowboy:start_listener(https, Acceptors,
-                                    cowboy_ssl_transport, [{port, SSLPort}
+                                    cowboy_ssl_transport, [{port, SSLPort},
                                                            {certfile, "/var/db/fifo/project-fifo.net.crt"},
-                                                           {keyfile, "/var/db/fifo/project-fifo.net.key"},
+                                                           {keyfile, "/var/db/fifo/project-fifo.net.key"}
                                                           ],
                                     cowboy_http_protocol, [{dispatch, Dispatch}]
                                    ),
