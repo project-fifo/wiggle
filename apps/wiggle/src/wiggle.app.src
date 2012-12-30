@@ -8,6 +8,7 @@
                   stdlib,
 		  libsnarl,
 		  libsniffle,
+		  libhowl,
 		  jsx,
 		  lager,
 		  mimetypes,
