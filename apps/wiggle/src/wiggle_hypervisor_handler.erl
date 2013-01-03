@@ -114,7 +114,10 @@ handle_request(Req, State = #state{token = Token, path = []}) ->
 
 handle_request(Req, State = #state{path = [Hypervisor]}) ->
     {ok, Res} = libsniffle:hypervisor_get(Hypervisor),
-    {Res, Req, State}.
+    Res1 = jsxd:thread([{delete, <<"host">>},
+                        {delete, <<"port">>}],
+                       Res),
+    {Res1, Req, State}.
 
 %%--------------------------------------------------------------------
 %% PUT
