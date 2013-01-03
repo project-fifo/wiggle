@@ -205,13 +205,13 @@ handle_request(Req, State = #state{path = []}) ->
     {Res, Req, State};
 
 handle_request(Req, State = #state{path = [User]}) ->
-
     {ok, UserObj} = libsnarl:user_get(User),
     UserObj1 = jsxd:update(<<"permissions">>,
                            fun (Permissions) ->
                                    lists:map(fun jsonify_permissions/1, Permissions)
                            end, [], UserObj),
-    {UserObj1, Req, State};
+    UserObj2 = jsxd:delete(<<"password">>, UserObj1),
+    {UserObj2, Req, State};
 
 handle_request(Req, State = #state{path = [User, <<"permissions">>]}) ->
     {ok, UserObj} = libsnarl:user_get(User),
