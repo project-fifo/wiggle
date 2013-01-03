@@ -113,8 +113,8 @@ handle_request(Req, State = #state{token = Token, path = []}) ->
     {lists:map(fun ({E, _}) -> E end,  Res), Req, State};
 
 handle_request(Req, State = #state{path = [Hypervisor]}) ->
-    {ok, Res} = libsniffle:hypervisor_resource_get(Hypervisor),
-    {[{name, Hypervisor}| Res], Req, State}.
+    {ok, Res} = libsniffle:hypervisor_get(Hypervisor),
+    {Res, Req, State}.
 
 %%--------------------------------------------------------------------
 %% PUT
