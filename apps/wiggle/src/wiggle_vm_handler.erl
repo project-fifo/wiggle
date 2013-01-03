@@ -132,9 +132,8 @@ handle_request(Req, State = #state{token = Token, path = []}) ->
     {lists:map(fun ({E, _}) -> E end,  Res), Req, State};
 
 handle_request(Req, State = #state{path = [Vm]}) ->
-    {ok, {vm, Name, _Alias, Hypervisor, _Log, Dict}} = libsniffle:vm_get(Vm),
-    {[{<<"uuid">>, Name},
-      {<<"hypervisor">>, Hypervisor} | dict:to_list(Dict)], Req, State}.
+    {ok, Res} = libsniffle:vm_get(Vm),
+    {Res, Req, State}.
 
 
 %%--------------------------------------------------------------------
@@ -151,11 +150,12 @@ create_path(Req, State = #state{path = [], version = Version, token = Token}) ->
                               {D, Req1}
                       end,
     io:format("~p", [Decoded]),
-    {<<"dataset">>, Dataset} = lists:keyfind(<<"dataset">>, 1, Decoded),
-    {<<"package">>, Package} = lists:keyfind(<<"package">>, 1, Decoded),
-    {<<"config">>, Config} = lists:keyfind(<<"config">>, 1, Decoded),
-    {ok, {user, Owner, _, _, _, _}} = libsnarl:user_get({token, Token}),
-    {ok, UUID} = libsniffle:create(Package, Dataset, [{<<"owner">>, Owner} | Config]),
+    {ok, Dataset} = jsxd:get(<<"dataset">>, Decoded),
+    {ok, Package} = jsxd:get(<<"package">>, Decoded),
+    {ok, Config} = jsxd:get(<<"config">>, Decoded),
+    {ok, User} = libsnarl:user_get({token, Token}),
+    {ok, Owner} = jsxd:get(<<"name">>, User),
+    {ok, UUID} = libsniffle:create(Package, Dataset, jsxd:set(<<"owner">>, Owner, Config)),
     {<<"/api/", Version/binary, "/vms/", UUID/binary>>, Req2, State}.
 
 
