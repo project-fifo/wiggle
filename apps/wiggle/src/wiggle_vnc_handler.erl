@@ -49,7 +49,7 @@ websocket_init(_Any, Req, []) ->
         true ->
             case libsniffle:vm_get(ID) of
                 {ok, VM} ->
-                    case jsxd:get([<<"info">>, <<"vnc">>], Info) of
+                    case jsxd:get([<<"info">>, <<"vnc">>], VM) of
                         {ok, VNC} ->
                             Host = proplists:get_value(<<"host">>, VNC),
                             Port = proplists:get_value(<<"port">>, VNC),
