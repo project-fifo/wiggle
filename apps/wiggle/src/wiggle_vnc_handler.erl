@@ -1,9 +1,15 @@
 -module(wiggle_vnc_handler).
+
 -behaviour(cowboy_http_handler).
 -behaviour(cowboy_http_websocket_handler).
--export([init/3, handle/2, terminate/2]).
--export([websocket_init/3, websocket_handle/3,
-         websocket_info/3, websocket_terminate/3]).
+
+-export([init/3,
+         handle/2,
+         terminate/2]).
+-export([websocket_init/3,
+         websocket_handle/3,
+         websocket_info/3,
+         websocket_terminate/3]).
 
 init({_Any, http}, Req, []) ->
     case cowboy_http_req:header('Upgrade', Req) of
@@ -41,10 +47,10 @@ websocket_init(_Any, Req, []) ->
                     end,
     case libsnarl:allowed({token, Token}, [<<"vms">>, ID, <<"console">>]) of
         true ->
-            case libsniffle:vm_attribute_get(ID, <<"info">>) of
-                {ok, Info} ->
-                    case lists:keyfind(<<"vnc">>, 1, Info) of
-                        {<<"vnc">>, VNC} ->
+            case libsniffle:vm_get(ID) of
+                {ok, VM} ->
+                    case jsxd:get([<<"info">>, <<"vnc">>], Info) of
+                        {ok, VNC} ->
                             Host = proplists:get_value(<<"host">>, VNC),
                             Port = proplists:get_value(<<"port">>, VNC),
                             case gen_tcp:connect(binary_to_list(Host), Port,
