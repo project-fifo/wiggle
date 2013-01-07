@@ -68,7 +68,7 @@ resource_exists(Req, State = #state{path = []}) ->
     {true, Req, State};
 
 resource_exists(Req, State = #state{path = [Hypervisor | _]}) ->
-    case libsniffle:hypervisor_resource_get(Hypervisor) of
+    case libsniffle:hypervisor_get(Hypervisor) of
         not_found ->
             {false, Req, State};
         {ok, _} ->

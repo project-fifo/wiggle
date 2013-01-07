@@ -70,7 +70,7 @@ resource_exists(Req, State = #state{path = []}) ->
     {true, Req, State};
 
 resource_exists(Req, State = #state{path = [Package]}) ->
-    case libsniffle:package_attribute_get(Package) of
+    case libsniffle:package_get(Package) of
         not_found ->
             {false, Req, State};
         {ok, _} ->
@@ -152,7 +152,7 @@ handle_write(Req, State = #state{path = [Package]}, Body) ->
                     Data
             end,
     ok = libsniffle:package_create(Package),
-    ok = libsniffle:package_attribute_set(Package,Data1),
+    ok = libsniffle:package_set(Package, Data1),
     {true, Req, State};
 
 handle_write(Req, State, _Body) ->
