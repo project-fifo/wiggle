@@ -6,6 +6,7 @@
 
 start() ->
     application:start(mdns_client_lib),
+    application:start(libsnarlmatch),
     application:start(libsnarl),
     application:start(libsniffle),
     application:start(jsx),

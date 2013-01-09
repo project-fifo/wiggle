@@ -120,28 +120,17 @@ handle_request(Req, State = #state{token = Token, path = []}) ->
     {lists:map(fun ({E, _}) -> E end,  Res), Req, State};
 
 handle_request(Req, State = #state{path = [Iprange]}) ->
-    {ok, {iprange,
-	  Name,
-	  Network,
-	  Gateway,
-	  Netmask,
-	  First,
-	  Last,
-	  Current,
-	  Tag,
-	  Free}} = libsniffle:iprange_get(Iprange),
-    {[
-      {name, Name},
-      {tag, Tag},
-      {network, ip_to_str(Network)},
-      {gateway, ip_to_str(Gateway)},
-      {netmask, ip_to_str(Netmask)},
-      {first, ip_to_str(First)},
-      {last, ip_to_str(Last)},
-      {current, ip_to_str(Current)},
-      {free, lists:map(fun(IP) -> ip_to_str(IP) end, Free)}
-     ], Req, State}.
-
+    {ok, Res} = libsniffle:iprange_get(Iprange),
+    {jsxd:thread([{update, <<"network">>, fun ip_to_str/1},
+                  {update, <<"gateway">>, fun ip_to_str/1},
+                  {update, <<"netmask">>, fun ip_to_str/1},
+                  {update, <<"first">>, fun ip_to_str/1},
+                  {update, <<"last">>, fun ip_to_str/1},
+                  {update, <<"current">>, fun ip_to_str/1},
+                  {update, <<"free">>,
+                   fun (Free) ->
+                           lists:map(fun ip_to_str/1, Free)
+                   end}], Res), Req, State}.
 
 %%--------------------------------------------------------------------
 %% PUT

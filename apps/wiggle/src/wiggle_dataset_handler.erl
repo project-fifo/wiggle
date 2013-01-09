@@ -68,7 +68,7 @@ resource_exists(Req, State = #state{path = []}) ->
     {true, Req, State};
 
 resource_exists(Req, State = #state{path = [Dataset]}) ->
-    case libsniffle:dataset_attribute_get(Dataset) of
+    case libsniffle:dataset_get(Dataset) of
         not_found ->
             {false, Req, State};
         {ok, _} ->
@@ -113,7 +113,7 @@ handle_request(Req, State = #state{token = Token, path = []}) ->
     {lists:map(fun ({E, _}) -> E end,  Res), Req, State};
 
 handle_request(Req, State = #state{path = [Dataset]}) ->
-    {ok, Res} = libsniffle:dataset_attribute_get(Dataset),
+    {ok, Res} = libsniffle:dataset_get(Dataset),
     {Res, Req, State}.
 
 

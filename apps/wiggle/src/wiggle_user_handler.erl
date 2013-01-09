@@ -95,16 +95,16 @@ resource_exists(Req, State = #state{path = [User, <<"permissions">> | Permission
             {false, Req, State};
         {[], {ok, _}} ->
             {true, Req, State};
-        {P, {ok, {user, _Name, _, Permissions, _Groups, _}}} ->
-            {lists:member(P, Permissions), Req, State}
+        {P, {ok, UserObj}} ->
+            {lists:member(P, jsxd:get(<<"permissions">>, [], UserObj)), Req, State}
     end;
 
 resource_exists(Req, State = #state{method = 'DELETE', path = [User, <<"groups">>, Group]}) ->
     case libsnarl:user_get(User) of
         not_found ->
             {false, Req, State};
-        {ok, {user, _Name, _, _Permissions, _, Groups}} ->
-            {lists:member(Group, Groups), Req, State}
+        {ok, UserObj} ->
+            {lists:member(Group, jsxd:get(<<"groups">>, [], UserObj)), Req, State}
     end;
 
 resource_exists(Req, State = #state{method = 'PUT', path = [User, <<"groups">>, Group]}) ->
@@ -205,18 +205,21 @@ handle_request(Req, State = #state{path = []}) ->
     {Res, Req, State};
 
 handle_request(Req, State = #state{path = [User]}) ->
-    {ok, {user, Name, _, Permissions, _, Groups}} = libsnarl:user_get(User),
-    {[{name, Name},
-      {permissions, lists:map(fun jsonify_permissions/1, Permissions)},
-      {groups, Groups}], Req, State};
+    {ok, UserObj} = libsnarl:user_get(User),
+    UserObj1 = jsxd:update(<<"permissions">>,
+                           fun (Permissions) ->
+                                   lists:map(fun jsonify_permissions/1, Permissions)
+                           end, [], UserObj),
+    UserObj2 = jsxd:delete(<<"password">>, UserObj1),
+    {UserObj2, Req, State};
 
 handle_request(Req, State = #state{path = [User, <<"permissions">>]}) ->
-    {ok, {user, _Name, _, Permissions, _, _Groups}} = libsnarl:user_get(User),
-    {lists:map(fun jsonify_permissions/1, Permissions), Req, State};
+    {ok, UserObj} = libsnarl:user_get(User),
+    {lists:map(fun jsonify_permissions/1, jsxd:get(<<"permissions">>, [], UserObj)), Req, State};
 
 handle_request(Req, State = #state{path = [User, <<"groups">>]}) ->
-    {ok, {user, _Name, _, _Permissions, _, Groups}} = libsnarl:user_get(User),
-    {Groups, Req, State}.
+    {ok, UserObj} = libsnarl:user_get(User),
+    {jsxd:get(<<"groups">>, [], UserObj), Req, State}.
 
 %%--------------------------------------------------------------------
 %% PUT
@@ -281,11 +284,7 @@ delete_resource(Req, State = #state{path = [User, <<"groups">>, Group]}) ->
 %% Internal Functions
 
 erlangify_permission(P) ->
-    lists:map(fun(<<"...">>) ->
-                      '...';
-                 (<<"_">>) ->
-                      '_';
-                 (E) ->
+    lists:map(fun(E) ->
                       E
               end, P).
 
@@ -309,10 +308,6 @@ allowed(Token, Perm) ->
     end.
 
 -ifdef(TEST).
-
-erlangify_permission_test() ->
-    ?assertEqual(['_', <<"a">>, '...'],
-                 erlangify_permission([<<"_">>, <<"a">>, <<"...">>])).
 
 jsonify_permission_test() ->
     ?assertEqual([<<"_">>, <<"a">>, <<"...">>],
