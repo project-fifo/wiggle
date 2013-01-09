@@ -133,7 +133,7 @@ from_json(Req, State) ->
     {ok, Body, Req1} = cowboy_http_req:body(Req),
     {Reply, Req2, State1} = case Body of
                                 <<>> ->
-                                    handle_write(Req1, State, []);
+                                    handle_write(Req1, State, null);
                                 _ ->
                                     Decoded = jsx:decode(Body),
                                     handle_write(Req1, State, Decoded)
@@ -141,16 +141,8 @@ from_json(Req, State) ->
     {Reply, Req2, State1}.
 
 handle_write(Req, State = #state{path = [Package]}, Body) ->
-    {<<"ram">>, Ram} = lists:keyfind(<<"ram">>, 1, Body),
-    {<<"quota">>, Quota} = lists:keyfind(<<"quota">>, 1, Body),
-    Data = [{<<"quota">>, Quota},
-            {<<"ram">>, Ram}],
-    Data1 = case lists:keyfind(<<"cpu_cap">>, 1, Body) of
-                {<<"cpu_cap">>, VCPUS} ->
-                    [{<<"cpu_cap">>, VCPUS} | Data];
-                _ ->
-                    Data
-            end,
+    Data = jsxd:from_list(Body),
+    Data1 = jsxd:select([<<"cpu_cap">>,<<"quota">>, <<"ram">>, <<"requirements">>], Data),
     ok = libsniffle:package_create(Package),
     ok = libsniffle:package_set(Package, Data1),
     {true, Req, State};
