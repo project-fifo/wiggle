@@ -151,7 +151,7 @@ create_path(Req, State = #state{path = [], version = Version}) ->
     {ok, User} = jsxd:get(<<"user">>, Decoded),
     {ok, Pass} = jsxd:get(<<"password">>, Decoded),
     case libsnarl:auth(User, Pass) of
-        {ok, {ok, UUID}} ->
+        {ok, UUID} ->
             {<<"/api/", Version/binary, "/sessions/", UUID/binary>>, Req2, State};
         _ ->
             Req3 = cowboy_http_req:reply(403, [], <<"Forbidden!">>, Req2),
