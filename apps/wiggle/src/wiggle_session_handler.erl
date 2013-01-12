@@ -152,7 +152,8 @@ create_path(Req, State = #state{path = [], version = Version}) ->
     {ok, Pass} = jsxd:get(<<"password">>, Decoded),
     case libsnarl:auth(User, Pass) of
         {ok, {token, UUID}} ->
-            {<<"/api/", Version/binary, "/sessions/", UUID/binary>>, Req2, State};
+            {ok, Req3} = cowboy_http_req:set_resp_cookie(<<"X-Snarl-Token">>, UUID, [{max_age, 0}], Req2),
+            {<<"/api/", Version/binary, "/sessions/", UUID/binary>>, Req3, State};
         _ ->
             Req3 = cowboy_http_req:reply(403, [], <<"Forbidden!">>, Req2),
             {ok, Req3, State}

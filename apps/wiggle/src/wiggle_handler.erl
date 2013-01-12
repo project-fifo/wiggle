@@ -35,7 +35,6 @@ initial_state(Req, Component) ->
     io:format("[~p] - ~p~n", [Method, Path]),
     {ok, Req7, State}.
 
-
 accepted() ->
     [
      {<<"application/json; charset=UTF-8">>, from_json},
