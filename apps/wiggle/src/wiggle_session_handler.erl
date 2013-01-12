@@ -131,7 +131,11 @@ to_json(Req, State) ->
 
 handle_request(Req, State = #state{path = [Session], obj = Obj}) ->
     Obj1 = jsxd:thread([{set, <<"session">>, Session},
-                        {delete, <<"password">>}],
+                        {delete, <<"password">>},
+                        {<<"permissions">>,
+                           fun (Permissions) ->
+                                   lists:map(fun jsonify_permissions/1, Permissions)
+                           end, []}],
                        Obj),
     {Obj1, Req, State}.
 
@@ -182,3 +186,13 @@ handle_write(Req, State, _) ->
 delete_resource(Req, State = #state{path = [_Session]}) ->
     %% TODO
     {true, Req, State}.
+
+
+jsonify_permissions(P) ->
+    lists:map(fun('...') ->
+                      <<"...">>;
+                 ('_') ->
+                      <<"_">>;
+                 (E) ->
+                      E
+              end, P).
