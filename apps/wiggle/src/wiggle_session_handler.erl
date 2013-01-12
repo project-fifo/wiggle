@@ -172,7 +172,7 @@ from_json(Req, State) ->
     {Reply, Req2, State1}.
 
 handle_write(Req, State, _) ->
-    {false, Req, State}.
+    {true, Req, State}.
 
 %%--------------------------------------------------------------------
 %% DEETE
