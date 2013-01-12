@@ -46,7 +46,7 @@ init(_Transport, _Req, []) ->
 
 rest_init(Req, _) ->
     {Method, Req1} = cowboy_http_req:method(Req),
-    {[<<"api">>, <<"0.1.0">>, <<"session">> | Path], Req2} = cowboy_http_req:path(Req1),
+    {[<<"api">>, Version, <<"session">> | Path], Req2} = cowboy_http_req:path(Req1),
     {ok, Req3} = cowboy_http_req:set_resp_header(<<"Access-Control-Allow-Origin">>, <<"*">>, Req2),
     {Token, Req4} = case cowboy_http_req:header(<<"X-Snarl-Token">>, Req3) of
                         {undefined, ReqX} ->
