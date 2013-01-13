@@ -160,7 +160,7 @@ create_path(Req, State = #state{path = [], version = Version}) ->
                                                          [{max_age, 364*24*60*60}], Req2),
             {<<"/api/", Version/binary, "/sessions/", UUID/binary>>, Req3, State};
         _ ->
-            Req3 = cowboy_http_req:reply(403, [], <<"Forbidden!">>, Req2),
+            {ok, Req3} = cowboy_http_req:reply(403, [], <<"Forbidden!">>, Req2),
             {ok, Req3, State}
     end.
 
