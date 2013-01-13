@@ -154,9 +154,8 @@ create_path(Req, State = #state{path = [], version = Version, token = Token}) ->
     {ok, Package} = jsxd:get(<<"package">>, Decoded),
     {ok, Config} = jsxd:get(<<"config">>, Decoded),
     {ok, User} = libsnarl:user_get({token, Token}),
-    {ok, UserUUID} = jsxd:get(<<"uuid">>, User),
-    {ok, Owner} = jsxd:get(<<"name">>, User),
-    {ok, UUID} = libsniffle:create(Package, Dataset, jsxd:set(<<"owner">>, UserUUID, Config)),
+    {ok, Owner} = jsxd:get(<<"uuid">>, User),
+    {ok, UUID} = libsniffle:create(Package, Dataset, jsxd:set(<<"owner">>, Owner, Config)),
     {<<"/api/", Version/binary, "/vms/", UUID/binary>>, Req2, State}.
 
 
