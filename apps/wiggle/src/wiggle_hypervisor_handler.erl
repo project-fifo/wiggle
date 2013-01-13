@@ -62,7 +62,10 @@ allowed_methods(_Version, _Token, []) ->
     ['GET'];
 
 allowed_methods(_Version, _Token, [_Hypervisor]) ->
-    ['GET'].
+    ['GET'];
+
+allowed_methods(_Version, _Token, [_Hypervisor, <<"metadata">>]) ->
+    ['PUT'].
 
 resource_exists(Req, State = #state{path = []}) ->
     {true, Req, State};
@@ -95,6 +98,9 @@ forbidden(Req, State = #state{path = []}) ->
 
 forbidden(Req, State = #state{method = 'GET', path = [Hypervisor]}) ->
     {allowed(State#state.token, [<<"hypervisors">>, Hypervisor, <<"get">>]), Req, State};
+
+forbidden(Req, State = #state{method = 'PUT', path = [Hypervisor, <<"metadata">>]}) ->
+    {allowed(State#state.token, [<<"hypervisors">>, Hypervisor, <<"edit">>]), Req, State};
 
 forbidden(Req, State) ->
     {true, Req, State}.
@@ -134,12 +140,16 @@ from_json(Req, State) ->
                             end,
     {Reply, Req2, State1}.
 
+handle_write(Req, State = #state{path = [Hypervisor, <<"metadata">>]}, [{K, V}]) ->
+    libsniffle:hypervisor_set(Hypervisor, <<"metadata.", K/binary>>, jsxd:from_list(V)),
+    {true, Req, State};
+
 handle_write(Req, State, _Body) ->
     {false, Req, State}.
 
 
 %%--------------------------------------------------------------------
-%% DEETE
+%% DELETE
 %%--------------------------------------------------------------------
 
 %% Internal Functions

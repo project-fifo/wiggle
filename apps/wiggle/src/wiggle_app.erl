@@ -15,6 +15,7 @@ start(_StartType, _StartArgs) ->
     {ok, Acceptors} = application:get_env(wiggle, acceptors),
 
     Dispatch = [{'_', [{[<<"api">>, '_', <<"users">>, '...'], wiggle_user_handler, []},
+                       {[<<"api">>, '_', <<"sessions">>, '...'], wiggle_session_handler, []},
                        {[<<"api">>, '_', <<"groups">>, '...'], wiggle_group_handler, []},
                        {[<<"api">>, '_', <<"cloud">>, '...'], wiggle_cloud_handler, []},
                        {[<<"api">>, '_', <<"hypervisors">>, '...'], wiggle_hypervisor_handler, []},
