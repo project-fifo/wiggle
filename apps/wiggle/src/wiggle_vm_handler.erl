@@ -72,7 +72,14 @@ allowed_methods(_Version, _Token, []) ->
     ['GET', 'POST'];
 
 allowed_methods(_Version, _Token, [_Vm]) ->
-    ['GET', 'PUT', 'DELETE'].
+    ['GET', 'PUT', 'DELETE'];
+
+allowed_methods(_Version, _Token, [_Vm, <<"snapshots">>, _ID]) ->
+    ['GET', 'PUT', 'DELETE'];
+
+allowed_methods(_Version, _Token, [_Vm, <<"snapshots">>]) ->
+    ['GET', 'POST'].
+
 
 resource_exists(Req, State = #state{path = []}) ->
     {true, Req, State};
@@ -83,6 +90,27 @@ resource_exists(Req, State = #state{path = [Vm]}) ->
             {false, Req, State};
         {ok, _} ->
             {true, Req, State}
+    end;
+
+resource_exists(Req, State = #state{path = [Vm, <<"snapshots">>]}) ->
+    case libsniffle:vm_get(Vm) of
+        not_found ->
+            {false, Req, State};
+        {ok, _} ->
+            {true, Req, State}
+    end;
+
+resource_exists(Req, State = #state{path = [Vm, <<"snapshots">>, Snap]}) ->
+    case libsniffle:vm_get(Vm) of
+        not_found ->
+            {false, Req, State};
+        {ok, V} ->
+            case jsxd:get([<<"snapshots">>, Snap], V) of
+                not_found ->
+                    {false, Req, State};
+                {ok, _} ->
+                    {true, Req, State}
+            end
     end.
 
 is_authorized(Req, State = #state{method = 'OPTIONS'}) ->
@@ -115,6 +143,21 @@ forbidden(Req, State = #state{method = 'DELETE', path = [Vm]}) ->
 forbidden(Req, State = #state{method = 'PUT', path = [Vm]}) ->
     {allowed(State#state.token, [<<"vms">>, Vm, <<"edit">>]), Req, State};
 
+forbidden(Req, State = #state{method = 'GET', path = [Vm, <<"snapshots">>]}) ->
+    {allowed(State#state.token, [<<"vms">>, Vm, <<"get">>]), Req, State};
+
+forbidden(Req, State = #state{method = 'POST', path = [Vm, <<"snapshots">>]}) ->
+    {allowed(State#state.token, [<<"vms">>, Vm, <<"snapshot">>]), Req, State};
+
+forbidden(Req, State = #state{method = 'GET', path = [Vm, <<"snapshots">>, Snap]}) ->
+    {allowed(State#state.token, [<<"vms">>, Vm, <<"snapshots">>, Snap, <<"get">>]), Req, State};
+
+forbidden(Req, State = #state{method = 'PUT', path = [Vm, <<"snapshots">>, Snap]}) ->
+    {allowed(State#state.token, [<<"vms">>, Vm, <<"snapshots">>, Snap, <<"rollback">>]), Req, State};
+
+forbidden(Req, State = #state{method = 'DELETE', path = [Vm, <<"snapshots">>, Snap]}) ->
+    {allowed(State#state.token, [<<"vms">>, Vm, <<"snapshots">>, Snap, <<"delete">>]), Req, State};
+
 forbidden(Req, State) ->
     {true, Req, State}.
 
@@ -130,6 +173,14 @@ handle_request(Req, State = #state{token = Token, path = []}) ->
     {ok, Permissions} = libsnarl:user_cache({token, Token}),
     {ok, Res} = libsniffle:vm_list([{must, 'allowed', [<<"vm">>, {<<"res">>, <<"uuid">>}, <<"get">>], Permissions}]),
     {lists:map(fun ({E, _}) -> E end,  Res), Req, State};
+
+handle_request(Req, State = #state{path = [Vm, <<"snapshots">>]}) ->
+    {ok, Res} = libsniffle:vm_get(Vm),
+    {jsxd:get(<<"snapshots">>, [], Res), Req, State};
+
+handle_request(Req, State = #state{path = [Vm, <<"snapshots">>, Snap]}) ->
+    {ok, Res} = libsniffle:vm_get(Vm),
+    {jsxd:get([<<"snapshots">>, Snap], null, Res), Req, State};
 
 handle_request(Req, State = #state{path = [Vm]}) ->
     {ok, Res} = libsniffle:vm_get(Vm),
@@ -149,15 +200,26 @@ create_path(Req, State = #state{path = [], version = Version, token = Token}) ->
                               D = jsx:decode(Body),
                               {D, Req1}
                       end,
-    io:format("~p", [Decoded]),
     {ok, Dataset} = jsxd:get(<<"dataset">>, Decoded),
     {ok, Package} = jsxd:get(<<"package">>, Decoded),
     {ok, Config} = jsxd:get(<<"config">>, Decoded),
     {ok, User} = libsnarl:user_get({token, Token}),
     {ok, Owner} = jsxd:get(<<"uuid">>, User),
     {ok, UUID} = libsniffle:create(Package, Dataset, jsxd:set(<<"owner">>, Owner, Config)),
-    {<<"/api/", Version/binary, "/vms/", UUID/binary>>, Req2, State}.
+    {<<"/api/", Version/binary, "/vms/", UUID/binary>>, Req2, State};
 
+create_path(Req, State = #state{path = [Vm, <<"snapshots">>], version = Version}) ->
+    {ok, Body, Req1} = cowboy_http_req:body(Req),
+    {Decoded, Req2} = case Body of
+                          <<>> ->
+                              {[], Req1};
+                          _ ->
+                              D = jsx:decode(Body),
+                              {D, Req1}
+                      end,
+    Comment = jsxd:get(<<"comment">>, <<"snapshot">>, Decoded),
+    {ok, UUID} = libsniffle:vm_snapshot(Vm, Comment),
+    {<<"/api/", Version/binary, "/vms/", Vm/binary, "/snapshots/", UUID/binary>>, Req2, State}.
 
 from_json(Req, State) ->
     {ok, Body, Req1} = cowboy_http_req:body(Req),
@@ -185,12 +247,23 @@ handle_write(Req, State = #state{path = [Vm]}, [{<<"action">>, <<"reboot">>}]) -
 handle_write(Req, State = #state{path = []}, _Body) ->
     {true, Req, State};
 
+handle_write(Req, State = #state{path = [_Vm, <<"snapshots">>]}, _Body) ->
+    {true, Req, State};
+
+handle_write(Req, State = #state{path = [Vm, <<"snapshots">>, UUID]}, [{<<"action">>, <<"rollback">>}]) ->
+    ok = libsniffle:vm_rollback_snapshot(Vm, UUID),
+    {true, Req, State};
+
 handle_write(Req, State, _Body) ->
     {fase, Req, State}.
 
 %%--------------------------------------------------------------------
 %% DEETE
 %%--------------------------------------------------------------------
+
+delete_resource(Req, State = #state{path = [Vm, <<"snapshots">>, UUID]}) ->
+    ok = libsniffle:vm_delete_snapshot(Vm, UUID),
+    {true, Req, State};
 
 delete_resource(Req, State = #state{path = [Vm]}) ->
     ok = libsniffle:vm_delete(Vm),
