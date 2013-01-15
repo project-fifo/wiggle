@@ -75,7 +75,7 @@ allowed_methods(_Version, _Token, [_Vm]) ->
     ['GET', 'PUT', 'DELETE'];
 
 allowed_methods(_Version, _Token, [_Vm, <<"snapshots">>, _ID]) ->
-    ['GET', 'DELETE'];
+    ['GET', 'PUT', 'DELETE'];
 
 allowed_methods(_Version, _Token, [_Vm, <<"snapshots">>]) ->
     ['GET', 'POST'].
@@ -150,10 +150,13 @@ forbidden(Req, State = #state{method = 'POST', path = [Vm, <<"snapshots">>]}) ->
     {allowed(State#state.token, [<<"vms">>, Vm, <<"snapshot">>]), Req, State};
 
 forbidden(Req, State = #state{method = 'GET', path = [Vm, <<"snapshots">>, Snap]}) ->
-    {allowed(State#state.token, [<<"vms">>, Vm, <<"snapshot">>, Snap, <<"get">>]), Req, State};
+    {allowed(State#state.token, [<<"vms">>, Vm, <<"snapshots">>, Snap, <<"get">>]), Req, State};
+
+forbidden(Req, State = #state{method = 'PUT', path = [Vm, <<"snapshots">>, Snap]}) ->
+    {allowed(State#state.token, [<<"vms">>, Vm, <<"snapshots">>, Snap, <<"rollback">>]), Req, State};
 
 forbidden(Req, State = #state{method = 'DELETE', path = [Vm, <<"snapshots">>, Snap]}) ->
-    {allowed(State#state.token, [<<"vms">>, Vm, <<"snapshot">>, Snap, <<"delete">>]), Req, State};
+    {allowed(State#state.token, [<<"vms">>, Vm, <<"snapshots">>, Snap, <<"delete">>]), Req, State};
 
 forbidden(Req, State) ->
     {true, Req, State}.
@@ -245,6 +248,10 @@ handle_write(Req, State = #state{path = []}, _Body) ->
     {true, Req, State};
 
 handle_write(Req, State = #state{path = [_Vm, <<"snapshots">>]}, _Body) ->
+    {true, Req, State};
+
+handle_write(Req, State = #state{path = [Vm, <<"snapshots">>, UUID]}, [{<<"action">>, <<"rollback">>}]) ->
+    ok = libsniffle:vm_rollback_snapshot(Vm, UUID),
     {true, Req, State};
 
 handle_write(Req, State, _Body) ->
