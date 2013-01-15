@@ -10,6 +10,7 @@
          content_types_accepted/2,
          allowed_methods/2,
          resource_exists/2,
+         delete_resource/2,
          forbidden/2,
          options/2,
          is_authorized/2]).
@@ -62,7 +63,7 @@ allowed_methods(_Version, _Token, []) ->
     ['GET'];
 
 allowed_methods(_Version, _Token, [_Dataset]) ->
-    ['GET'].
+    ['GET', 'DELETE'].
 
 resource_exists(Req, State = #state{path = []}) ->
     {true, Req, State};
@@ -95,6 +96,9 @@ forbidden(Req, State = #state{path = []}) ->
 
 forbidden(Req, State = #state{method = 'GET', path = [Dataset]}) ->
     {allowed(State#state.token, [<<"datasets">>, Dataset, <<"get">>]), Req, State};
+
+forbidden(Req, State = #state{method = 'DELETE', path = [Dataset]}) ->
+    {allowed(State#state.token, [<<"datasets">>, Dataset, <<"delete">>]), Req, State};
 
 forbidden(Req, State) ->
     {true, Req, State}.
@@ -136,7 +140,15 @@ handle_write(Req, State, _Body) ->
     {fase, Req, State}.
 
 %%--------------------------------------------------------------------
-%% DEETE
+%% DELETE
+%%--------------------------------------------------------------------
+
+delete_resource(Req, State = #state{path = [Dataset]}) ->
+    ok = libsniffle:dataset_delete(Dataset),
+    {true, Req, State}.
+
+%%--------------------------------------------------------------------
+%% Internal Functions
 %%--------------------------------------------------------------------
 
 allowed(Token, Perm) ->
