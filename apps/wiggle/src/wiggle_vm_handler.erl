@@ -149,6 +149,9 @@ forbidden(Req, State = #state{method = 'GET', path = [Vm, <<"snapshots">>]}) ->
 forbidden(Req, State = #state{method = 'POST', path = [Vm, <<"snapshots">>]}) ->
     {allowed(State#state.token, [<<"vms">>, Vm, <<"snapshot">>]), Req, State};
 
+forbidden(Req, State = #state{method = 'GET', path = [Vm, <<"snapshots">>, Snap]}) ->
+    {allowed(State#state.token, [<<"vms">>, Vm, <<"snapshot">>, Snap, <<"get">>]), Req, State};
+
 forbidden(Req, State = #state{method = 'DELETE', path = [Vm, <<"snapshots">>, Snap]}) ->
     {allowed(State#state.token, [<<"vms">>, Vm, <<"snapshot">>, Snap, <<"delete">>]), Req, State};
 
