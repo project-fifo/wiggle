@@ -176,7 +176,10 @@ handle_request(Req, State = #state{token = Token, path = []}) ->
 
 handle_request(Req, State = #state{path = [Vm, <<"snapshots">>]}) ->
     {ok, Res} = libsniffle:vm_get(Vm),
-    {jsxd:get(<<"snapshots">>, [], Res), Req, State};
+    Snaps = jsxd:fold(fun(UUID, Snap, Acc) ->
+                              [jsxd:set(<<"uuid">>, UUID, Snap) | Acc]
+                      end, [], jsxd:get(<<"snapshots">>, [], Res)),
+    {Snaps, Req, State};
 
 handle_request(Req, State = #state{path = [Vm, <<"snapshots">>, Snap]}) ->
     {ok, Res} = libsniffle:vm_get(Vm),

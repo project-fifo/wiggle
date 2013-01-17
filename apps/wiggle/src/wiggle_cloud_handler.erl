@@ -59,13 +59,22 @@ content_types_accepted(Req, State) ->
 allowed_methods(Req, State) ->
     {['HEAD', 'OPTIONS' | allowed_methods(State#state.version, State#state.token, State#state.path)], Req, State}.
 
+allowed_methods(_Version, _Token, [<<"connection">>]) ->
+    ['GET'];
+
 allowed_methods(_Version, _Token, []) ->
     ['GET'].
 
 resource_exists(Req, State = #state{path = []}) ->
+    {true, Req, State};
+
+resource_exists(Req, State = #state{path = [<<"connection">>]}) ->
     {true, Req, State}.
 
 is_authorized(Req, State = #state{method = 'OPTIONS'}) ->
+    {true, Req, State};
+
+is_authorized(Req, State = #state{path = [<<"connection">>]}) ->
     {true, Req, State};
 
 is_authorized(Req, State = #state{token = undefined}) ->
@@ -80,6 +89,9 @@ forbidden(Req, State = #state{method = 'OPTIONS'}) ->
 forbidden(Req, State = #state{token = undefined}) ->
     {true, Req, State};
 
+forbidden(Req, State = #state{path = [<<"connection">>]}) ->
+    {false, Req, State};
+
 forbidden(Req, State = #state{path = []}) ->
     {allowed(State#state.token, [<<"cloud">>]), Req, State};
 
@@ -93,6 +105,13 @@ forbidden(Req, State) ->
 to_json(Req, State) ->
     {Reply, Req1, State1} = handle_request(Req, State),
     {jsx:encode(Reply), Req1, State1}.
+
+handle_request(Req, State = #state{path = [<<"connection">>]}) ->
+    Res = jsxd:thread([{set, <<"sniffle">>, length(libsniffle:servers())},
+                       {set, <<"snarl">>, length(libsnarl:servers())},
+                       {set, <<"howl">>, length(libhowl:servers())}],
+                      []),
+    {Res, Req, State};
 
 handle_request(Req, State = #state{path = []}) ->
     case libsniffle:cloud_status() of
