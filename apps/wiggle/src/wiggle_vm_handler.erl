@@ -221,14 +221,16 @@ create_path(Req, State = #state{path = [], version = Version, token = Token}) ->
             {ok, User} = libsnarl:user_get({token, Token}),
             {ok, Owner} = jsxd:get(<<"uuid">>, User),
             {ok, UUID} = libsniffle:create(Package, Dataset, jsxd:set(<<"owner">>, Owner, Config)),
-            -    {<<"/api/", Version/binary, "/vms/", UUID/binary>>, Req2, State}
+            {<<"/api/", Version/binary, "/vms/", UUID/binary>>, Req2, State}
         catch
             _:_ ->
-                {500, Req2, State}
+                {ok, Req3} = cowboy_http_req:reply(500, Req2),
+                {halt, Req3, State}
         end
     catch
         _:_ ->
-            {400, Req2, State}
+            {ok, Req3} = cowboy_http_req:reply(500, Req2),
+            {halt, Req3, State}
     end;
 
 create_path(Req, State = #state{path = [Vm, <<"snapshots">>], version = Version}) ->
