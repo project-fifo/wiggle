@@ -150,8 +150,12 @@ handle_request(Req, State = #state{path = []}) ->
                         _ ->
                             [{howl, <<"not connected">>} | Vers1]
                     end,
+            {ok, Users} = libsnarl:user_list(),
+            {ok, Vms} = libsniffle:vm_list(),
             {[{versions, [{wiggle, ?VERSION} | Vers2]},
-              {metrics, Metrics},
+              {metrics, [{<<"users">>, length(Users)},
+                         {<<"vms">>, length(Vms)} |
+                         Metrics]},
               {warnings, Warnings}], Req, State};
         _ ->
             {[{warnings, [{cloud, <<"down!">>}]}], Req, State}
