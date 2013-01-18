@@ -14,6 +14,7 @@
          resource_exists/2,
          forbidden/2,
          options/2,
+         service_available/2,
          is_authorized/2]).
 
 -export([to_json/2,
@@ -27,6 +28,7 @@
               forbidden/2,
               init/3,
               is_authorized/2,
+              service_available/2,
               options/2,
               resource_exists/2,
               rest_init/2]).
@@ -38,6 +40,16 @@ init(_Transport, _Req, []) ->
 
 rest_init(Req, _) ->
     wiggle_handler:initial_state(Req, <<"cloud">>).
+
+service_available(Req, State) ->
+    case {libsniffle:servers(), libsnarl:servers()} of
+        {[], _} ->
+            {false, Req, State};
+        {_, []} ->
+            {false, Req, State};
+        _ ->
+            {true, Req, State}
+    end.
 
 options(Req, State) ->
     Methods = allowed_methods(Req, State, State#state.path),
@@ -103,12 +115,8 @@ forbidden(Req, State) ->
 %%--------------------------------------------------------------------
 
 to_json(Req, State) ->
-    case handle_request(Req, State) of
-        {{ok, Reply}, Req1, State1} ->
-            {jsx:encode(Reply), Req1, State1};
-        {{error, no_servers}, Req1, State1} ->
-            {503, Req1, State1}
-    end.
+    {Reply, Req1, State1} = handle_request(Req, State),
+    {jsx:encode(Reply), Req1, State1}.
 
 handle_request(Req, State = #state{path = [<<"connection">>]}) ->
     Res = jsxd:thread([{set, <<"sniffle">>, length(libsniffle:servers())},
@@ -119,8 +127,6 @@ handle_request(Req, State = #state{path = [<<"connection">>]}) ->
 
 handle_request(Req, State = #state{path = []}) ->
     case libsniffle:cloud_status() of
-        {error,no_server} ->
-            {{error, no_servers}, Req, State};
         {ok, {Metrics, Warnings}} ->
             Vers0 = case libsnarl:version() of
                         SrvVer when is_binary(SrvVer) ->
@@ -140,13 +146,11 @@ handle_request(Req, State = #state{path = []}) ->
                         _ ->
                             [{howl, <<"not connected">>} | Vers1]
                     end,
-            {{ok,
-              [{versions, [{wiggle, ?VERSION} | Vers2]},
-               {metrics, Metrics},
-               {warnings, Warnings}]}, Req, State};
+            {[{versions, [{wiggle, ?VERSION} | Vers2]},
+              {metrics, Metrics},
+              {warnings, Warnings}], Req, State};
         _ ->
-            {{ok,
-              [{warnings, [{cloud, <<"down!">>}]}]}, Req, State}
+            {[{warnings, [{cloud, <<"down!">>}]}], Req, State}
     end.
 
 

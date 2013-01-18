@@ -10,6 +10,7 @@
          content_types_accepted/2,
          allowed_methods/2,
          resource_exists/2,
+         service_available/2,
          delete_resource/2,
          forbidden/2,
          options/2,
@@ -28,6 +29,7 @@
               init/3,
               is_authorized/2,
               options/2,
+              service_available/2,
               resource_exists/2,
               rest_init/2]).
 
@@ -39,6 +41,16 @@ init(_Transport, _Req, []) ->
 
 rest_init(Req, _) ->
     wiggle_handler:initial_state(Req, <<"packages">>).
+
+service_available(Req, State) ->
+    case {libsniffle:servers(), libsnarl:servers()} of
+        {[], _} ->
+            {false, Req, State};
+        {_, []} ->
+            {false, Req, State};
+        _ ->
+            {true, Req, State}
+    end.
 
 options(Req, State) ->
     Methods = allowed_methods(Req, State, State#state.path),

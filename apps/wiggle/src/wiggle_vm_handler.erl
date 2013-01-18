@@ -15,6 +15,7 @@
          post_is_create/2,
          create_path/2,
          options/2,
+         service_available/2,
          is_authorized/2]).
 
 -export([to_json/2,
@@ -32,6 +33,7 @@
               post_is_create/2,
               is_authorized/2,
               options/2,
+              service_available/2,
               resource_exists/2,
               rest_init/2]).
 
@@ -42,6 +44,16 @@ init(_Transport, _Req, []) ->
 
 rest_init(Req, _) ->
     wiggle_handler:initial_state(Req, <<"vms">>).
+
+service_available(Req, State) ->
+    case {libsniffle:servers(), libsnarl:servers()} of
+        {[], _} ->
+            {false, Req, State};
+        {_, []} ->
+            {false, Req, State};
+        _ ->
+            {true, Req, State}
+    end.
 
 options(Req, State) ->
     Methods = allowed_methods(Req, State, State#state.path),
@@ -200,13 +212,24 @@ create_path(Req, State = #state{path = [], version = Version, token = Token}) ->
                               D = jsx:decode(Body),
                               {D, Req1}
                       end,
-    {ok, Dataset} = jsxd:get(<<"dataset">>, Decoded),
-    {ok, Package} = jsxd:get(<<"package">>, Decoded),
-    {ok, Config} = jsxd:get(<<"config">>, Decoded),
-    {ok, User} = libsnarl:user_get({token, Token}),
-    {ok, Owner} = jsxd:get(<<"uuid">>, User),
-    {ok, UUID} = libsniffle:create(Package, Dataset, jsxd:set(<<"owner">>, Owner, Config)),
-    {<<"/api/", Version/binary, "/vms/", UUID/binary>>, Req2, State};
+    try
+        {ok, Dataset} = jsxd:get(<<"dataset">>, Decoded),
+        {ok, Package} = jsxd:get(<<"package">>, Decoded),
+        {ok, Config} = jsxd:get(<<"config">>, Decoded),
+
+        try
+            {ok, User} = libsnarl:user_get({token, Token}),
+            {ok, Owner} = jsxd:get(<<"uuid">>, User),
+            {ok, UUID} = libsniffle:create(Package, Dataset, jsxd:set(<<"owner">>, Owner, Config)),
+            -    {<<"/api/", Version/binary, "/vms/", UUID/binary>>, Req2, State}
+        catch
+            _:_ ->
+                {500, Req2, State}
+        end
+    catch
+        _:_ ->
+            {400, Req2, State}
+    end;
 
 create_path(Req, State = #state{path = [Vm, <<"snapshots">>], version = Version}) ->
     {ok, Body, Req1} = cowboy_http_req:body(Req),
@@ -217,7 +240,7 @@ create_path(Req, State = #state{path = [Vm, <<"snapshots">>], version = Version}
                               D = jsx:decode(Body),
                               {D, Req1}
                       end,
-    Comment = jsxd:get(<<"comment">>, <<"snapshot">>, Decoded),
+    Comment = jsxd:get(<<"comment">>, <<"">>, Decoded),
     {ok, UUID} = libsniffle:vm_snapshot(Vm, Comment),
     {<<"/api/", Version/binary, "/vms/", Vm/binary, "/snapshots/", UUID/binary>>, Req2, State}.
 

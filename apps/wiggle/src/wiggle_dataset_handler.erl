@@ -13,6 +13,7 @@
          delete_resource/2,
          forbidden/2,
          options/2,
+         service_available/2,
          is_authorized/2]).
 
 -export([to_json/2,
@@ -29,6 +30,7 @@
               init/3,
               is_authorized/2,
               options/2,
+              service_available/2,
               resource_exists/2,
               rest_init/2]).
 -record(state, {path, method, version, token, content, reply, obj}).
@@ -38,6 +40,16 @@ init(_Transport, _Req, []) ->
 
 rest_init(Req, _) ->
     wiggle_handler:initial_state(Req, <<"datasets">>).
+
+service_available(Req, State) ->
+    case {libsniffle:servers(), libsnarl:servers()} of
+        {[], _} ->
+            {false, Req, State};
+        {_, []} ->
+            {false, Req, State};
+        _ ->
+            {true, Req, State}
+    end.
 
 options(Req, State) ->
     Methods = allowed_methods(Req, State, State#state.path),
@@ -118,7 +130,6 @@ handle_request(Req, State = #state{token = Token, path = []}) ->
 
 handle_request(Req, State = #state{path = [_Dataset], obj = Obj}) ->
     {Obj, Req, State}.
-
 
 %%--------------------------------------------------------------------
 %% PUT
