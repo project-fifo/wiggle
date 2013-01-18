@@ -72,8 +72,8 @@ resource_exists(Req, State = #state{path = [Dataset]}) ->
     case libsniffle:dataset_get(Dataset) of
         not_found ->
             {false, Req, State};
-        {ok, _} ->
-            {true, Req, State}
+        {ok, Obj} ->
+            {true, Req, State#state{obj = Obj}}
     end.
 
 is_authorized(Req, State = #state{method = 'OPTIONS'}) ->
@@ -116,9 +116,8 @@ handle_request(Req, State = #state{token = Token, path = []}) ->
     {ok, Res} = libsniffle:dataset_list([{must, 'allowed', [<<"datast">>, {<<"res">>, <<"name">>}, <<"get">>], Permissions}]),
     {lists:map(fun ({E, _}) -> E end,  Res), Req, State};
 
-handle_request(Req, State = #state{path = [Dataset]}) ->
-    {ok, Res} = libsniffle:dataset_get(Dataset),
-    {Res, Req, State}.
+handle_request(Req, State = #state{path = [_Dataset], obj = Obj}) ->
+    {Obj, Req, State}.
 
 
 %%--------------------------------------------------------------------

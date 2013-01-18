@@ -103,8 +103,12 @@ forbidden(Req, State) ->
 %%--------------------------------------------------------------------
 
 to_json(Req, State) ->
-    {Reply, Req1, State1} = handle_request(Req, State),
-    {jsx:encode(Reply), Req1, State1}.
+    case handle_request(Req, State) of
+        {{ok, Reply}, Req1, State1} ->
+            {jsx:encode(Reply), Req1, State1};
+        {{error, no_servers}, Req1, State1} ->
+            {503, Req1, State1}
+    end.
 
 handle_request(Req, State = #state{path = [<<"connection">>]}) ->
     Res = jsxd:thread([{set, <<"sniffle">>, length(libsniffle:servers())},
@@ -115,6 +119,8 @@ handle_request(Req, State = #state{path = [<<"connection">>]}) ->
 
 handle_request(Req, State = #state{path = []}) ->
     case libsniffle:cloud_status() of
+        {error,no_server} ->
+            {{error, no_servers}, Req, State};
         {ok, {Metrics, Warnings}} ->
             Vers0 = case libsnarl:version() of
                         SrvVer when is_binary(SrvVer) ->
@@ -134,11 +140,13 @@ handle_request(Req, State = #state{path = []}) ->
                         _ ->
                             [{howl, <<"not connected">>} | Vers1]
                     end,
-            {[{versions, [{wiggle, ?VERSION} | Vers2]},
-              {metrics, Metrics},
-              {warnings, Warnings}], Req, State};
+            {{ok,
+              [{versions, [{wiggle, ?VERSION} | Vers2]},
+               {metrics, Metrics},
+               {warnings, Warnings}]}, Req, State};
         _ ->
-            {[{warnings, [{cloud, <<"down!">>}]}], Req, State}
+            {{ok,
+              [{warnings, [{cloud, <<"down!">>}]}]}, Req, State}
     end.
 
 
