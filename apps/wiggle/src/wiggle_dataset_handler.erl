@@ -31,7 +31,7 @@
               options/2,
               resource_exists/2,
               rest_init/2]).
--record(state, {path, method, version, token, content, reply}).
+-record(state, {path, method, version, token, content, reply, obj}).
 
 init(_Transport, _Req, []) ->
     {upgrade, protocol, cowboy_http_rest}.
