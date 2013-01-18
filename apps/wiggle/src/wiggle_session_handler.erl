@@ -45,32 +45,7 @@ init(_Transport, _Req, []) ->
     {upgrade, protocol, cowboy_http_rest}.
 
 rest_init(Req, _) ->
-    {Method, Req1} = cowboy_http_req:method(Req),
-    {[<<"api">>, Version, <<"sessions">> | Path], Req2} = cowboy_http_req:path(Req1),
-    {ok, Req3} = cowboy_http_req:set_resp_header(<<"Access-Control-Allow-Origin">>, <<"*">>, Req2),
-    {Token, Req4} = case cowboy_http_req:header(<<"X-Snarl-Token">>, Req3) of
-                        {undefined, ReqX} ->
-                            {TokenX, ReqX1} = cowboy_http_req:cookie(<<"X-Snarl-Token">>, ReqX),
-                            {TokenX, ReqX1};
-                        {TokenX, ReqX} ->
-                            {ok, ReqX1} = cowboy_http_req:set_resp_header(<<"X-Snarl-Token">>, TokenX, ReqX),
-                            {TokenX, ReqX1}
-                    end,
-    {ok, Req5} = cowboy_http_req:set_resp_header(
-                   <<"Access-Control-Allow-Headers">>,
-                   <<"Content-Type, X-Snarl-Token">>, Req4),
-    {ok, Req6} = cowboy_http_req:set_resp_header(
-                   <<"Access-Control-Expose-Headers">>,
-                   <<"X-Snarl-Token">>, Req5),
-    {ok, Req7} = cowboy_http_req:set_resp_header(
-                   <<"Allow-Access-Control-Credentials">>,
-                   <<"true">>, Req6),
-    State =  #state{version = Version,
-                    method = Method,
-                    token = Token,
-                    path = Path},
-    io:format("[~p] - ~p~n", [Method, Path]),
-    {ok, Req7, State}.
+    wiggle_handler:initial_state(Req, <<"sessions">>).
 
 post_is_create(Req, State) ->
     {true, Req, State}.

@@ -30,7 +30,7 @@
               resource_exists/2,
               rest_init/2]).
 
--record(state, {path, method, version, token, content, reply}).
+-record(state, {path, method, version, token, content, reply, obj}).
 
 init(_Transport, _Req, []) ->
     {upgrade, protocol, cowboy_http_rest}.
@@ -74,8 +74,8 @@ resource_exists(Req, State = #state{path = [Hypervisor | _]}) ->
     case libsniffle:hypervisor_get(Hypervisor) of
         not_found ->
             {false, Req, State};
-        {ok, _} ->
-            {true, Req, State}
+        {ok, Obj} ->
+            {true, Req, State#state{obj = Obj}}
     end.
 
 is_authorized(Req, State = #state{method = 'OPTIONS'}) ->
@@ -118,11 +118,10 @@ handle_request(Req, State = #state{token = Token, path = []}) ->
     {ok, Res} = libsniffle:hypervisor_list([{must, 'allowed', [<<"hypervisor">>, {<<"res">>, <<"name">>}, <<"get">>], Permissions}]),
     {lists:map(fun ({E, _}) -> E end,  Res), Req, State};
 
-handle_request(Req, State = #state{path = [Hypervisor]}) ->
-    {ok, Res} = libsniffle:hypervisor_get(Hypervisor),
+handle_request(Req, State = #state{path = [_Hypervisor], obj = Obj}) ->
     Res1 = jsxd:thread([{delete, <<"host">>},
                         {delete, <<"port">>}],
-                       Res),
+                       Obj),
     {Res1, Req, State}.
 
 %%--------------------------------------------------------------------

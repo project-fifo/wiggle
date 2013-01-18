@@ -35,7 +35,7 @@
               resource_exists/2,
               rest_init/2]).
 
--record(state, {path, method, version, token, content, reply}).
+-record(state, {path, method, version, token, content, reply, obj}).
 
 init(_Transport, _Req, []) ->
     {upgrade, protocol, cowboy_http_rest}.
@@ -88,28 +88,28 @@ resource_exists(Req, State = #state{path = [Vm]}) ->
     case libsniffle:vm_get(Vm) of
         not_found ->
             {false, Req, State};
-        {ok, _} ->
-            {true, Req, State}
+        {ok, Obj} ->
+            {true, Req, State#state{obj=Obj}}
     end;
 
 resource_exists(Req, State = #state{path = [Vm, <<"snapshots">>]}) ->
     case libsniffle:vm_get(Vm) of
         not_found ->
             {false, Req, State};
-        {ok, _} ->
-            {true, Req, State}
+        {ok, Obj} ->
+            {true, Req, State#state{obj=Obj}}
     end;
 
 resource_exists(Req, State = #state{path = [Vm, <<"snapshots">>, Snap]}) ->
     case libsniffle:vm_get(Vm) of
         not_found ->
             {false, Req, State};
-        {ok, V} ->
-            case jsxd:get([<<"snapshots">>, Snap], V) of
+        {ok, Obj} ->
+            case jsxd:get([<<"snapshots">>, Snap], Obj) of
                 not_found ->
                     {false, Req, State};
                 {ok, _} ->
-                    {true, Req, State}
+                    {true, Req, State#state{obj=Obj}}
             end
     end.
 
@@ -174,20 +174,17 @@ handle_request(Req, State = #state{token = Token, path = []}) ->
     {ok, Res} = libsniffle:vm_list([{must, 'allowed', [<<"vm">>, {<<"res">>, <<"uuid">>}, <<"get">>], Permissions}]),
     {lists:map(fun ({E, _}) -> E end,  Res), Req, State};
 
-handle_request(Req, State = #state{path = [Vm, <<"snapshots">>]}) ->
-    {ok, Res} = libsniffle:vm_get(Vm),
+handle_request(Req, State = #state{path = [_Vm, <<"snapshots">>], obj = Obj}) ->
     Snaps = jsxd:fold(fun(UUID, Snap, Acc) ->
                               [jsxd:set(<<"uuid">>, UUID, Snap) | Acc]
-                      end, [], jsxd:get(<<"snapshots">>, [], Res)),
+                      end, [], jsxd:get(<<"snapshots">>, [], Obj)),
     {Snaps, Req, State};
 
-handle_request(Req, State = #state{path = [Vm, <<"snapshots">>, Snap]}) ->
-    {ok, Res} = libsniffle:vm_get(Vm),
-    {jsxd:get([<<"snapshots">>, Snap], null, Res), Req, State};
+handle_request(Req, State = #state{path = [_Vm, <<"snapshots">>, Snap], obj = Obj}) ->
+    {jsxd:get([<<"snapshots">>, Snap], null, Obj), Req, State};
 
-handle_request(Req, State = #state{path = [Vm]}) ->
-    {ok, Res} = libsniffle:vm_get(Vm),
-    {Res, Req, State}.
+handle_request(Req, State = #state{path = [_Vm], obj = Obj}) ->
+    {Obj, Req, State}.
 
 
 %%--------------------------------------------------------------------

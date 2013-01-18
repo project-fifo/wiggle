@@ -32,7 +32,7 @@
               rest_init/2]).
 
 
--record(state, {path, method, version, token, content, reply}).
+-record(state, {path, method, version, token, content, reply, obj}).
 
 init(_Transport, _Req, []) ->
     {upgrade, protocol, cowboy_http_rest}.
@@ -73,8 +73,8 @@ resource_exists(Req, State = #state{path = [Package]}) ->
     case libsniffle:package_get(Package) of
         not_found ->
             {false, Req, State};
-        {ok, _} ->
-            {true, Req, State}
+        {ok, Obj} ->
+            {true, Req, State#state{obj = Obj}}
     end.
 
 is_authorized(Req, State = #state{method = 'OPTIONS'}) ->
@@ -120,9 +120,8 @@ handle_request(Req, State = #state{token = Token, path = []}) ->
     {ok, Res} = libsniffle:package_list([{must, 'allowed', [<<"package">>, {<<"res">>, <<"name">>}, <<"get">>], Permissions}]),
     {lists:map(fun ({E, _}) -> E end,  Res), Req, State};
 
-handle_request(Req, State = #state{path = [Package]}) ->
-    {ok, Res} = libsniffle:package_get(Package),
-    {Res, Req, State}.
+handle_request(Req, State = #state{path = [_Package], obj = Obj}) ->
+    {Obj, Req, State}.
 
 
 %%--------------------------------------------------------------------

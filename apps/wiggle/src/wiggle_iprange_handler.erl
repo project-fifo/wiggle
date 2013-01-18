@@ -31,7 +31,7 @@
 	      resource_exists/2,
 	      rest_init/2]).
 
--record(state, {path, method, version, token, content, reply}).
+-record(state, {path, method, version, token, content, reply, obj}).
 
 init(_Transport, _Req, []) ->
     {upgrade, protocol, cowboy_http_rest}.
@@ -72,8 +72,8 @@ resource_exists(Req, State = #state{path = [Iprange]}) ->
     case libsniffle:iprange_get(Iprange) of
 	not_found ->
 	    {false, Req, State};
-	{ok, _} ->
-	    {true, Req, State}
+	{ok, Obj} ->
+	    {true, Req, State#state{obj = Obj}}
     end.
 
 is_authorized(Req, State = #state{method = 'OPTIONS'}) ->
@@ -119,8 +119,7 @@ handle_request(Req, State = #state{token = Token, path = []}) ->
     {ok, Res} = libsniffle:iprange_list([{must, 'allowed', [<<"iprange">>, {<<"res">>, <<"name">>}, <<"get">>], Permissions}]),
     {lists:map(fun ({E, _}) -> E end,  Res), Req, State};
 
-handle_request(Req, State = #state{path = [Iprange]}) ->
-    {ok, Res} = libsniffle:iprange_get(Iprange),
+handle_request(Req, State = #state{path = [_Iprange], obj = Obj}) ->
     {jsxd:thread([{update, <<"network">>, fun ip_to_str/1},
                   {update, <<"gateway">>, fun ip_to_str/1},
                   {update, <<"netmask">>, fun ip_to_str/1},
@@ -130,7 +129,7 @@ handle_request(Req, State = #state{path = [Iprange]}) ->
                   {update, <<"free">>,
                    fun (Free) ->
                            lists:map(fun ip_to_str/1, Free)
-                   end}], Res), Req, State}.
+                   end}], Obj), Req, State}.
 
 %%--------------------------------------------------------------------
 %% PUT

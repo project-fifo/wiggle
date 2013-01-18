@@ -5,7 +5,7 @@
          accepted/0
         ]).
 
--record(state, {path, method, version, token, content, reply}).
+-record(state, {path, method, version, token, content, reply, obj}).
 
 initial_state(Req, Component) ->
     {Method, Req1} = cowboy_http_req:method(Req),
