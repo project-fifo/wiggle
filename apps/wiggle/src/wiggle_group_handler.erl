@@ -15,6 +15,7 @@
          delete_resource/2,
          resource_exists/2,
          forbidden/2,
+         service_available/2,
          options/2,
          is_authorized/2]).
 
@@ -30,17 +31,28 @@
               forbidden/2,
               init/3,
               is_authorized/2,
+              service_available/2,
               options/2,
               resource_exists/2,
               rest_init/2]).
 
--record(state, {path, method, version, token, content, reply}).
+-record(state, {path, method, version, token, content, reply, obj}).
 
 init(_Transport, _Req, []) ->
     {upgrade, protocol, cowboy_http_rest}.
 
 rest_init(Req, _) ->
     wiggle_handler:initial_state(Req, <<"groups">>).
+
+service_available(Req, State) ->
+    case {libsniffle:servers(), libsnarl:servers()} of
+        {[], _} ->
+            {false, Req, State};
+        {_, []} ->
+            {false, Req, State};
+        _ ->
+            {true, Req, State}
+    end.
 
 options(Req, State) ->
     Methods = allowed_methods(Req, State, State#state.path),
@@ -79,10 +91,10 @@ resource_exists(Req, State = #state{path = [Group, <<"permissions">> | Permissio
     case {erlangify_permission(Permission), libsnarl:group_get(Group)} of
         {_, not_found} ->
             {false, Req, State};
-        {[], {ok, _}} ->
-            {true, Req, State};
-        {P, {ok, GroupObj}} ->
-            {lists:member(P, jsxd:get(<<"permissions">>, [], GroupObj)), Req, State}
+        {[], {ok, Obj}} ->
+            {true, Req, State#state{obj=Obj}};
+        {P, {ok, Obj}} ->
+            {lists:member(P, jsxd:get(<<"permissions">>, [], Obj)), Req, State#state{obj=Obj}}
     end;
 
 resource_exists(Req, State = #state{path = []}) ->
@@ -92,8 +104,8 @@ resource_exists(Req, State = #state{path = [Group | _]}) ->
     case libsnarl:group_get(Group) of
         {ok, not_found} ->
             {false, Req, State};
-        {ok, _} ->
-            {true, Req, State}
+        {ok, Obj} ->
+            {true, Req, State#state{obj=Obj}}
     end.
 
 is_authorized(Req, State = #state{path = [_, <<"sessions">>]}) ->
@@ -153,21 +165,19 @@ to_json(Req, State) ->
     {Reply, Req1, State1} = handle_request(Req, State),
     {jsx:encode(Reply), Req1, State1}.
 
-handle_request(Req, State = #state{token = _Token, path = []}) ->
+handle_request(Req, State = #state{path = []}) ->
                                                 %    {ok, Permissions} = libsnarl:user_cache({token, Token}),
     {ok, Res} = libsnarl:group_list(), %{must, 'allowed', [<<"vm">>, {<<"res">>, <<"uuid">>}, <<"get">>], Permissions}),
     {Res, Req, State};
 
-handle_request(Req, State = #state{path = [Group]}) ->
-    {ok, GroupObj} = libsnarl:group_get(Group),
+handle_request(Req, State = #state{path = [_Group], obj = GroupObj}) ->
     GroupObj1 = jsxd:update(<<"permissions">>,
                             fun (Permissions) ->
                                     lists:map(fun jsonify_permissions/1, Permissions)
                             end, [], GroupObj),
     {GroupObj1, Req, State};
 
-handle_request(Req, State = #state{path = [Group, <<"permissions">>]}) ->
-    {ok, GroupObj} = libsnarl:group_get(Group),
+handle_request(Req, State = #state{path = [_Group, <<"permissions">>], obj = GroupObj}) ->
     {lists:map(fun jsonify_permissions/1, jsxd:get(<<"permissions">>, [], GroupObj)), Req, State}.
 
 %%--------------------------------------------------------------------

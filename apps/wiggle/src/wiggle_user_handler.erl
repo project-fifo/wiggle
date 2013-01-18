@@ -15,6 +15,7 @@
          allowed_methods/2,
          delete_resource/2,
          resource_exists/2,
+         service_available/2,
          forbidden/2,
          options/2,
          is_authorized/2]).
@@ -28,6 +29,7 @@
               content_types_accepted/2,
               content_types_provided/2,
               delete_resource/2,
+              service_available/2,
               forbidden/2,
               init/3,
               is_authorized/2,
@@ -35,7 +37,7 @@
               resource_exists/2,
               rest_init/2]).
 
--record(state, {path, method, version, token, content, reply}).
+-record(state, {path, method, version, token, content, reply, obj}).
 
 
 
@@ -44,6 +46,16 @@ init(_Transport, _Req, []) ->
 
 rest_init(Req, _) ->
     wiggle_handler:initial_state(Req, <<"users">>).
+
+service_available(Req, State) ->
+    case {libsniffle:servers(), libsnarl:servers()} of
+        {[], _} ->
+            {false, Req, State};
+        {_, []} ->
+            {false, Req, State};
+        _ ->
+            {true, Req, State}
+    end.
 
 options(Req, State) ->
     Methods = allowed_methods(Req, State, State#state.path),
@@ -93,30 +105,30 @@ resource_exists(Req, State = #state{path = [User, <<"permissions">> | Permission
     case {erlangify_permission(Permission), libsnarl:user_get(User)} of
         {_, not_found} ->
             {false, Req, State};
-        {[], {ok, _}} ->
-            {true, Req, State};
-        {P, {ok, UserObj}} ->
-            {lists:member(P, jsxd:get(<<"permissions">>, [], UserObj)), Req, State}
+        {[], {ok, Obj}} ->
+            {true, Req, State#state{obj = Obj}};
+        {P, {ok, Obj}} ->
+            {lists:member(P, jsxd:get(<<"permissions">>, [], Obj)), Req, State#state{obj = Obj}}
     end;
 
 resource_exists(Req, State = #state{method = 'DELETE', path = [User, <<"groups">>, Group]}) ->
     case libsnarl:user_get(User) of
         not_found ->
             {false, Req, State};
-        {ok, UserObj} ->
-            {lists:member(Group, jsxd:get(<<"groups">>, [], UserObj)), Req, State}
+        {ok, Obj} ->
+            {lists:member(Group, jsxd:get(<<"groups">>, [], Obj)), Req, State#state{obj = Obj}}
     end;
 
 resource_exists(Req, State = #state{method = 'PUT', path = [User, <<"groups">>, Group]}) ->
     case libsnarl:user_get(User) of
         not_found ->
             {false, Req, State};
-        {ok, _} ->
+        {ok, Obj} ->
             case libsnarl:group_get(Group) of
                 not_found ->
-                    {false, Req, State};
+                    {false, Req, State#state{obj = Obj}};
                 {ok, _} ->
-                    {true, Req, State}
+                    {true, Req, State#state{obj = Obj}}
             end
     end;
 
@@ -127,8 +139,8 @@ resource_exists(Req, State = #state{path = [User | _]}) ->
     case libsnarl:user_get(User) of
         not_found ->
             {false, Req, State};
-        {ok, _} ->
-            {true, Req, State}
+        {ok, Obj} ->
+            {true, Req, State#state{obj = Obj}}
     end.
 
 
@@ -204,8 +216,7 @@ handle_request(Req, State = #state{path = []}) ->
     {ok, Res} = libsnarl:user_list(),
     {Res, Req, State};
 
-handle_request(Req, State = #state{path = [User]}) ->
-    {ok, UserObj} = libsnarl:user_get(User),
+handle_request(Req, State = #state{path = [_User], obj = UserObj}) ->
     UserObj1 = jsxd:update(<<"permissions">>,
                            fun (Permissions) ->
                                    lists:map(fun jsonify_permissions/1, Permissions)
@@ -213,12 +224,10 @@ handle_request(Req, State = #state{path = [User]}) ->
     UserObj2 = jsxd:delete(<<"password">>, UserObj1),
     {UserObj2, Req, State};
 
-handle_request(Req, State = #state{path = [User, <<"permissions">>]}) ->
-    {ok, UserObj} = libsnarl:user_get(User),
+handle_request(Req, State = #state{path = [_User, <<"permissions">>], obj = UserObj}) ->
     {lists:map(fun jsonify_permissions/1, jsxd:get(<<"permissions">>, [], UserObj)), Req, State};
 
-handle_request(Req, State = #state{path = [User, <<"groups">>]}) ->
-    {ok, UserObj} = libsnarl:user_get(User),
+handle_request(Req, State = #state{path = [_User, <<"groups">>], obj = UserObj}) ->
     {jsxd:get(<<"groups">>, [], UserObj), Req, State}.
 
 %%--------------------------------------------------------------------
