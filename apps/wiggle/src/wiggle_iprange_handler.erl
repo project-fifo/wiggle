@@ -153,7 +153,7 @@ from_json(Req, State) ->
                                 <<>> ->
                                     handle_write(Req1, State, []);
                                 _ ->
-                                    Decoded = jsx:decode(Body),
+                                    Decoded = jsxd:from_list(jsx:decode(Body)),
                                     handle_write(Req1, State, Decoded)
                             end,
     {Reply, Req2, State1}.
@@ -164,13 +164,14 @@ handle_write(Req, State = #state{path = [Iprange]}, Body) ->
     {<<"netmask">>, Netmask} = lists:keyfind(<<"netmask">>, 1, Body),
     {<<"first">>, First} = lists:keyfind(<<"first">>, 1, Body),
     {<<"last">>, Last} = lists:keyfind(<<"last">>, 1, Body),
+    Vlan = jsxd:get(<<"vlan">>, 0, Body),
     Tag = case lists:keyfind(<<"tag">>, 1, Body) of
               {<<"tag">>, T} ->
                   T;
               _ ->
                   Iprange
           end,
-    ok = libsniffle:iprange_create(Iprange, Network, Gateway, Netmask, First, Last, Tag),
+    ok = libsniffle:iprange_create(Iprange, Network, Gateway, Netmask, First, Last, Tag, Vlan),
     {true, Req, State};
 
 handle_write(Req, State, _Body) ->
