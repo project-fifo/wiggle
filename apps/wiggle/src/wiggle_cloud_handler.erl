@@ -41,6 +41,10 @@ init(_Transport, _Req, []) ->
 rest_init(Req, _) ->
     wiggle_handler:initial_state(Req, <<"cloud">>).
 
+
+service_available(Req, State = #state{path = [<<"connection">>]}) ->
+    {true, Req, State};
+
 service_available(Req, State) ->
     case {libsniffle:servers(), libsnarl:servers()} of
         {[], _} ->
