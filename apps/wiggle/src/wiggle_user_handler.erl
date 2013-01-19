@@ -275,7 +275,7 @@ handle_write(Req, State = #state{path =  [User]}, [{<<"password">>, Password}]) 
     {true, Req, State};
 
 %% TODO : This is a icky case it is called after post.
-handle_write(Req, State = #state{method = 'POST', path = [_User]}, _) ->
+handle_write(Req, State = #state{method = 'POST', path = []}, _) ->
     {true, Req, State};
 
 handle_write(Req, State = #state{path = [User, <<"groups">>, Group]}, _) ->
