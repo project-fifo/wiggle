@@ -55,10 +55,8 @@ post_is_create(Req, State) ->
     {true, Req, State}.
 
 service_available(Req, State) ->
-    case {libsniffle:servers(), libsnarl:servers()} of
-        {[], _} ->
-            {false, Req, State};
-        {_, []} ->
+    case libsnarl:servers() of
+        [] ->
             {false, Req, State};
         _ ->
             {true, Req, State}
@@ -88,13 +86,10 @@ allowed_methods(Req, State) ->
     {['HEAD', 'OPTIONS' | allowed_methods(State#state.version, State#state.token, State#state.path)], Req, State}.
 
 allowed_methods(_Version, _Token, []) ->
-    ['GET'];
+    ['GET', 'POST'];
 
 allowed_methods(_Version, _Token, [_Login]) ->
     ['GET', 'PUT', 'DELETE'];
-
-allowed_methods(_Version, _Token, [_Login, <<"sessions">>]) ->
-    ['PUT', 'DELETE'];
 
 allowed_methods(_Version, _Token, [_Login, <<"permissions">>]) ->
     ['GET'];
@@ -172,8 +167,11 @@ forbidden(Req, State = #state{method = 'OPTIONS'}) ->
 forbidden(Req, State = #state{token = undefined}) ->
     {true, Req, State};
 
-forbidden(Req, State = #state{path = []}) ->
+forbidden(Req, State = #state{method = 'GET', path = []}) ->
     {allowed(State#state.token, [<<"users">>]), Req, State};
+
+forbidden(Req, State = #state{method = 'POST', path = []}) ->
+    {allowed(State#state.token, [<<"users">>, <<"create">>]), Req, State};
 
 forbidden(Req, State = #state{method = 'GET', path = [User]}) ->
     {allowed(State#state.token, [<<"users">>, User, <<"get">>]), Req, State};
@@ -254,7 +252,7 @@ create_path(Req, State = #state{path = [], version = Version}) ->
     {ok, User} = jsxd:get(<<"user">>, Decoded),
     {ok, Pass} = jsxd:get(<<"password">>, Decoded),
     {ok, UUID} = libsnarl:user_add(User),
-    ok = libsnarl:user_passwd(User, Pass),
+    ok = libsnarl:user_passwd(UUID, Pass),
     {<<"/api/", Version/binary, "/users/", UUID/binary>>, Req2, State}.
 
 from_json(Req, State) ->
@@ -270,8 +268,14 @@ from_json(Req, State) ->
 
     {Reply, Req2, State1}.
 
+
+
 handle_write(Req, State = #state{path =  [User]}, [{<<"password">>, Password}]) ->
     ok = libsnarl:user_passwd(User, Password),
+    {true, Req, State};
+
+%% TODO : This is a icky case it is called after post.
+handle_write(Req, State = #state{method = 'POST', path = []}, _) ->
     {true, Req, State};
 
 handle_write(Req, State = #state{path = [User, <<"groups">>, Group]}, _) ->
