@@ -88,13 +88,10 @@ allowed_methods(Req, State) ->
     {['HEAD', 'OPTIONS' | allowed_methods(State#state.version, State#state.token, State#state.path)], Req, State}.
 
 allowed_methods(_Version, _Token, []) ->
-    ['GET'];
+    ['GET', 'POST'];
 
 allowed_methods(_Version, _Token, [_Login]) ->
     ['GET', 'PUT', 'DELETE'];
-
-allowed_methods(_Version, _Token, [_Login, <<"sessions">>]) ->
-    ['PUT', 'DELETE'];
 
 allowed_methods(_Version, _Token, [_Login, <<"permissions">>]) ->
     ['GET'];
@@ -172,8 +169,11 @@ forbidden(Req, State = #state{method = 'OPTIONS'}) ->
 forbidden(Req, State = #state{token = undefined}) ->
     {true, Req, State};
 
-forbidden(Req, State = #state{path = []}) ->
+forbidden(Req, State = #state{method = 'GET', path = []}) ->
     {allowed(State#state.token, [<<"users">>]), Req, State};
+
+forbidden(Req, State = #state{method = 'POST', path = []}) ->
+    {allowed(State#state.token, [<<"users">>, <<"create">>]), Req, State};
 
 forbidden(Req, State = #state{method = 'GET', path = [User]}) ->
     {allowed(State#state.token, [<<"users">>, User, <<"get">>]), Req, State};
