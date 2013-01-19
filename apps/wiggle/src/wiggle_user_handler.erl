@@ -55,10 +55,8 @@ post_is_create(Req, State) ->
     {true, Req, State}.
 
 service_available(Req, State) ->
-    case {libsniffle:servers(), libsnarl:servers()} of
-        {[], _} ->
-            {false, Req, State};
-        {_, []} ->
+    case libsnarl:servers() of
+        [] ->
             {false, Req, State};
         _ ->
             {true, Req, State}
@@ -254,7 +252,7 @@ create_path(Req, State = #state{path = [], version = Version}) ->
     {ok, User} = jsxd:get(<<"user">>, Decoded),
     {ok, Pass} = jsxd:get(<<"password">>, Decoded),
     {ok, UUID} = libsnarl:user_add(User),
-    ok = libsnarl:user_passwd(User, Pass),
+    ok = libsnarl:user_passwd(UUID, Pass),
     {<<"/api/", Version/binary, "/users/", UUID/binary>>, Req2, State}.
 
 from_json(Req, State) ->
