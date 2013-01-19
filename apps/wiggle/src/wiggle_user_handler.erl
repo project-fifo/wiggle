@@ -168,10 +168,10 @@ forbidden(Req, State = #state{token = undefined}) ->
     {true, Req, State};
 
 forbidden(Req, State = #state{method = 'GET', path = []}) ->
-    {allowed(State#state.token, [<<"users">>]), Req, State};
+    {allowed(State#state.token, [<<"cloud">>, <<"users">>, <<"list">>]), Req, State};
 
 forbidden(Req, State = #state{method = 'POST', path = []}) ->
-    {allowed(State#state.token, [<<"users">>, <<"create">>]), Req, State};
+    {allowed(State#state.token, [<<"cloud">>, <<"users">>, <<"create">>]), Req, State};
 
 forbidden(Req, State = #state{method = 'GET', path = [User]}) ->
     {allowed(State#state.token, [<<"users">>, User, <<"get">>]), Req, State};

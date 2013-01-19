@@ -104,7 +104,7 @@ forbidden(Req, State = #state{token = undefined}) ->
     {true, Req, State};
 
 forbidden(Req, State = #state{path = []}) ->
-    {allowed(State#state.token, [<<"ipranges">>]), Req, State};
+    {allowed(State#state.token, [<<"cloud">>, <<"ipranges">>, <<"list">>]), Req, State};
 
 forbidden(Req, State = #state{method = 'GET', path = [Iprange]}) ->
     {allowed(State#state.token, [<<"ipranges">>, Iprange, <<"get">>]), Req, State};
@@ -112,8 +112,8 @@ forbidden(Req, State = #state{method = 'GET', path = [Iprange]}) ->
 forbidden(Req, State = #state{method = 'DELETE', path = [Iprange]}) ->
     {allowed(State#state.token, [<<"ipranges">>, Iprange, <<"delete">>]), Req, State};
 
-forbidden(Req, State = #state{method = 'PUT', path = [Iprange]}) ->
-    {allowed(State#state.token, [<<"ipranges">>, Iprange, <<"edit">>]), Req, State};
+forbidden(Req, State = #state{method = 'PUT', path = [_Iprange]}) ->
+    {allowed(State#state.token, [<<"cloud">>, <<"ipranges">>, <<"create">>]), Req, State};
 
 forbidden(Req, State) ->
     {true, Req, State}.

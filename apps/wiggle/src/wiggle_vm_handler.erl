@@ -141,10 +141,10 @@ forbidden(Req, State = #state{token = undefined}) ->
     {true, Req, State};
 
 forbidden(Req, State = #state{method = 'GET', path = []}) ->
-    {allowed(State#state.token, [<<"vms">>]), Req, State};
+    {allowed(State#state.token, [<<"cloud">>, <<"vms">>, <<"list">>]), Req, State};
 
 forbidden(Req, State = #state{method = 'POST', path = []}) ->
-    {allowed(State#state.token, [<<"vms">>, <<"create">>]), Req, State};
+    {allowed(State#state.token, [<<"cloud">>, <<"vms">>, <<"create">>]), Req, State};
 
 forbidden(Req, State = #state{method = 'GET', path = [Vm]}) ->
     {allowed(State#state.token, [<<"vms">>, Vm, <<"get">>]), Req, State};
@@ -153,7 +153,24 @@ forbidden(Req, State = #state{method = 'DELETE', path = [Vm]}) ->
     {allowed(State#state.token, [<<"vms">>, Vm, <<"delete">>]), Req, State};
 
 forbidden(Req, State = #state{method = 'PUT', path = [Vm]}) ->
-    {allowed(State#state.token, [<<"vms">>, Vm, <<"edit">>]), Req, State};
+    {ok, Body, Req1} = cowboy_http_req:body(Req),
+    {Decoded, Req2} = case Body of
+                          <<>> ->
+                              {[], Req1};
+                          _ ->
+                              D = jsx:decode(Body),
+                              {D, Req1}
+                      end,
+    case Decoded of
+        [{<<"action">>, <<"start">>}] ->
+            {allowed(State#state.token, [<<"vms">>, Vm, <<"edit">>]), Req2, State};
+        [{<<"action">>, <<"stop">>}] ->
+            {allowed(State#state.token, [<<"vms">>, Vm, <<"stop">>]), Req2, State};
+        [{<<"action">>, <<"reboot">>}] ->
+            {allowed(State#state.token, [<<"vms">>, Vm, <<"reboot">>]), Req2, State};
+        _ ->
+            {allowed(State#state.token, [<<"vms">>, Vm, <<"edit">>]), Req2, State}
+        end;
 
 forbidden(Req, State = #state{method = 'GET', path = [Vm, <<"snapshots">>]}) ->
     {allowed(State#state.token, [<<"vms">>, Vm, <<"get">>]), Req, State};
@@ -161,14 +178,14 @@ forbidden(Req, State = #state{method = 'GET', path = [Vm, <<"snapshots">>]}) ->
 forbidden(Req, State = #state{method = 'POST', path = [Vm, <<"snapshots">>]}) ->
     {allowed(State#state.token, [<<"vms">>, Vm, <<"snapshot">>]), Req, State};
 
-forbidden(Req, State = #state{method = 'GET', path = [Vm, <<"snapshots">>, Snap]}) ->
-    {allowed(State#state.token, [<<"vms">>, Vm, <<"snapshots">>, Snap, <<"get">>]), Req, State};
+forbidden(Req, State = #state{method = 'GET', path = [Vm, <<"snapshots">>, _Snap]}) ->
+    {allowed(State#state.token, [<<"vms">>, Vm, <<"get">>]), Req, State};
 
-forbidden(Req, State = #state{method = 'PUT', path = [Vm, <<"snapshots">>, Snap]}) ->
-    {allowed(State#state.token, [<<"vms">>, Vm, <<"snapshots">>, Snap, <<"rollback">>]), Req, State};
+forbidden(Req, State = #state{method = 'PUT', path = [Vm, <<"snapshots">>, _Snap]}) ->
+    {allowed(State#state.token, [<<"vms">>, Vm, <<"rollback">>]), Req, State};
 
-forbidden(Req, State = #state{method = 'DELETE', path = [Vm, <<"snapshots">>, Snap]}) ->
-    {allowed(State#state.token, [<<"vms">>, Vm, <<"snapshots">>, Snap, <<"delete">>]), Req, State};
+forbidden(Req, State = #state{method = 'DELETE', path = [Vm, <<"snapshots">>, _Snap]}) ->
+    {allowed(State#state.token, [<<"vms">>, Vm, <<"snapshot_delete">>]), Req, State};
 
 forbidden(Req, State) ->
     {true, Req, State}.

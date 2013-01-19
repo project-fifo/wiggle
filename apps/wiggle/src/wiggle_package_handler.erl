@@ -105,7 +105,7 @@ forbidden(Req, State = #state{token = undefined}) ->
     {true, Req, State};
 
 forbidden(Req, State = #state{path = []}) ->
-    {allowed(State#state.token, [<<"packages">>]), Req, State};
+    {allowed(State#state.token, [<<"cloud">>, <<"packages">>, <<"list">>]), Req, State};
 
 forbidden(Req, State = #state{method = 'GET', path = [Package]}) ->
     {allowed(State#state.token, [<<"packages">>, Package, <<"get">>]), Req, State};
@@ -113,8 +113,8 @@ forbidden(Req, State = #state{method = 'GET', path = [Package]}) ->
 forbidden(Req, State = #state{method = 'DELETE', path = [Package]}) ->
     {allowed(State#state.token, [<<"packages">>, Package, <<"delete">>]), Req, State};
 
-forbidden(Req, State = #state{method = 'PUT', path = [Package]}) ->
-    {allowed(State#state.token, [<<"packages">>, Package, <<"edit">>]), Req, State};
+forbidden(Req, State = #state{method = 'PUT', path = [_Package]}) ->
+    {allowed(State#state.token, [<<"cloud">>, <<"packages">>, <<"create">>]), Req, State};
 
 forbidden(Req, State) ->
     {true, Req, State}.
