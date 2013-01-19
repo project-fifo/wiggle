@@ -17,6 +17,8 @@
          forbidden/2,
          service_available/2,
          options/2,
+         create_path/2,
+         post_is_create/2,
          is_authorized/2]).
 
 -export([to_json/2,
@@ -33,6 +35,8 @@
               is_authorized/2,
               service_available/2,
               options/2,
+              create_path/2,
+              post_is_create/2,
               resource_exists/2,
               rest_init/2]).
 
@@ -44,11 +48,12 @@ init(_Transport, _Req, []) ->
 rest_init(Req, _) ->
     wiggle_handler:initial_state(Req, <<"groups">>).
 
+post_is_create(Req, State) ->
+    {true, Req, State}.
+
 service_available(Req, State) ->
-    case {libsniffle:servers(), libsnarl:servers()} of
-        {[], _} ->
-            {false, Req, State};
-        {_, []} ->
+    case  libsnarl:servers() of
+        [] ->
             {false, Req, State};
         _ ->
             {true, Req, State}
@@ -76,7 +81,7 @@ allowed_methods(Req, State) ->
     {['HEAD', 'OPTIONS' | allowed_methods(State#state.version, State#state.token, State#state.path)], Req, State}.
 
 allowed_methods(_Version, _Token, []) ->
-    ['GET'];
+    ['GET', 'POST'];
 
 allowed_methods(_Version, _Token, [_Group]) ->
     ['GET', 'PUT', 'DELETE'];
@@ -128,6 +133,9 @@ forbidden(Req, State = #state{method = 'OPTIONS'}) ->
 
 forbidden(Req, State = #state{token = undefined}) ->
     {true, Req, State};
+
+forbidden(Req, State = #state{method = 'POST', path = []}) ->
+    {allowed(State#state.token, [<<"groups">>, <<"create">>]), Req, State};
 
 forbidden(Req, State = #state{path = []}) ->
     {allowed(State#state.token, [<<"groups">>]), Req, State};
@@ -184,6 +192,20 @@ handle_request(Req, State = #state{path = [_Group, <<"permissions">>], obj = Gro
 %% PUT
 %%--------------------------------------------------------------------
 
+
+create_path(Req, State = #state{path = [], version = Version}) ->
+    {ok, Body, Req1} = cowboy_http_req:body(Req),
+    {Decoded, Req2} = case Body of
+                          <<>> ->
+                              {[], Req1};
+                          _ ->
+                              D = jsx:decode(Body),
+                              {D, Req1}
+                      end,
+    {ok, Group} = jsxd:get(<<"name">>, Decoded),
+    {ok, UUID} = libsnarl:group_add(Group),
+    {<<"/api/", Version/binary, "/groups/", UUID/binary>>, Req2, State}.
+
 from_json(Req, State) ->
     {ok, Body, Req1} = cowboy_http_req:body(Req),
     {Reply, Req2, State1} = case Body of
@@ -194,6 +216,10 @@ from_json(Req, State) ->
                                     handle_write(Req1, State, Decoded)
                             end,
     {Reply, Req2, State1}.
+
+%% TODO : This is a icky case it is called after post.
+handle_write(Req, State = #state{method = 'POST', path = []}, _) ->
+    {true, Req, State};
 
 handle_write(Req, State = #state{path = [Group]}, _Body) ->
     ok = libsnarl:group_add(Group),
