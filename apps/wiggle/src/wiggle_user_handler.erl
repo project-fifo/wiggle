@@ -18,6 +18,8 @@
          service_available/2,
          forbidden/2,
          options/2,
+         create_path/2,
+         post_is_create/2,
          is_authorized/2]).
 
 -export([to_json/2,
@@ -25,6 +27,7 @@
 
 -ignore_xref([to_json/2,
               from_json/2,
+              post_is_create/2,
               allowed_methods/2,
               content_types_accepted/2,
               content_types_provided/2,
@@ -32,6 +35,7 @@
               service_available/2,
               forbidden/2,
               init/3,
+              create_path/2,
               is_authorized/2,
               options/2,
               resource_exists/2,
@@ -46,6 +50,9 @@ init(_Transport, _Req, []) ->
 
 rest_init(Req, _) ->
     wiggle_handler:initial_state(Req, <<"users">>).
+
+post_is_create(Req, State) ->
+    {true, Req, State}.
 
 service_available(Req, State) ->
     case {libsniffle:servers(), libsnarl:servers()} of
@@ -234,6 +241,22 @@ handle_request(Req, State = #state{path = [_User, <<"groups">>], obj = UserObj})
 %% PUT
 %%--------------------------------------------------------------------
 
+
+create_path(Req, State = #state{path = [], version = Version}) ->
+    {ok, Body, Req1} = cowboy_http_req:body(Req),
+    {Decoded, Req2} = case Body of
+                          <<>> ->
+                              {[], Req1};
+                          _ ->
+                              D = jsx:decode(Body),
+                              {D, Req1}
+                      end,
+    {ok, User} = jsxd:get(<<"user">>, Decoded),
+    {ok, Pass} = jsxd:get(<<"password">>, Decoded),
+    {ok, UUID} = libsnarl:user_add(User),
+    ok = libsnarl:user_passwd(User, Pass),
+    {<<"/api/", Version/binary, "/users/", UUID/binary>>, Req2, State}.
+
 from_json(Req, State) ->
     {ok, Body, Req1} = cowboy_http_req:body(Req),
     io:format("[PUT] ~p", [Body]),
@@ -247,15 +270,7 @@ from_json(Req, State) ->
 
     {Reply, Req2, State1}.
 
-handle_write(Req, State = #state{path = [User, <<"sessions">>]}, [{<<"password">>, Password}]) ->
-    {ok, {token, Token}} = libsnarl:auth(User, Password),
-    {ok, Req1} = cowboy_http_req:set_resp_header(<<"X-Snarl-Token">>, Token, Req),
-    {ok, Req2} = cowboy_http_req:set_resp_cookie(<<"X-Snarl-Token">>, Token, [{max_age, 60*60*24*365}], Req1),
-    {ok, Req3} = cowboy_http_req:set_resp_body(jsx:encode([{<<"token">>, Token}]), Req2),
-    {true, Req3, State};
-
 handle_write(Req, State = #state{path =  [User]}, [{<<"password">>, Password}]) ->
-    libsnarl:user_add(User),
     ok = libsnarl:user_passwd(User, Password),
     {true, Req, State};
 
