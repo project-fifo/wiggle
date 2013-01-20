@@ -134,11 +134,11 @@ forbidden(Req, State = #state{method = 'OPTIONS'}) ->
 forbidden(Req, State = #state{token = undefined}) ->
     {true, Req, State};
 
+forbidden(Req, State = #state{method = 'GET', path = []}) ->
+    {allowed(State#state.token, [<<"cloud">>, <<"groups">>, <<"list">>]), Req, State};
+
 forbidden(Req, State = #state{method = 'POST', path = []}) ->
     {allowed(State#state.token, [<<"cloud">>, <<"groups">>, <<"create">>]), Req, State};
-
-forbidden(Req, State = #state{path = []}) ->
-    {allowed(State#state.token, [<<"cloud">>, <<"groups">>, <<"list">>]), Req, State};
 
 forbidden(Req, State = #state{method = 'GET', path = [Group]}) ->
     {allowed(State#state.token, [<<"groups">>, Group, <<"get">>]), Req, State};
@@ -191,7 +191,6 @@ handle_request(Req, State = #state{path = [_Group, <<"permissions">>], obj = Gro
 %%--------------------------------------------------------------------
 %% PUT
 %%--------------------------------------------------------------------
-
 
 create_path(Req, State = #state{path = [], version = Version}) ->
     {ok, Body, Req1} = cowboy_http_req:body(Req),
