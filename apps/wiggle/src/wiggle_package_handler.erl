@@ -14,6 +14,8 @@
          delete_resource/2,
          forbidden/2,
          options/2,
+         create_path/2,
+         post_is_create/2,
          is_authorized/2]).
 
 -export([to_json/2,
@@ -31,6 +33,8 @@
               options/2,
               service_available/2,
               resource_exists/2,
+              create_path/2,
+              post_is_create/2,
               rest_init/2]).
 
 
@@ -41,6 +45,9 @@ init(_Transport, _Req, []) ->
 
 rest_init(Req, _) ->
     wiggle_handler:initial_state(Req, <<"packages">>).
+
+post_is_create(Req, State) ->
+    {true, Req, State}.
 
 service_available(Req, State) ->
     case {libsniffle:servers(), libsnarl:servers()} of
@@ -73,7 +80,7 @@ allowed_methods(Req, State) ->
     {['HEAD', 'OPTIONS' | allowed_methods(State#state.version, State#state.token, State#state.path)], Req, State}.
 
 allowed_methods(_Version, _Token, []) ->
-    ['GET'];
+    ['GET', 'POST'];
 
 allowed_methods(_Version, _Token, [_Package]) ->
     ['GET', 'PUT', 'DELETE'].
@@ -104,8 +111,11 @@ forbidden(Req, State = #state{method = 'OPTIONS'}) ->
 forbidden(Req, State = #state{token = undefined}) ->
     {true, Req, State};
 
-forbidden(Req, State = #state{path = []}) ->
-    {allowed(State#state.token, [<<"packages">>]), Req, State};
+forbidden(Req, State = #state{method= 'GET', path = []}) ->
+    {allowed(State#state.token, [<<"cloud">>, <<"packages">>, <<"list">>]), Req, State};
+
+forbidden(Req, State = #state{method= 'POST', path = []}) ->
+    {allowed(State#state.token, [<<"cloud">>, <<"packages">>, <<"create">>]), Req, State};
 
 forbidden(Req, State = #state{method = 'GET', path = [Package]}) ->
     {allowed(State#state.token, [<<"packages">>, Package, <<"get">>]), Req, State};
@@ -113,8 +123,8 @@ forbidden(Req, State = #state{method = 'GET', path = [Package]}) ->
 forbidden(Req, State = #state{method = 'DELETE', path = [Package]}) ->
     {allowed(State#state.token, [<<"packages">>, Package, <<"delete">>]), Req, State};
 
-forbidden(Req, State = #state{method = 'PUT', path = [Package]}) ->
-    {allowed(State#state.token, [<<"packages">>, Package, <<"edit">>]), Req, State};
+forbidden(Req, State = #state{method = 'PUT', path = [_Package]}) ->
+    {allowed(State#state.token, [<<"cloud">>, <<"packages">>, <<"create">>]), Req, State};
 
 forbidden(Req, State) ->
     {true, Req, State}.
@@ -140,6 +150,21 @@ handle_request(Req, State = #state{path = [_Package], obj = Obj}) ->
 %% PUT
 %%--------------------------------------------------------------------
 
+create_path(Req, State = #state{path = [], version = Version}) ->
+    {ok, Body, Req1} = cowboy_http_req:body(Req),
+    {Data, Req2} = case Body of
+                       <<>> ->
+                           {[], Req1};
+                       _ ->
+                           D = jsxd:from_list(jsx:decode(Body)),
+                           {D, Req1}
+                   end,
+    Data1 = jsxd:select([<<"cpu_cap">>,<<"quota">>, <<"ram">>, <<"requirements">>], Data),
+    {ok, Package} = jsxd:get(<<"name">>, Data),
+    {ok, UUID} = libsniffle:package_create(Package),
+    ok = libsniffle:package_set(UUID, Data1),
+    {<<"/api/", Version/binary, "/packages/", UUID/binary>>, Req2, State}.
+
 from_json(Req, State) ->
     {ok, Body, Req1} = cowboy_http_req:body(Req),
     {Reply, Req2, State1} = case Body of
@@ -151,11 +176,8 @@ from_json(Req, State) ->
                             end,
     {Reply, Req2, State1}.
 
-handle_write(Req, State = #state{path = [Package]}, Body) ->
-    Data = jsxd:from_list(Body),
-    Data1 = jsxd:select([<<"cpu_cap">>,<<"quota">>, <<"ram">>, <<"requirements">>], Data),
-    ok = libsniffle:package_create(Package),
-    ok = libsniffle:package_set(Package, Data1),
+%% TODO : This is a icky case it is called after post.
+handle_write(Req, State = #state{method = 'POST', path = []}, _) ->
     {true, Req, State};
 
 handle_write(Req, State, _Body) ->

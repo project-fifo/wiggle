@@ -14,6 +14,8 @@
          forbidden/2,
          service_available/2,
          options/2,
+         create_path/2,
+         post_is_create/2,
          is_authorized/2]).
 
 -export([to_json/2,
@@ -30,6 +32,8 @@
               service_available/2,
               is_authorized/2,
               options/2,
+              create_path/2,
+              post_is_create/2,
               resource_exists/2,
               rest_init/2]).
 
@@ -40,6 +44,9 @@ init(_Transport, _Req, []) ->
 
 rest_init(Req, _) ->
     wiggle_handler:initial_state(Req, <<"ipranges">>).
+
+post_is_create(Req, State) ->
+    {true, Req, State}.
 
 service_available(Req, State) ->
     case {libsniffle:servers(), libsnarl:servers()} of
@@ -72,7 +79,7 @@ allowed_methods(Req, State) ->
     {['HEAD', 'OPTIONS' | allowed_methods(State#state.version, State#state.token, State#state.path)], Req, State}.
 
 allowed_methods(_Version, _Token, []) ->
-    ['GET'];
+    ['GET', 'POST'];
 
 allowed_methods(_Version, _Token, [_Iprange]) ->
     ['GET', 'PUT', 'DELETE'].
@@ -103,8 +110,11 @@ forbidden(Req, State = #state{method = 'OPTIONS'}) ->
 forbidden(Req, State = #state{token = undefined}) ->
     {true, Req, State};
 
-forbidden(Req, State = #state{path = []}) ->
-    {allowed(State#state.token, [<<"ipranges">>]), Req, State};
+forbidden(Req, State = #state{method = 'GET', path = []}) ->
+    {allowed(State#state.token, [<<"cloud">>, <<"ipranges">>, <<"list">>]), Req, State};
+
+forbidden(Req, State = #state{method = 'POST', path = []}) ->
+    {allowed(State#state.token, [<<"cloud">>, <<"ipranges">>, <<"create">>]), Req, State};
 
 forbidden(Req, State = #state{method = 'GET', path = [Iprange]}) ->
     {allowed(State#state.token, [<<"ipranges">>, Iprange, <<"get">>]), Req, State};
@@ -112,8 +122,8 @@ forbidden(Req, State = #state{method = 'GET', path = [Iprange]}) ->
 forbidden(Req, State = #state{method = 'DELETE', path = [Iprange]}) ->
     {allowed(State#state.token, [<<"ipranges">>, Iprange, <<"delete">>]), Req, State};
 
-forbidden(Req, State = #state{method = 'PUT', path = [Iprange]}) ->
-    {allowed(State#state.token, [<<"ipranges">>, Iprange, <<"edit">>]), Req, State};
+forbidden(Req, State = #state{method = 'PUT', path = [_Iprange]}) ->
+    {allowed(State#state.token, [<<"cloud">>, <<"ipranges">>, <<"create">>]), Req, State};
 
 forbidden(Req, State) ->
     {true, Req, State}.
@@ -147,6 +157,26 @@ handle_request(Req, State = #state{path = [_Iprange], obj = Obj}) ->
 %% PUT
 %%--------------------------------------------------------------------
 
+create_path(Req, State = #state{path = [], version = Version}) ->
+    {ok, Body, Req1} = cowboy_http_req:body(Req),
+    {Data, Req2} = case Body of
+                       <<>> ->
+                           {[], Req1};
+                       _ ->
+                           D = jsxd:from_list(jsx:decode(Body)),
+                           {D, Req1}
+                   end,
+    {ok, Iprange} = jsxd:get(<<"name">>, Data),
+    {ok, Network} = jsxd:get(<<"network">>, Data),
+    {ok, Gateway} = jsxd:get(<<"gateway">>, Data),
+    {ok, Netmask} = jsxd:get(<<"netmask">>, Data),
+    {ok, First} = jsxd:get(<<"first">>, Data),
+    {ok, Last} = jsxd:get(<<"last">>, Data),
+    {ok, Tag} = jsxd:get(<<"tag">>, Data),
+    Vlan = jsxd:get(<<"vlan">>, 0, Data),
+    {ok, UUID} = libsniffle:iprange_create(Iprange, Network, Gateway, Netmask, First, Last, Tag, Vlan),
+    {<<"/api/", Version/binary, "/ipranges/", UUID/binary>>, Req2, State}.
+
 from_json(Req, State) ->
     {ok, Body, Req1} = cowboy_http_req:body(Req),
     {Reply, Req2, State1} = case Body of
@@ -158,20 +188,8 @@ from_json(Req, State) ->
                             end,
     {Reply, Req2, State1}.
 
-handle_write(Req, State = #state{path = [Iprange]}, Body) ->
-    {<<"network">>, Network} = lists:keyfind(<<"network">>, 1, Body),
-    {<<"gateway">>, Gateway} = lists:keyfind(<<"gateway">>, 1, Body),
-    {<<"netmask">>, Netmask} = lists:keyfind(<<"netmask">>, 1, Body),
-    {<<"first">>, First} = lists:keyfind(<<"first">>, 1, Body),
-    {<<"last">>, Last} = lists:keyfind(<<"last">>, 1, Body),
-    Vlan = jsxd:get(<<"vlan">>, 0, Body),
-    Tag = case lists:keyfind(<<"tag">>, 1, Body) of
-              {<<"tag">>, T} ->
-                  T;
-              _ ->
-                  Iprange
-          end,
-    ok = libsniffle:iprange_create(Iprange, Network, Gateway, Netmask, First, Last, Tag, Vlan),
+%% TODO : This is a icky case it is called after post.
+handle_write(Req, State = #state{method = 'POST', path = []}, _) ->
     {true, Req, State};
 
 handle_write(Req, State, _Body) ->

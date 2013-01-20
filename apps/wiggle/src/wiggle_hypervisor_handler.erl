@@ -106,7 +106,7 @@ forbidden(Req, State = #state{token = undefined}) ->
     {true, Req, State};
 
 forbidden(Req, State = #state{path = []}) ->
-    {allowed(State#state.token, [<<"hypervisors">>]), Req, State};
+    {allowed(State#state.token, [<<"cloud">>, <<"hypervisors">>, <<"list">>]), Req, State};
 
 forbidden(Req, State = #state{method = 'GET', path = [Hypervisor]}) ->
     {allowed(State#state.token, [<<"hypervisors">>, Hypervisor, <<"get">>]), Req, State};

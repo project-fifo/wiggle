@@ -104,7 +104,7 @@ forbidden(Req, State = #state{token = undefined}) ->
     {true, Req, State};
 
 forbidden(Req, State = #state{path = []}) ->
-    {allowed(State#state.token, [<<"datasets">>]), Req, State};
+    {allowed(State#state.token, [<<"cloud">>, <<"datasets">>, <<"list">>]), Req, State};
 
 forbidden(Req, State = #state{method = 'GET', path = [Dataset]}) ->
     {allowed(State#state.token, [<<"datasets">>, Dataset, <<"get">>]), Req, State};
