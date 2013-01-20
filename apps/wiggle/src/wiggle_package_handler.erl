@@ -161,9 +161,14 @@ create_path(Req, State = #state{path = [], version = Version}) ->
                    end,
     Data1 = jsxd:select([<<"cpu_cap">>,<<"quota">>, <<"ram">>, <<"requirements">>], Data),
     {ok, Package} = jsxd:get(<<"name">>, Data),
-    {ok, UUID} = libsniffle:package_create(Package),
-    ok = libsniffle:package_set(UUID, Data1),
-    {<<"/api/", Version/binary, "/packages/", UUID/binary>>, Req2, State}.
+    case libsniffle:package_create(Package) of
+        {ok, UUID} ->
+            ok = libsniffle:package_set(UUID, Data1),
+            {<<"/api/", Version/binary, "/packages/", UUID/binary>>, Req2, State};
+        duplicate ->
+            {ok, Req3} = cowboy_http_req:reply(409, Req2),
+            {halt, Req3, State}
+    end.
 
 from_json(Req, State) ->
     {ok, Body, Req1} = cowboy_http_req:body(Req),
@@ -181,7 +186,7 @@ handle_write(Req, State = #state{method = 'POST', path = []}, _) ->
     {true, Req, State};
 
 handle_write(Req, State, _Body) ->
-    {fase, Req, State}.
+    {false, Req, State}.
 
 %%--------------------------------------------------------------------
 %% DEETE

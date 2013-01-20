@@ -299,7 +299,7 @@ handle_write(Req, State = #state{path = [Vm, <<"snapshots">>, UUID]}, [{<<"actio
     {true, Req, State};
 
 handle_write(Req, State, _Body) ->
-    {fase, Req, State}.
+    {false, Req, State}.
 
 %%--------------------------------------------------------------------
 %% DEETE
