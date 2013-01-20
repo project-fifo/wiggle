@@ -156,7 +156,7 @@ create_path(Req, State = #state{path = [], version = Version}) ->
                        <<>> ->
                            {[], Req1};
                        _ ->
-                           D = jsx:decode(Body),
+                           D = jsxd:from_list(jsx:decode(Body)),
                            {D, Req1}
                    end,
     Data1 = jsxd:select([<<"cpu_cap">>,<<"quota">>, <<"ram">>, <<"requirements">>], Data),
