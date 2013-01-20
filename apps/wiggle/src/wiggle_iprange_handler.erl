@@ -113,7 +113,7 @@ forbidden(Req, State = #state{token = undefined}) ->
 forbidden(Req, State = #state{method = 'GET', path = []}) ->
     {allowed(State#state.token, [<<"cloud">>, <<"ipranges">>, <<"list">>]), Req, State};
 
-forbidden(Req, State = #state{method = 'POSt', path = []}) ->
+forbidden(Req, State = #state{method = 'POST', path = []}) ->
     {allowed(State#state.token, [<<"cloud">>, <<"ipranges">>, <<"create">>]), Req, State};
 
 forbidden(Req, State = #state{method = 'GET', path = [Iprange]}) ->
