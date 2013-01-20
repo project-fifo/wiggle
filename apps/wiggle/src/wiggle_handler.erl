@@ -39,5 +39,7 @@ accepted() ->
     [
      {<<"application/json; charset=UTF-8">>, from_json},
      {<<"application/json; charset=utf-8">>, from_json},
+     {<<"application/json;charset=UTF-8">>, from_json},
+     {<<"application/json;charset=utf-8">>, from_json},
      {<<"application/json">>, from_json}
     ].

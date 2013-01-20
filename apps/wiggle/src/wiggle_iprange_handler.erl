@@ -174,8 +174,14 @@ create_path(Req, State = #state{path = [], version = Version}) ->
     {ok, Last} = jsxd:get(<<"last">>, Data),
     {ok, Tag} = jsxd:get(<<"tag">>, Data),
     Vlan = jsxd:get(<<"vlan">>, 0, Data),
-    {ok, UUID} = libsniffle:iprange_create(Iprange, Network, Gateway, Netmask, First, Last, Tag, Vlan),
-    {<<"/api/", Version/binary, "/ipranges/", UUID/binary>>, Req2, State}.
+    case libsniffle:iprange_create(Iprange, Network, Gateway, Netmask, First, Last, Tag, Vlan) of
+        {ok, UUID} ->
+            {<<"/api/", Version/binary, "/ipranges/", UUID/binary>>, Req2, State};
+        duplicate ->
+            {ok, Req3} = cowboy_http_req:reply(409, Req2),
+            {halt, Req3, State}
+    end.
+
 
 from_json(Req, State) ->
     {ok, Body, Req1} = cowboy_http_req:body(Req),
@@ -193,7 +199,7 @@ handle_write(Req, State = #state{method = 'POST', path = []}, _) ->
     {true, Req, State};
 
 handle_write(Req, State, _Body) ->
-    {fase, Req, State}.
+    {false, Req, State}.
 
 %%--------------------------------------------------------------------
 %% DEETE

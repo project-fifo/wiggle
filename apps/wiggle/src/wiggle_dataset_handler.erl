@@ -147,7 +147,7 @@ from_json(Req, State) ->
     {Reply, Req2, State1}.
 
 handle_write(Req, State, _Body) ->
-    {fase, Req, State}.
+    {false, Req, State}.
 
 %%--------------------------------------------------------------------
 %% DELETE
