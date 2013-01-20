@@ -139,7 +139,7 @@ to_json(Req, State) ->
 
 handle_request(Req, State = #state{token = Token, path = []}) ->
     {ok, Permissions} = libsnarl:user_cache({token, Token}),
-    {ok, Res} = libsniffle:package_list([{must, 'allowed', [<<"package">>, {<<"res">>, <<"name">>}, <<"get">>], Permissions}]),
+    {ok, Res} = libsniffle:package_list([{must, 'allowed', [<<"packages">>, {<<"res">>, <<"name">>}, <<"get">>], Permissions}]),
     {lists:map(fun ({E, _}) -> E end,  Res), Req, State};
 
 handle_request(Req, State = #state{path = [_Package], obj = Obj}) ->

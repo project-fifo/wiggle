@@ -127,7 +127,7 @@ to_json(Req, State) ->
 
 handle_request(Req, State = #state{token = Token, path = []}) ->
     {ok, Permissions} = libsnarl:user_cache({token, Token}),
-    {ok, Res} = libsniffle:hypervisor_list([{must, 'allowed', [<<"hypervisor">>, {<<"res">>, <<"name">>}, <<"get">>], Permissions}]),
+    {ok, Res} = libsniffle:hypervisor_list([{must, 'allowed', [<<"hypervisors">>, {<<"res">>, <<"name">>}, <<"get">>], Permissions}]),
     {lists:map(fun ({E, _}) -> E end,  Res), Req, State};
 
 handle_request(Req, State = #state{path = [_Hypervisor], obj = Obj}) ->

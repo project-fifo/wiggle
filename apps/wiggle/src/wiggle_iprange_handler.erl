@@ -138,7 +138,7 @@ to_json(Req, State) ->
 
 handle_request(Req, State = #state{token = Token, path = []}) ->
     {ok, Permissions} = libsnarl:user_cache({token, Token}),
-    {ok, Res} = libsniffle:iprange_list([{must, 'allowed', [<<"iprange">>, {<<"res">>, <<"name">>}, <<"get">>], Permissions}]),
+    {ok, Res} = libsniffle:iprange_list([{must, 'allowed', [<<"ipranges">>, {<<"res">>, <<"name">>}, <<"get">>], Permissions}]),
     {lists:map(fun ({E, _}) -> E end,  Res), Req, State};
 
 handle_request(Req, State = #state{path = [_Iprange], obj = Obj}) ->
