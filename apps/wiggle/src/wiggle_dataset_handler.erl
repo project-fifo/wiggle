@@ -82,6 +82,8 @@ resource_exists(Req, State = #state{path = []}) ->
 
 resource_exists(Req, State = #state{path = [Dataset]}) ->
     case libsniffle:dataset_get(Dataset) of
+        {ok, not_found} ->
+            {false, Req, State};
         not_found ->
             {false, Req, State};
         {ok, Obj} ->

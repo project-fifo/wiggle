@@ -241,13 +241,13 @@ create_path(Req, State = #state{path = [], version = Version, token = Token}) ->
             {<<"/api/", Version/binary, "/vms/", UUID/binary>>, Req2, State}
         catch
             G:E ->
-                lager:error("Error creating VM: ~p / ~p", [G, E]),
+                lager:error("Error creating VM(~p): ~p / ~p", [Decoded, G, E]),
                 {ok, Req3} = cowboy_http_req:reply(500, Req2),
                 {halt, Req3, State}
         end
     catch
         G1:E1 ->
-            lager:error("Error creating VM: ~p / ~p", [G1, E1]),
+            lager:error("Error creating VM(~p): ~p / ~p", [Decoded, G1, E1]),
             {ok, Req4} = cowboy_http_req:reply(400, Req2),
             {halt, Req4, State}
     end;
