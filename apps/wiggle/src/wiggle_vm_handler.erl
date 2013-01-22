@@ -98,7 +98,7 @@ resource_exists(Req, State = #state{path = []}) ->
 
 resource_exists(Req, State = #state{path = [Vm]}) ->
     case libsniffle:vm_get(Vm) of
-        not_found ->
+        {ok, not_found} ->
             {false, Req, State};
         {ok, Obj} ->
             {true, Req, State#state{obj=Obj}}
