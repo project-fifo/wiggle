@@ -148,7 +148,7 @@ create_path(Req, State = #state{path = [], version = Version}) ->
             {<<"/api/", Version/binary, "/sessions/", UUID/binary>>, Req3, State};
         _ ->
             {ok, Req3} = cowboy_http_req:reply(403, [], <<"Forbidden!">>, Req2),
-            {ok, Req3, State}
+            {halt, Req3, State}
     end.
 
 from_json(Req, State) ->
