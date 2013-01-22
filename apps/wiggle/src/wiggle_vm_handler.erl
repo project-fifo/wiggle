@@ -153,23 +153,22 @@ forbidden(Req, State = #state{method = 'DELETE', path = [Vm]}) ->
     {allowed(State#state.token, [<<"vms">>, Vm, <<"delete">>]), Req, State};
 
 forbidden(Req, State = #state{method = 'PUT', path = [Vm]}) ->
-    {ok, Body, Req1} = cowboy_http_req:body(Req),
-    {Decoded, Req2} = case Body of
-                          <<>> ->
-                              {[], Req1};
-                          _ ->
-                              D = jsx:decode(Body),
-                              {D, Req1}
-                      end,
+    {ok, Body, _Req1} = cowboy_http_req:body(Req),
+    Decoded = case Body of
+                  <<>> ->
+                      [];
+                  _ ->
+                      jsx:decode(Body)
+              end,
     case Decoded of
         [{<<"action">>, <<"start">>}] ->
-            {allowed(State#state.token, [<<"vms">>, Vm, <<"edit">>]), Req2, State#state{obj={json, Decoded}}};
+            {allowed(State#state.token, [<<"vms">>, Vm, <<"edit">>]), Req, State#state{obj={json, Decoded}}};
         [{<<"action">>, <<"stop">>}] ->
-            {allowed(State#state.token, [<<"vms">>, Vm, <<"stop">>]), Req2, State#state{obj={json, Decoded}}};
+            {allowed(State#state.token, [<<"vms">>, Vm, <<"stop">>]), Req, State#state{obj={json, Decoded}}};
         [{<<"action">>, <<"reboot">>}] ->
-            {allowed(State#state.token, [<<"vms">>, Vm, <<"reboot">>]), Req2, State#state{obj={json, Decoded}}};
+            {allowed(State#state.token, [<<"vms">>, Vm, <<"reboot">>]), Req, State#state{obj={json, Decoded}}};
         _ ->
-            {allowed(State#state.token, [<<"vms">>, Vm, <<"edit">>]), Req2, State#state{obj={json, Decoded}}}
+            {allowed(State#state.token, [<<"vms">>, Vm, <<"edit">>]), Req, State#state{obj={json, Decoded}}}
     end;
 
 forbidden(Req, State = #state{method = 'GET', path = [Vm, <<"snapshots">>]}) ->
@@ -264,9 +263,6 @@ create_path(Req, State = #state{path = [Vm, <<"snapshots">>], version = Version}
     Comment = jsxd:get(<<"comment">>, <<"">>, Decoded),
     {ok, UUID} = libsniffle:vm_snapshot(Vm, Comment),
     {<<"/api/", Version/binary, "/vms/", Vm/binary, "/snapshots/", UUID/binary>>, Req2, State}.
-
-from_json(Req, State = #state{obj = {json, Decoded}}) ->
-    handle_write(Req, State, Decoded);
 
 from_json(Req, State) ->
     {ok, Body, Req1} = cowboy_http_req:body(Req),
