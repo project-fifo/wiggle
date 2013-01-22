@@ -90,7 +90,7 @@ resource_exists(Req, State = #state{path = []}) ->
 
 resource_exists(Req, State = #state{path = [Package]}) ->
     case libsniffle:package_get(Package) of
-        not_found ->
+        {ok, not_found} ->
             {false, Req, State};
         {ok, Obj} ->
             {true, Req, State#state{obj = Obj}}
