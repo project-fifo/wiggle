@@ -163,14 +163,14 @@ forbidden(Req, State = #state{method = 'PUT', path = [Vm]}) ->
                       end,
     case Decoded of
         [{<<"action">>, <<"start">>}] ->
-            {allowed(State#state.token, [<<"vms">>, Vm, <<"edit">>]), Req2, State};
+            {allowed(State#state.token, [<<"vms">>, Vm, <<"edit">>]), Req2, State#state{obj={json, Decoded}}};
         [{<<"action">>, <<"stop">>}] ->
-            {allowed(State#state.token, [<<"vms">>, Vm, <<"stop">>]), Req2, State};
+            {allowed(State#state.token, [<<"vms">>, Vm, <<"stop">>]), Req2, State#state{obj={json, Decoded}}};
         [{<<"action">>, <<"reboot">>}] ->
-            {allowed(State#state.token, [<<"vms">>, Vm, <<"reboot">>]), Req2, State};
+            {allowed(State#state.token, [<<"vms">>, Vm, <<"reboot">>]), Req2, State#state{obj={json, Decoded}}};
         _ ->
-            {allowed(State#state.token, [<<"vms">>, Vm, <<"edit">>]), Req2, State}
-        end;
+            {allowed(State#state.token, [<<"vms">>, Vm, <<"edit">>]), Req2, State#state{obj={json, Decoded}}}
+    end;
 
 forbidden(Req, State = #state{method = 'GET', path = [Vm, <<"snapshots">>]}) ->
     {allowed(State#state.token, [<<"vms">>, Vm, <<"get">>]), Req, State};
@@ -265,16 +265,18 @@ create_path(Req, State = #state{path = [Vm, <<"snapshots">>], version = Version}
     {ok, UUID} = libsniffle:vm_snapshot(Vm, Comment),
     {<<"/api/", Version/binary, "/vms/", Vm/binary, "/snapshots/", UUID/binary>>, Req2, State}.
 
+from_json(Req, State = #state{obj = {json, Decoded}}) ->
+    handle_write(Req, State, Decoded);
+
 from_json(Req, State) ->
     {ok, Body, Req1} = cowboy_http_req:body(Req),
-    {Reply, Req2, State1} = case Body of
-                                <<>> ->
-                                    handle_write(Req1, State, []);
-                                _ ->
-                                    Decoded = jsx:decode(Body),
-                                    handle_write(Req1, State, Decoded)
-                            end,
-    {Reply, Req2, State1}.
+    case Body of
+        <<>> ->
+            handle_write(Req1, State, []);
+        _ ->
+            Decoded = jsx:decode(Body),
+            handle_write(Req1, State, Decoded)
+    end.
 
 handle_write(Req, State = #state{path = [Vm]}, [{<<"action">>, <<"start">>}]) ->
     libsniffle:vm_start(Vm),
