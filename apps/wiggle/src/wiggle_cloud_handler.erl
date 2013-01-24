@@ -102,11 +102,11 @@ is_authorized(Req, State) ->
 forbidden(Req, State = #state{method = 'OPTIONS'}) ->
     {false, Req, State};
 
-forbidden(Req, State = #state{token = undefined}) ->
-    {true, Req, State};
-
 forbidden(Req, State = #state{path = [<<"connection">>]}) ->
     {false, Req, State};
+
+forbidden(Req, State = #state{token = undefined}) ->
+    {true, Req, State};
 
 forbidden(Req, State = #state{path = []}) ->
     {allowed(State#state.token, [<<"cloud">>, <<"cloud">>, <<"status">>]), Req, State};
