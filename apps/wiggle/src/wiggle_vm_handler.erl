@@ -37,7 +37,7 @@
               resource_exists/2,
               rest_init/2]).
 
--record(state, {path, method, version, token, content, reply, obj}).
+-record(state, {path, method, version, token, content, reply, obj, body}).
 
 init(_Transport, _Req, []) ->
     {upgrade, protocol, cowboy_http_rest}.
@@ -153,7 +153,7 @@ forbidden(Req, State = #state{method = 'DELETE', path = [Vm]}) ->
     {allowed(State#state.token, [<<"vms">>, Vm, <<"delete">>]), Req, State};
 
 forbidden(Req, State = #state{method = 'PUT', path = [Vm]}) ->
-    {ok, Body, _Req1} = cowboy_http_req:body(Req),
+    {ok, Body, Req1} = cowboy_http_req:body(Req),
     Decoded = case Body of
                   <<>> ->
                       [];
@@ -162,13 +162,13 @@ forbidden(Req, State = #state{method = 'PUT', path = [Vm]}) ->
               end,
     case Decoded of
         [{<<"action">>, <<"start">>}] ->
-            {allowed(State#state.token, [<<"vms">>, Vm, <<"edit">>]), Req, State#state{obj={json, Decoded}}};
+            {allowed(State#state.token, [<<"vms">>, Vm, <<"edit">>]), Req1, State#state{body=Decoded}};
         [{<<"action">>, <<"stop">>}] ->
-            {allowed(State#state.token, [<<"vms">>, Vm, <<"stop">>]), Req, State#state{obj={json, Decoded}}};
+            {allowed(State#state.token, [<<"vms">>, Vm, <<"stop">>]), Req1, State#state{body=Decoded}};
         [{<<"action">>, <<"reboot">>}] ->
-            {allowed(State#state.token, [<<"vms">>, Vm, <<"reboot">>]), Req, State#state{obj={json, Decoded}}};
+            {allowed(State#state.token, [<<"vms">>, Vm, <<"reboot">>]), Req1, State#state{body=Decoded}};
         _ ->
-            {allowed(State#state.token, [<<"vms">>, Vm, <<"edit">>]), Req, State#state{obj={json, Decoded}}}
+            {allowed(State#state.token, [<<"vms">>, Vm, <<"edit">>]), Req1, State}
     end;
 
 forbidden(Req, State = #state{method = 'GET', path = [Vm, <<"snapshots">>]}) ->
@@ -237,7 +237,7 @@ create_path(Req, State = #state{path = [], version = Version, token = Token}) ->
             {ok, User} = libsnarl:user_get({token, Token}),
             {ok, Owner} = jsxd:get(<<"uuid">>, User),
             {ok, UUID} = libsniffle:create(Package, Dataset, jsxd:set(<<"owner">>, Owner, Config)),
-            {<<"/api/", Version/binary, "/vms/", UUID/binary>>, Req2, State}
+            {<<"/api/", Version/binary, "/vms/", UUID/binary>>, Req2, State#state{body = Decoded}}
         catch
             G:E ->
                 lager:error("Error creating VM(~p): ~p / ~p", [Decoded, G, E]),
@@ -264,15 +264,11 @@ create_path(Req, State = #state{path = [Vm, <<"snapshots">>], version = Version}
     {ok, UUID} = libsniffle:vm_snapshot(Vm, Comment),
     {<<"/api/", Version/binary, "/vms/", Vm/binary, "/snapshots/", UUID/binary>>, Req2, State}.
 
-from_json(Req, State) ->
-    {ok, Body, Req1} = cowboy_http_req:body(Req),
-    case Body of
-        <<>> ->
-            handle_write(Req1, State, []);
-        _ ->
-            Decoded = jsx:decode(Body),
-            handle_write(Req1, State, Decoded)
-    end.
+from_json(Req, #state{body = undefined} = State) ->
+    handle_write(Req, State, []);
+
+from_json(Req, #state{body = Decoded} = State) ->
+    handle_write(Req, State, Decoded).
 
 handle_write(Req, State = #state{path = [Vm]}, [{<<"action">>, <<"start">>}]) ->
     libsniffle:vm_start(Vm),
