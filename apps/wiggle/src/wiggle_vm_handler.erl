@@ -181,7 +181,19 @@ forbidden(Req, State = #state{method = 'GET', path = [Vm, <<"snapshots">>, _Snap
     {allowed(State#state.token, [<<"vms">>, Vm, <<"get">>]), Req, State};
 
 forbidden(Req, State = #state{method = 'PUT', path = [Vm, <<"snapshots">>, _Snap]}) ->
-    {allowed(State#state.token, [<<"vms">>, Vm, <<"rollback">>]), Req, State};
+    {ok, Body, Req1} = cowboy_http_req:body(Req),
+    Decoded = case Body of
+                  <<>> ->
+                      [];
+                  _ ->
+                      jsx:decode(Body)
+              end,
+    case Decoded of
+        [{<<"action">>, <<"rollback">>}] ->
+            {allowed(State#state.token, [<<"vms">>, Vm, <<"rollback">>]), Req1, State#state{body=Decoded}};
+        _ ->
+            {allowed(State#state.token, [<<"vms">>, Vm, <<"edit">>]), Req1, State}
+    end;
 
 forbidden(Req, State = #state{method = 'DELETE', path = [Vm, <<"snapshots">>, _Snap]}) ->
     {allowed(State#state.token, [<<"vms">>, Vm, <<"snapshot_delete">>]), Req, State};
