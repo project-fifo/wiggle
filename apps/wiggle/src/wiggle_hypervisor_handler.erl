@@ -11,6 +11,7 @@
          allowed_methods/2,
          resource_exists/2,
          forbidden/2,
+         service_available/2,
          options/2,
          is_authorized/2]).
 
@@ -27,16 +28,27 @@
               init/3,
               is_authorized/2,
               options/2,
+              service_available/2,
               resource_exists/2,
               rest_init/2]).
 
--record(state, {path, method, version, token, content, reply}).
+-record(state, {path, method, version, token, content, reply, obj, body}).
 
 init(_Transport, _Req, []) ->
     {upgrade, protocol, cowboy_http_rest}.
 
 rest_init(Req, _) ->
     wiggle_handler:initial_state(Req, <<"hypervisors">>).
+
+service_available(Req, State) ->
+    case {libsniffle:servers(), libsnarl:servers()} of
+        {[], _} ->
+            {false, Req, State};
+        {_, []} ->
+            {false, Req, State};
+        _ ->
+            {true, Req, State}
+    end.
 
 options(Req, State) ->
     Methods = allowed_methods(Req, State, State#state.path),
@@ -62,17 +74,20 @@ allowed_methods(_Version, _Token, []) ->
     ['GET'];
 
 allowed_methods(_Version, _Token, [_Hypervisor]) ->
-    ['GET'].
+    ['GET'];
+
+allowed_methods(_Version, _Token, [_Hypervisor, <<"metadata">>]) ->
+    ['PUT'].
 
 resource_exists(Req, State = #state{path = []}) ->
     {true, Req, State};
 
 resource_exists(Req, State = #state{path = [Hypervisor | _]}) ->
     case libsniffle:hypervisor_get(Hypervisor) of
-        not_found ->
+        {ok, not_found} ->
             {false, Req, State};
-        {ok, _} ->
-            {true, Req, State}
+        {ok, Obj} ->
+            {true, Req, State#state{obj = Obj}}
     end.
 
 is_authorized(Req, State = #state{method = 'OPTIONS'}) ->
@@ -91,10 +106,13 @@ forbidden(Req, State = #state{token = undefined}) ->
     {true, Req, State};
 
 forbidden(Req, State = #state{path = []}) ->
-    {allowed(State#state.token, [<<"hypervisors">>]), Req, State};
+    {allowed(State#state.token, [<<"cloud">>, <<"hypervisors">>, <<"list">>]), Req, State};
 
 forbidden(Req, State = #state{method = 'GET', path = [Hypervisor]}) ->
     {allowed(State#state.token, [<<"hypervisors">>, Hypervisor, <<"get">>]), Req, State};
+
+forbidden(Req, State = #state{method = 'PUT', path = [Hypervisor, <<"metadata">>]}) ->
+    {allowed(State#state.token, [<<"hypervisors">>, Hypervisor, <<"edit">>]), Req, State};
 
 forbidden(Req, State) ->
     {true, Req, State}.
@@ -109,14 +127,13 @@ to_json(Req, State) ->
 
 handle_request(Req, State = #state{token = Token, path = []}) ->
     {ok, Permissions} = libsnarl:user_cache({token, Token}),
-    {ok, Res} = libsniffle:hypervisor_list([{must, 'allowed', [<<"hypervisor">>, {<<"res">>, <<"name">>}, <<"get">>], Permissions}]),
+    {ok, Res} = libsniffle:hypervisor_list([{must, 'allowed', [<<"hypervisors">>, {<<"res">>, <<"name">>}, <<"get">>], Permissions}]),
     {lists:map(fun ({E, _}) -> E end,  Res), Req, State};
 
-handle_request(Req, State = #state{path = [Hypervisor]}) ->
-    {ok, Res} = libsniffle:hypervisor_get(Hypervisor),
+handle_request(Req, State = #state{path = [_Hypervisor], obj = Obj}) ->
     Res1 = jsxd:thread([{delete, <<"host">>},
                         {delete, <<"port">>}],
-                       Res),
+                       Obj),
     {Res1, Req, State}.
 
 %%--------------------------------------------------------------------
@@ -134,12 +151,16 @@ from_json(Req, State) ->
                             end,
     {Reply, Req2, State1}.
 
+handle_write(Req, State = #state{path = [Hypervisor, <<"metadata">>]}, [{K, V}]) ->
+    libsniffle:hypervisor_set(Hypervisor, <<"metadata.", K/binary>>, jsxd:from_list(V)),
+    {true, Req, State};
+
 handle_write(Req, State, _Body) ->
     {false, Req, State}.
 
 
 %%--------------------------------------------------------------------
-%% DEETE
+%% DELETE
 %%--------------------------------------------------------------------
 
 %% Internal Functions

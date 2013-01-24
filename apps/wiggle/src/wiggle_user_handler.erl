@@ -15,8 +15,11 @@
          allowed_methods/2,
          delete_resource/2,
          resource_exists/2,
+         service_available/2,
          forbidden/2,
          options/2,
+         create_path/2,
+         post_is_create/2,
          is_authorized/2]).
 
 -export([to_json/2,
@@ -24,18 +27,21 @@
 
 -ignore_xref([to_json/2,
               from_json/2,
+              post_is_create/2,
               allowed_methods/2,
               content_types_accepted/2,
               content_types_provided/2,
               delete_resource/2,
+              service_available/2,
               forbidden/2,
               init/3,
+              create_path/2,
               is_authorized/2,
               options/2,
               resource_exists/2,
               rest_init/2]).
 
--record(state, {path, method, version, token, content, reply}).
+-record(state, {path, method, version, token, content, reply, obj, body}).
 
 
 
@@ -44,6 +50,17 @@ init(_Transport, _Req, []) ->
 
 rest_init(Req, _) ->
     wiggle_handler:initial_state(Req, <<"users">>).
+
+post_is_create(Req, State) ->
+    {true, Req, State}.
+
+service_available(Req, State) ->
+    case libsnarl:servers() of
+        [] ->
+            {false, Req, State};
+        _ ->
+            {true, Req, State}
+    end.
 
 options(Req, State) ->
     Methods = allowed_methods(Req, State, State#state.path),
@@ -69,13 +86,10 @@ allowed_methods(Req, State) ->
     {['HEAD', 'OPTIONS' | allowed_methods(State#state.version, State#state.token, State#state.path)], Req, State}.
 
 allowed_methods(_Version, _Token, []) ->
-    ['GET'];
+    ['GET', 'POST'];
 
 allowed_methods(_Version, _Token, [_Login]) ->
     ['GET', 'PUT', 'DELETE'];
-
-allowed_methods(_Version, _Token, [_Login, <<"sessions">>]) ->
-    ['PUT', 'DELETE'];
 
 allowed_methods(_Version, _Token, [_Login, <<"permissions">>]) ->
     ['GET'];
@@ -93,30 +107,30 @@ resource_exists(Req, State = #state{path = [User, <<"permissions">> | Permission
     case {erlangify_permission(Permission), libsnarl:user_get(User)} of
         {_, not_found} ->
             {false, Req, State};
-        {[], {ok, _}} ->
-            {true, Req, State};
-        {P, {ok, UserObj}} ->
-            {lists:member(P, jsxd:get(<<"permissions">>, [], UserObj)), Req, State}
+        {[], {ok, Obj}} ->
+            {true, Req, State#state{obj = Obj}};
+        {P, {ok, Obj}} ->
+            {lists:member(P, jsxd:get(<<"permissions">>, [], Obj)), Req, State#state{obj = Obj}}
     end;
 
 resource_exists(Req, State = #state{method = 'DELETE', path = [User, <<"groups">>, Group]}) ->
     case libsnarl:user_get(User) of
         not_found ->
             {false, Req, State};
-        {ok, UserObj} ->
-            {lists:member(Group, jsxd:get(<<"groups">>, [], UserObj)), Req, State}
+        {ok, Obj} ->
+            {lists:member(Group, jsxd:get(<<"groups">>, [], Obj)), Req, State#state{obj = Obj}}
     end;
 
 resource_exists(Req, State = #state{method = 'PUT', path = [User, <<"groups">>, Group]}) ->
     case libsnarl:user_get(User) of
         not_found ->
             {false, Req, State};
-        {ok, _} ->
+        {ok, Obj} ->
             case libsnarl:group_get(Group) of
                 not_found ->
-                    {false, Req, State};
+                    {false, Req, State#state{obj = Obj}};
                 {ok, _} ->
-                    {true, Req, State}
+                    {true, Req, State#state{obj = Obj}}
             end
     end;
 
@@ -127,8 +141,8 @@ resource_exists(Req, State = #state{path = [User | _]}) ->
     case libsnarl:user_get(User) of
         not_found ->
             {false, Req, State};
-        {ok, _} ->
-            {true, Req, State}
+        {ok, Obj} ->
+            {true, Req, State#state{obj = Obj}}
     end.
 
 
@@ -153,8 +167,11 @@ forbidden(Req, State = #state{method = 'OPTIONS'}) ->
 forbidden(Req, State = #state{token = undefined}) ->
     {true, Req, State};
 
-forbidden(Req, State = #state{path = []}) ->
-    {allowed(State#state.token, [<<"users">>]), Req, State};
+forbidden(Req, State = #state{method = 'GET', path = []}) ->
+    {allowed(State#state.token, [<<"cloud">>, <<"users">>, <<"list">>]), Req, State};
+
+forbidden(Req, State = #state{method = 'POST', path = []}) ->
+    {allowed(State#state.token, [<<"cloud">>, <<"users">>, <<"create">>]), Req, State};
 
 forbidden(Req, State = #state{method = 'GET', path = [User]}) ->
     {allowed(State#state.token, [<<"users">>, User, <<"get">>]), Req, State};
@@ -204,8 +221,7 @@ handle_request(Req, State = #state{path = []}) ->
     {ok, Res} = libsnarl:user_list(),
     {Res, Req, State};
 
-handle_request(Req, State = #state{path = [User]}) ->
-    {ok, UserObj} = libsnarl:user_get(User),
+handle_request(Req, State = #state{path = [_User], obj = UserObj}) ->
     UserObj1 = jsxd:update(<<"permissions">>,
                            fun (Permissions) ->
                                    lists:map(fun jsonify_permissions/1, Permissions)
@@ -213,17 +229,31 @@ handle_request(Req, State = #state{path = [User]}) ->
     UserObj2 = jsxd:delete(<<"password">>, UserObj1),
     {UserObj2, Req, State};
 
-handle_request(Req, State = #state{path = [User, <<"permissions">>]}) ->
-    {ok, UserObj} = libsnarl:user_get(User),
+handle_request(Req, State = #state{path = [_User, <<"permissions">>], obj = UserObj}) ->
     {lists:map(fun jsonify_permissions/1, jsxd:get(<<"permissions">>, [], UserObj)), Req, State};
 
-handle_request(Req, State = #state{path = [User, <<"groups">>]}) ->
-    {ok, UserObj} = libsnarl:user_get(User),
+handle_request(Req, State = #state{path = [_User, <<"groups">>], obj = UserObj}) ->
     {jsxd:get(<<"groups">>, [], UserObj), Req, State}.
 
 %%--------------------------------------------------------------------
 %% PUT
 %%--------------------------------------------------------------------
+
+
+create_path(Req, State = #state{path = [], version = Version}) ->
+    {ok, Body, Req1} = cowboy_http_req:body(Req),
+    {Decoded, Req2} = case Body of
+                          <<>> ->
+                              {[], Req1};
+                          _ ->
+                              D = jsx:decode(Body),
+                              {D, Req1}
+                      end,
+    {ok, User} = jsxd:get(<<"user">>, Decoded),
+    {ok, Pass} = jsxd:get(<<"password">>, Decoded),
+    {ok, UUID} = libsnarl:user_add(User),
+    ok = libsnarl:user_passwd(UUID, Pass),
+    {<<"/api/", Version/binary, "/users/", UUID/binary>>, Req2, State}.
 
 from_json(Req, State) ->
     {ok, Body, Req1} = cowboy_http_req:body(Req),
@@ -238,16 +268,14 @@ from_json(Req, State) ->
 
     {Reply, Req2, State1}.
 
-handle_write(Req, State = #state{path = [User, <<"sessions">>]}, [{<<"password">>, Password}]) ->
-    {ok, {token, Token}} = libsnarl:auth(User, Password),
-    {ok, Req1} = cowboy_http_req:set_resp_header(<<"X-Snarl-Token">>, Token, Req),
-    {ok, Req2} = cowboy_http_req:set_resp_cookie(<<"X-Snarl-Token">>, Token, [{max_age, 60*60*24*365}], Req1),
-    {ok, Req3} = cowboy_http_req:set_resp_body(jsx:encode([{<<"token">>, Token}]), Req2),
-    {true, Req3, State};
+
 
 handle_write(Req, State = #state{path =  [User]}, [{<<"password">>, Password}]) ->
-    libsnarl:user_add(User),
     ok = libsnarl:user_passwd(User, Password),
+    {true, Req, State};
+
+%% TODO : This is a icky case it is called after post.
+handle_write(Req, State = #state{method = 'POST', path = []}, _) ->
     {true, Req, State};
 
 handle_write(Req, State = #state{path = [User, <<"groups">>, Group]}, _) ->

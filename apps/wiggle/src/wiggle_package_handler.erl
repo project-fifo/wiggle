@@ -10,9 +10,12 @@
          content_types_accepted/2,
          allowed_methods/2,
          resource_exists/2,
+         service_available/2,
          delete_resource/2,
          forbidden/2,
          options/2,
+         create_path/2,
+         post_is_create/2,
          is_authorized/2]).
 
 -export([to_json/2,
@@ -28,17 +31,33 @@
               init/3,
               is_authorized/2,
               options/2,
+              service_available/2,
               resource_exists/2,
+              create_path/2,
+              post_is_create/2,
               rest_init/2]).
 
 
--record(state, {path, method, version, token, content, reply}).
+-record(state, {path, method, version, token, content, reply, obj, body}).
 
 init(_Transport, _Req, []) ->
     {upgrade, protocol, cowboy_http_rest}.
 
 rest_init(Req, _) ->
     wiggle_handler:initial_state(Req, <<"packages">>).
+
+post_is_create(Req, State) ->
+    {true, Req, State}.
+
+service_available(Req, State) ->
+    case {libsniffle:servers(), libsnarl:servers()} of
+        {[], _} ->
+            {false, Req, State};
+        {_, []} ->
+            {false, Req, State};
+        _ ->
+            {true, Req, State}
+    end.
 
 options(Req, State) ->
     Methods = allowed_methods(Req, State, State#state.path),
@@ -61,7 +80,7 @@ allowed_methods(Req, State) ->
     {['HEAD', 'OPTIONS' | allowed_methods(State#state.version, State#state.token, State#state.path)], Req, State}.
 
 allowed_methods(_Version, _Token, []) ->
-    ['GET'];
+    ['GET', 'POST'];
 
 allowed_methods(_Version, _Token, [_Package]) ->
     ['GET', 'PUT', 'DELETE'].
@@ -71,10 +90,10 @@ resource_exists(Req, State = #state{path = []}) ->
 
 resource_exists(Req, State = #state{path = [Package]}) ->
     case libsniffle:package_get(Package) of
-        not_found ->
+        {ok, not_found} ->
             {false, Req, State};
-        {ok, _} ->
-            {true, Req, State}
+        {ok, Obj} ->
+            {true, Req, State#state{obj = Obj}}
     end.
 
 is_authorized(Req, State = #state{method = 'OPTIONS'}) ->
@@ -92,8 +111,11 @@ forbidden(Req, State = #state{method = 'OPTIONS'}) ->
 forbidden(Req, State = #state{token = undefined}) ->
     {true, Req, State};
 
-forbidden(Req, State = #state{path = []}) ->
-    {allowed(State#state.token, [<<"packages">>]), Req, State};
+forbidden(Req, State = #state{method= 'GET', path = []}) ->
+    {allowed(State#state.token, [<<"cloud">>, <<"packages">>, <<"list">>]), Req, State};
+
+forbidden(Req, State = #state{method= 'POST', path = []}) ->
+    {allowed(State#state.token, [<<"cloud">>, <<"packages">>, <<"create">>]), Req, State};
 
 forbidden(Req, State = #state{method = 'GET', path = [Package]}) ->
     {allowed(State#state.token, [<<"packages">>, Package, <<"get">>]), Req, State};
@@ -101,8 +123,8 @@ forbidden(Req, State = #state{method = 'GET', path = [Package]}) ->
 forbidden(Req, State = #state{method = 'DELETE', path = [Package]}) ->
     {allowed(State#state.token, [<<"packages">>, Package, <<"delete">>]), Req, State};
 
-forbidden(Req, State = #state{method = 'PUT', path = [Package]}) ->
-    {allowed(State#state.token, [<<"packages">>, Package, <<"edit">>]), Req, State};
+forbidden(Req, State = #state{method = 'PUT', path = [_Package]}) ->
+    {allowed(State#state.token, [<<"cloud">>, <<"packages">>, <<"create">>]), Req, State};
 
 forbidden(Req, State) ->
     {true, Req, State}.
@@ -117,46 +139,54 @@ to_json(Req, State) ->
 
 handle_request(Req, State = #state{token = Token, path = []}) ->
     {ok, Permissions} = libsnarl:user_cache({token, Token}),
-    {ok, Res} = libsniffle:package_list([{must, 'allowed', [<<"package">>, {<<"res">>, <<"name">>}, <<"get">>], Permissions}]),
+    {ok, Res} = libsniffle:package_list([{must, 'allowed', [<<"packages">>, {<<"res">>, <<"uuid">>}, <<"get">>], Permissions}]),
     {lists:map(fun ({E, _}) -> E end,  Res), Req, State};
 
-handle_request(Req, State = #state{path = [Package]}) ->
-    {ok, Res} = libsniffle:package_get(Package),
-    {Res, Req, State}.
+handle_request(Req, State = #state{path = [_Package], obj = Obj}) ->
+    {Obj, Req, State}.
 
 
 %%--------------------------------------------------------------------
 %% PUT
 %%--------------------------------------------------------------------
 
+create_path(Req, State = #state{path = [], version = Version}) ->
+    {ok, Body, Req1} = cowboy_http_req:body(Req),
+    {Data, Req2} = case Body of
+                       <<>> ->
+                           {[], Req1};
+                       _ ->
+                           D = jsxd:from_list(jsx:decode(Body)),
+                           {D, Req1}
+                   end,
+    Data1 = jsxd:select([<<"cpu_cap">>,<<"quota">>, <<"ram">>, <<"requirements">>], Data),
+    {ok, Package} = jsxd:get(<<"name">>, Data),
+    case libsniffle:package_create(Package) of
+        {ok, UUID} ->
+            ok = libsniffle:package_set(UUID, Data1),
+            {<<"/api/", Version/binary, "/packages/", UUID/binary>>, Req2, State};
+        duplicate ->
+            {ok, Req3} = cowboy_http_req:reply(409, Req2),
+            {halt, Req3, State}
+    end.
+
 from_json(Req, State) ->
     {ok, Body, Req1} = cowboy_http_req:body(Req),
     {Reply, Req2, State1} = case Body of
                                 <<>> ->
-                                    handle_write(Req1, State, []);
+                                    handle_write(Req1, State, null);
                                 _ ->
                                     Decoded = jsx:decode(Body),
                                     handle_write(Req1, State, Decoded)
                             end,
     {Reply, Req2, State1}.
 
-handle_write(Req, State = #state{path = [Package]}, Body) ->
-    {<<"ram">>, Ram} = lists:keyfind(<<"ram">>, 1, Body),
-    {<<"quota">>, Quota} = lists:keyfind(<<"quota">>, 1, Body),
-    Data = [{<<"quota">>, Quota},
-            {<<"ram">>, Ram}],
-    Data1 = case lists:keyfind(<<"cpu_cap">>, 1, Body) of
-                {<<"cpu_cap">>, VCPUS} ->
-                    [{<<"cpu_cap">>, VCPUS} | Data];
-                _ ->
-                    Data
-            end,
-    ok = libsniffle:package_create(Package),
-    ok = libsniffle:package_set(Package, Data1),
+%% TODO : This is a icky case it is called after post.
+handle_write(Req, State = #state{method = 'POST', path = []}, _) ->
     {true, Req, State};
 
 handle_write(Req, State, _Body) ->
-    {fase, Req, State}.
+    {false, Req, State}.
 
 %%--------------------------------------------------------------------
 %% DEETE

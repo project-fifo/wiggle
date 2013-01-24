@@ -5,7 +5,7 @@
          accepted/0
         ]).
 
--record(state, {path, method, version, token, content, reply}).
+-record(state, {path, method, version, token, content, reply, obj, body}).
 
 initial_state(Req, Component) ->
     {Method, Req1} = cowboy_http_req:method(Req),
@@ -35,10 +35,11 @@ initial_state(Req, Component) ->
     io:format("[~p] - ~p~n", [Method, Path]),
     {ok, Req7, State}.
 
-
 accepted() ->
     [
      {<<"application/json; charset=UTF-8">>, from_json},
      {<<"application/json; charset=utf-8">>, from_json},
+     {<<"application/json;charset=UTF-8">>, from_json},
+     {<<"application/json;charset=utf-8">>, from_json},
      {<<"application/json">>, from_json}
     ].
