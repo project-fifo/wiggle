@@ -57,7 +57,7 @@ websocket_init(_Any, Req, []) ->
                                     Host = binary_to_list(HostBin),
                                     Port = proplists:get_value(<<"port">>, H),
                                     {ok, Console} = libchunter:console_open(Host, Port, ID, self()),
-                                    {ok, Req5, Console};
+                                    {ok, Req5, {Console}};
                                 _ ->
                                     {ok, Req6} = cowboy_http_req:reply(505, [{'Content-Type', <<"text/html">>}],
                                                                        <<"could not find hypervisor">>, Req5),
@@ -78,15 +78,15 @@ websocket_init(_Any, Req, []) ->
             {shutdown, Req6}
     end.
 
-websocket_handle({text, Msg}, Req, {Socket} = State) ->
-    gen_tcp:send(Socket, base64:decode(Msg)),
+websocket_handle({text, Msg}, Req, {Console} = State) ->
+    libchunter_console_server:send(Console, Msg),
     {ok, Req, State};
 
 websocket_handle(_Any, Req, State) ->
     {ok, Req, State}.
 
-websocket_info({tcp,_Socket,Data}, Req, State) ->
-    {reply, {text, base64:encode(Data)}, Req, State};
+websocket_info({data, Data}, Req, State) ->
+    {reply, {text, Data}, Req, State};
 
 websocket_info(_Info, Req, State) ->
     {ok, Req, State, hibernate}.
