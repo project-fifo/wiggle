@@ -56,7 +56,7 @@ websocket_init(_Any, Req, []) ->
                                     HostBin = proplists:get_value(<<"host">>, H),
                                     Host = binary_to_list(HostBin),
                                     Port = proplists:get_value(<<"port">>, H),
-                                    {ok, Console} = libchunter:console_open(Host, Port, self()),
+                                    {ok, Console} = libchunter:console_open(Host, Port, ID, self()),
                                     {ok, Req5, Console};
                                 _ ->
                                     {ok, Req6} = cowboy_http_req:reply(505, [{'Content-Type', <<"text/html">>}],
