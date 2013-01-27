@@ -19,7 +19,6 @@ init({_Any, http}, Req, []) ->
     end.
 
 handle(Req, State) ->
-    io:format("~p~n", [Req]),
     {ok, Req1} =  cowboy_http_req:reply(200, [], <<"">>, Req),
     {ok, Req1, State}.
 
