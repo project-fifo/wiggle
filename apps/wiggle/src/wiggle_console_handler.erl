@@ -91,7 +91,6 @@ websocket_info({data, Data}, Req, State) ->
 websocket_info(_Info, Req, State) ->
     {ok, Req, State, hibernate}.
 
-websocket_terminate(_Reason, _Req, {Socket} = _State) ->
-    Socket ! {ws, closed},
-    gen_tcp:close(Socket),
+websocket_terminate(_Reason, _Req, {Console} = _State) ->
+    libchunter_console_server:close(Console),
     ok.
