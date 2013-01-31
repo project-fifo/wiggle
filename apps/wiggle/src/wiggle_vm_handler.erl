@@ -70,9 +70,7 @@ content_types_provided(Req, State) ->
      ], Req, State}.
 
 content_types_accepted(Req, State) ->
-    {[
-      {<<"application/json; charset=UTF-8">>, from_json}
-     ], Req, State}.
+    {wiggle_handler:accepted(), Req, State}.
 
 post_is_create(Req, State) ->
     {true, Req, State}.
