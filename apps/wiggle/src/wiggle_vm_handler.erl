@@ -166,7 +166,7 @@ forbidden(Req, State = #state{method = 'PUT', path = [Vm]}) ->
         [{<<"action">>, <<"reboot">>}] ->
             {allowed(State#state.token, [<<"vms">>, Vm, <<"reboot">>]), Req1, State#state{body=Decoded}};
         _ ->
-            {allowed(State#state.token, [<<"vms">>, Vm, <<"edit">>]), Req1, State}
+            {allowed(State#state.token, [<<"vms">>, Vm, <<"edit">>]), Req1, State#state{body=Decoded}}
     end;
 
 forbidden(Req, State = #state{method = 'GET', path = [Vm, <<"snapshots">>]}) ->
