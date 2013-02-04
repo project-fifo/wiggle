@@ -102,6 +102,15 @@ resource_exists(Req, State = #state{path = [Vm]}) ->
             {true, Req, State#state{obj=Obj}}
     end;
 
+
+resource_exists(Req, State = #state{path = [Vm, <<"package">>]}) ->
+    case libsniffle:vm_get(Vm) of
+        not_found ->
+            {false, Req, State};
+        {ok, Obj} ->
+            {true, Req, State#state{obj=Obj}}
+    end;
+
 resource_exists(Req, State = #state{path = [Vm, <<"snapshots">>]}) ->
     case libsniffle:vm_get(Vm) of
         not_found ->
@@ -160,7 +169,7 @@ forbidden(Req, State = #state{method = 'PUT', path = [Vm]}) ->
               end,
     case Decoded of
         [{<<"action">>, <<"start">>}] ->
-            {allowed(State#state.token, [<<"vms">>, Vm, <<"edit">>]), Req1, State#state{body=Decoded}};
+            {allowed(State#state.token, [<<"vms">>, Vm, <<"start">>]), Req1, State#state{body=Decoded}};
         [{<<"action">>, <<"stop">>}] ->
             {allowed(State#state.token, [<<"vms">>, Vm, <<"stop">>]), Req1, State#state{body=Decoded}};
         [{<<"action">>, <<"reboot">>}] ->
@@ -290,6 +299,19 @@ handle_write(Req, State = #state{path = [Vm]}, [{<<"action">>, <<"stop">>}]) ->
 
 handle_write(Req, State = #state{path = [Vm]}, [{<<"action">>, <<"reboot">>}]) ->
     libsniffle:vm_reboot(Vm),
+    {true, Req, State};
+
+handle_write(Req, State = #state{path = [Vm]}, [{<<"config">>, Config},
+                                                {<<"package">>, Package}]) ->
+    libsniffle:vm_update(Vm, Package, Config),
+    {true, Req, State};
+
+handle_write(Req, State = #state{path = [Vm]}, [{<<"config">>, Config}]) ->
+    libsniffle:vm_update(Vm, undefined, Config),
+    {true, Req, State};
+
+handle_write(Req, State = #state{path = [Vm]}, [{<<"package">>, Package}]) ->
+    libsniffle:vm_update(Vm, Package, []),
     {true, Req, State};
 
 handle_write(Req, State = #state{path = []}, _Body) ->
