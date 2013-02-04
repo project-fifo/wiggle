@@ -102,15 +102,6 @@ resource_exists(Req, State = #state{path = [Vm]}) ->
             {true, Req, State#state{obj=Obj}}
     end;
 
-
-resource_exists(Req, State = #state{path = [Vm, <<"package">>]}) ->
-    case libsniffle:vm_get(Vm) of
-        not_found ->
-            {false, Req, State};
-        {ok, Obj} ->
-            {true, Req, State#state{obj=Obj}}
-    end;
-
 resource_exists(Req, State = #state{path = [Vm, <<"snapshots">>]}) ->
     case libsniffle:vm_get(Vm) of
         not_found ->
@@ -206,6 +197,7 @@ forbidden(Req, State = #state{method = 'DELETE', path = [Vm, <<"snapshots">>, _S
     {allowed(State#state.token, [<<"vms">>, Vm, <<"snapshot_delete">>]), Req, State};
 
 forbidden(Req, State) ->
+    lager:error("Access to unknown path: ~p~n.", [State]),
     {true, Req, State}.
 
 %%--------------------------------------------------------------------
@@ -325,6 +317,7 @@ handle_write(Req, State = #state{path = [Vm, <<"snapshots">>, UUID]}, [{<<"actio
     {true, Req, State};
 
 handle_write(Req, State, _Body) ->
+    lager:error("Unknown PUT request: ~p~n.", [State]),
     {false, Req, State}.
 
 %%--------------------------------------------------------------------
