@@ -1,3 +1,4 @@
+*.version
 apps/wiggle/src/wiggle_version.hrl
 apps/wiggle/.eunit/
 rel/pkg/packlist
