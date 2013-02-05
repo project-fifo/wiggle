@@ -160,13 +160,13 @@ forbidden(Req, State = #state{method = 'PUT', path = [Vm]}) ->
               end,
     case Decoded of
         [{<<"action">>, <<"start">>}] ->
-            {allowed(State#state.token, [<<"vms">>, Vm, <<"edit">>]), Req1, State#state{body=Decoded}};
+            {allowed(State#state.token, [<<"vms">>, Vm, <<"start">>]), Req1, State#state{body=Decoded}};
         [{<<"action">>, <<"stop">>}] ->
             {allowed(State#state.token, [<<"vms">>, Vm, <<"stop">>]), Req1, State#state{body=Decoded}};
         [{<<"action">>, <<"reboot">>}] ->
             {allowed(State#state.token, [<<"vms">>, Vm, <<"reboot">>]), Req1, State#state{body=Decoded}};
         _ ->
-            {allowed(State#state.token, [<<"vms">>, Vm, <<"edit">>]), Req1, State}
+            {allowed(State#state.token, [<<"vms">>, Vm, <<"edit">>]), Req1, State#state{body=Decoded}}
     end;
 
 forbidden(Req, State = #state{method = 'GET', path = [Vm, <<"snapshots">>]}) ->
@@ -197,6 +197,7 @@ forbidden(Req, State = #state{method = 'DELETE', path = [Vm, <<"snapshots">>, _S
     {allowed(State#state.token, [<<"vms">>, Vm, <<"snapshot_delete">>]), Req, State};
 
 forbidden(Req, State) ->
+    lager:error("Access to unknown path: ~p~n.", [State]),
     {true, Req, State}.
 
 %%--------------------------------------------------------------------
@@ -292,6 +293,19 @@ handle_write(Req, State = #state{path = [Vm]}, [{<<"action">>, <<"reboot">>}]) -
     libsniffle:vm_reboot(Vm),
     {true, Req, State};
 
+handle_write(Req, State = #state{path = [Vm]}, [{<<"config">>, Config},
+                                                {<<"package">>, Package}]) ->
+    libsniffle:vm_update(Vm, Package, Config),
+    {true, Req, State};
+
+handle_write(Req, State = #state{path = [Vm]}, [{<<"config">>, Config}]) ->
+    libsniffle:vm_update(Vm, undefined, Config),
+    {true, Req, State};
+
+handle_write(Req, State = #state{path = [Vm]}, [{<<"package">>, Package}]) ->
+    libsniffle:vm_update(Vm, Package, []),
+    {true, Req, State};
+
 handle_write(Req, State = #state{path = []}, _Body) ->
     {true, Req, State};
 
@@ -303,6 +317,7 @@ handle_write(Req, State = #state{path = [Vm, <<"snapshots">>, UUID]}, [{<<"actio
     {true, Req, State};
 
 handle_write(Req, State, _Body) ->
+    lager:error("Unknown PUT request: ~p~n.", [State]),
     {false, Req, State}.
 
 %%--------------------------------------------------------------------
