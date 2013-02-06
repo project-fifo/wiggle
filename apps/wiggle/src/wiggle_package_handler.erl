@@ -82,13 +82,16 @@ allowed_methods(Req, State) ->
 allowed_methods(_Version, _Token, []) ->
     ['GET', 'POST'];
 
+allowed_methods(_Version, _Token, [_Package, <<"metadata">>|_]) ->
+    ['PUT', 'DELETE'];
+
 allowed_methods(_Version, _Token, [_Package]) ->
     ['GET', 'PUT', 'DELETE'].
 
 resource_exists(Req, State = #state{path = []}) ->
     {true, Req, State};
 
-resource_exists(Req, State = #state{path = [Package]}) ->
+resource_exists(Req, State = #state{path = [Package | _]}) ->
     case libsniffle:package_get(Package) of
         {ok, not_found} ->
             {false, Req, State};
@@ -125,6 +128,12 @@ forbidden(Req, State = #state{method = 'DELETE', path = [Package]}) ->
 
 forbidden(Req, State = #state{method = 'PUT', path = [_Package]}) ->
     {allowed(State#state.token, [<<"cloud">>, <<"packages">>, <<"create">>]), Req, State};
+
+forbidden(Req, State = #state{method = 'PUT', path = [Package, <<"metadata">> | _]}) ->
+    {allowed(State#state.token, [<<"packages">>, Package, <<"edit">>]), Req, State};
+
+forbidden(Req, State = #state{method = 'DELETE', path = [Package, <<"metadata">> | _]}) ->
+    {allowed(State#state.token, [<<"packages">>, Package, <<"edit">>]), Req, State};
 
 forbidden(Req, State) ->
     {true, Req, State}.
@@ -182,7 +191,12 @@ from_json(Req, State) ->
     {Reply, Req2, State1}.
 
 %% TODO : This is a icky case it is called after post.
+
 handle_write(Req, State = #state{method = 'POST', path = []}, _) ->
+    {true, Req, State};
+
+handle_write(Req, State = #state{path = [Package, <<"metadata">> | Path]}, [{K, V}]) ->
+    libsniffle:package_set(Package, [<<"metadata">> | Path] ++ [K], jsxd:from_list(V)),
     {true, Req, State};
 
 handle_write(Req, State, _Body) ->
@@ -191,6 +205,10 @@ handle_write(Req, State, _Body) ->
 %%--------------------------------------------------------------------
 %% DEETE
 %%--------------------------------------------------------------------
+
+delete_resource(Req, State = #state{path = [Package, <<"metadata">> | Path]}) ->
+    libsniffle:package_set(Package, [<<"metadata">> | Path], delete),
+    {true, Req, State};
 
 delete_resource(Req, State = #state{path = [Package]}) ->
     ok = libsniffle:package_delete(Package),
