@@ -78,6 +78,9 @@ content_types_accepted(Req, State) ->
 allowed_methods(Req, State) ->
     {['HEAD', 'OPTIONS' | allowed_methods(State#state.version, State#state.token, State#state.path)], Req, State}.
 
+allowed_methods(_Version, _Token, [_Iprange, <<"metadata">>|_]) ->
+    ['PUT', 'DELETE'];
+
 allowed_methods(_Version, _Token, []) ->
     ['GET', 'POST'];
 
@@ -87,7 +90,7 @@ allowed_methods(_Version, _Token, [_Iprange]) ->
 resource_exists(Req, State = #state{path = []}) ->
     {true, Req, State};
 
-resource_exists(Req, State = #state{path = [Iprange]}) ->
+resource_exists(Req, State = #state{path = [Iprange | _]}) ->
     case libsniffle:iprange_get(Iprange) of
         not_found ->
             {false, Req, State};
@@ -124,6 +127,12 @@ forbidden(Req, State = #state{method = 'DELETE', path = [Iprange]}) ->
 
 forbidden(Req, State = #state{method = 'PUT', path = [_Iprange]}) ->
     {allowed(State#state.token, [<<"cloud">>, <<"ipranges">>, <<"create">>]), Req, State};
+
+forbidden(Req, State = #state{method = 'PUT', path = [Iprange, <<"metadata">> | _]}) ->
+    {allowed(State#state.token, [<<"ipranges">>, Iprange, <<"edit">>]), Req, State};
+
+forbidden(Req, State = #state{method = 'DELETE', path = [Iprange, <<"metadata">> | _]}) ->
+    {allowed(State#state.token, [<<"ipranges">>, Iprange, <<"edit">>]), Req, State};
 
 forbidden(Req, State) ->
     {true, Req, State}.
@@ -198,12 +207,20 @@ from_json(Req, State) ->
 handle_write(Req, State = #state{method = 'POST', path = []}, _) ->
     {true, Req, State};
 
+handle_write(Req, State = #state{path = [Iprange, <<"metadata">> | Path]}, [{K, V}]) ->
+    libsniffle:iprange_set(Iprange, [<<"metadata">> | Path] ++ [K], jsxd:from_list(V)),
+    {true, Req, State};
+
 handle_write(Req, State, _Body) ->
     {false, Req, State}.
 
 %%--------------------------------------------------------------------
 %% DEETE
 %%--------------------------------------------------------------------
+
+delete_resource(Req, State = #state{path = [Iprange, <<"metadata">> | Path]}) ->
+    libsniffle:iprange_set(Iprange, [<<"metadata">> | Path], delete),
+    {true, Req, State};
 
 delete_resource(Req, State = #state{path = [Iprange]}) ->
     ok = libsniffle:iprange_delete(Iprange),
