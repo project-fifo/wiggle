@@ -105,7 +105,7 @@ allowed_methods(_Version, _Token, [_Login, <<"groups">>, _Group]) ->
 
 resource_exists(Req, State = #state{path = [User, <<"permissions">> | Permission]}) ->
     case {erlangify_permission(Permission), libsnarl:user_get(User)} of
-        {_, not_found} ->
+        {_, {ok, not_found}} ->
             {false, Req, State};
         {[], {ok, Obj}} ->
             {true, Req, State#state{obj = Obj}};
@@ -115,7 +115,7 @@ resource_exists(Req, State = #state{path = [User, <<"permissions">> | Permission
 
 resource_exists(Req, State = #state{method = 'DELETE', path = [User, <<"groups">>, Group]}) ->
     case libsnarl:user_get(User) of
-        not_found ->
+        {ok, not_found} ->
             {false, Req, State};
         {ok, Obj} ->
             {lists:member(Group, jsxd:get(<<"groups">>, [], Obj)), Req, State#state{obj = Obj}}
@@ -123,7 +123,7 @@ resource_exists(Req, State = #state{method = 'DELETE', path = [User, <<"groups">
 
 resource_exists(Req, State = #state{method = 'PUT', path = [User, <<"groups">>, Group]}) ->
     case libsnarl:user_get(User) of
-        not_found ->
+        {ok, not_found} ->
             {false, Req, State};
         {ok, Obj} ->
             case libsnarl:group_get(Group) of

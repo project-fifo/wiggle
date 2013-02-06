@@ -97,7 +97,7 @@ allowed_methods(_Version, _Token, [_Group, <<"permissions">> | _Permission]) ->
 
 resource_exists(Req, State = #state{path = [Group, <<"permissions">> | Permission]}) ->
     case {erlangify_permission(Permission), libsnarl:group_get(Group)} of
-        {_, not_found} ->
+        {_, {ok, not_found}} ->
             {false, Req, State};
         {[], {ok, Obj}} ->
             {true, Req, State#state{obj=Obj}};
