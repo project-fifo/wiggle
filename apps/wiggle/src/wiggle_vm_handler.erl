@@ -199,7 +199,14 @@ forbidden(Req, State = #state{method = 'DELETE', path = [Vm, <<"snapshots">>, _S
     {allowed(State#state.token, [<<"vms">>, Vm, <<"snapshot_delete">>]), Req, State};
 
 forbidden(Req, State = #state{method = 'PUT', path = [Vm, <<"metadata">> | _]}) ->
-    {allowed(State#state.token, [<<"vms">>, Vm, <<"edit">>]), Req, State};
+    {ok, Body, Req1} = cowboy_http_req:body(Req),
+    Decoded = case Body of
+                  <<>> ->
+                      [];
+                  _ ->
+                      jsx:decode(Body)
+              end,
+    {allowed(State#state.token, [<<"vms">>, Vm, <<"edit">>]), Req1, State#state{body=Decoded}};
 
 forbidden(Req, State = #state{method = 'DELETE', path = [Vm, <<"metadata">> | _]}) ->
     {allowed(State#state.token, [<<"vms">>, Vm, <<"edit">>]), Req, State};
