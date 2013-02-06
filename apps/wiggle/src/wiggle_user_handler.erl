@@ -88,6 +88,9 @@ allowed_methods(_Version, _Token, []) ->
 allowed_methods(_Version, _Token, [_Login]) ->
     ['GET', 'PUT', 'DELETE'];
 
+allowed_methods(_Version, _Token, [_Login, <<"metadata">> | _]) ->
+    ['PUT', 'DELETE'];
+
 allowed_methods(_Version, _Token, [_Login, <<"permissions">>]) ->
     ['GET'];
 
@@ -102,7 +105,7 @@ allowed_methods(_Version, _Token, [_Login, <<"groups">>, _Group]) ->
 
 resource_exists(Req, State = #state{path = [User, <<"permissions">> | Permission]}) ->
     case {erlangify_permission(Permission), libsnarl:user_get(User)} of
-        {_, not_found} ->
+        {_, {ok, not_found}} ->
             {false, Req, State};
         {[], {ok, Obj}} ->
             {true, Req, State#state{obj = Obj}};
@@ -112,7 +115,7 @@ resource_exists(Req, State = #state{path = [User, <<"permissions">> | Permission
 
 resource_exists(Req, State = #state{method = 'DELETE', path = [User, <<"groups">>, Group]}) ->
     case libsnarl:user_get(User) of
-        not_found ->
+        {ok, not_found} ->
             {false, Req, State};
         {ok, Obj} ->
             {lists:member(Group, jsxd:get(<<"groups">>, [], Obj)), Req, State#state{obj = Obj}}
@@ -120,7 +123,7 @@ resource_exists(Req, State = #state{method = 'DELETE', path = [User, <<"groups">
 
 resource_exists(Req, State = #state{method = 'PUT', path = [User, <<"groups">>, Group]}) ->
     case libsnarl:user_get(User) of
-        not_found ->
+        {ok, not_found} ->
             {false, Req, State};
         {ok, Obj} ->
             case libsnarl:group_get(Group) of
@@ -203,6 +206,12 @@ forbidden(Req, State = #state{method = 'DELETE', path = [User, <<"groups">>, Gro
     {allowed(State#state.token, [<<"users">>, User, <<"leave">>])
      andalso allowed(State#state.token, [<<"groups">>, Group, <<"leave">>]), Req, State};
 
+forbidden(Req, State = #state{method = 'PUT', path = [User, <<"metadata">> | _]}) ->
+    {allowed(State#state.token, [<<"users">>, User, <<"edit">>]), Req, State};
+
+forbidden(Req, State = #state{method = 'DELETE', path = [User, <<"metadata">> | _]}) ->
+    {allowed(State#state.token, [<<"users">>, User, <<"edit">>]), Req, State};
+
 forbidden(Req, State) ->
     {true, Req, State}.
 
@@ -275,6 +284,10 @@ handle_write(Req, State = #state{path =  [User]}, [{<<"password">>, Password}]) 
 handle_write(Req, State = #state{method = 'POST', path = []}, _) ->
     {true, Req, State};
 
+handle_write(Req, State = #state{path = [User, <<"metadata">> | Path]}, [{K, V}]) ->
+    libsnarl:user_set(User, [<<"metadata">> | Path] ++ [K], jsxd:from_list(V)),
+    {true, Req, State};
+
 handle_write(Req, State = #state{path = [User, <<"groups">>, Group]}, _) ->
     {ok, joined} = libsnarl:user_join(User, Group),
     {true, Req, State};
@@ -288,6 +301,10 @@ handle_write(Req, State = #state{path = [User, <<"permissions">> | Permission]},
 %%--------------------------------------------------------------------
 %% DEETE
 %%--------------------------------------------------------------------
+
+delete_resource(Req, State = #state{path = [User, <<"metadata">> | Path]}) ->
+    libsnarl:user_set(User, [<<"metadata">> | Path], delete),
+    {true, Req, State};
 
 delete_resource(Req, State = #state{path = [_User, <<"sessions">>]}) ->
     {ok, Req1} = cowboy_http_req:set_resp_cookie(<<"X-Snarl-Token">>, <<"">>, [{max_age, 0}], Req),

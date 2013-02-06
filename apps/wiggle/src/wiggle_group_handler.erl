@@ -89,12 +89,15 @@ allowed_methods(_Version, _Token, [_Group]) ->
 allowed_methods(_Version, _Token, [_Group, <<"permissions">>]) ->
     ['GET'];
 
+allowed_methods(_Version, _Token, [_Group, <<"metadata">> | _]) ->
+    ['PUT', 'DELETE'];
+
 allowed_methods(_Version, _Token, [_Group, <<"permissions">> | _Permission]) ->
     ['PUT', 'DELETE'].
 
 resource_exists(Req, State = #state{path = [Group, <<"permissions">> | Permission]}) ->
     case {erlangify_permission(Permission), libsnarl:group_get(Group)} of
-        {_, not_found} ->
+        {_, {ok, not_found}} ->
             {false, Req, State};
         {[], {ok, Obj}} ->
             {true, Req, State#state{obj=Obj}};
@@ -162,6 +165,12 @@ forbidden(Req, State = #state{method = 'DELETE', path = [Group, <<"permissions">
     {allowed(State#state.token, [<<"groups">>, Group, <<"revoke">>])
      andalso allowed(State#state.token, [<<"permissions">>, P, <<"revoke">>]), Req, State};
 
+forbidden(Req, State = #state{method = 'PUT', path = [Group, <<"metadata">> | _]}) ->
+    {allowed(State#state.token, [<<"groups">>, Group, <<"edit">>]), Req, State};
+
+forbidden(Req, State = #state{method = 'DELETE', path = [Group, <<"metadata">> | _]}) ->
+    {allowed(State#state.token, [<<"groups">>, Group, <<"edit">>]), Req, State};
+
 forbidden(Req, State) ->
     {true, Req, State}.
 
@@ -220,6 +229,10 @@ from_json(Req, State) ->
 handle_write(Req, State = #state{method = 'POST', path = []}, _) ->
     {true, Req, State};
 
+handle_write(Req, State = #state{path = [Group, <<"metadata">> | Path]}, [{K, V}]) ->
+    libsnarl:group_set(Group, [<<"metadata">> | Path] ++ [K], jsxd:from_list(V)),
+    {true, Req, State};
+
 handle_write(Req, State = #state{path = [Group]}, _Body) ->
     ok = libsnarl:group_add(Group),
     {true, Req, State};
@@ -233,6 +246,10 @@ handle_write(Req, State = #state{path = [Group, <<"permissions">> | Permission]}
 %%--------------------------------------------------------------------
 %% DEETE
 %%--------------------------------------------------------------------
+
+delete_resource(Req, State = #state{path = [Group, <<"metadata">> | Path]}) ->
+    libsnarl:group_set(Group, [<<"metadata">> | Path], delete),
+    {true, Req, State};
 
 delete_resource(Req, State = #state{path = [Group, <<"permissions">> | Permission]}) ->
     P = erlangify_permission(Permission),
