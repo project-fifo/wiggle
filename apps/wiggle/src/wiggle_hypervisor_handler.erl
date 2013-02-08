@@ -144,10 +144,7 @@ handle_request(Req, State = #state{token = Token, path = []}) ->
     {lists:map(fun ({E, _}) -> E end,  Res), Req, State};
 
 handle_request(Req, State = #state{path = [_Hypervisor], obj = Obj}) ->
-    Res1 = jsxd:thread([{delete, <<"host">>},
-                        {delete, <<"port">>}],
-                       Obj),
-    {Res1, Req, State}.
+    {Obj, Req, State}.
 
 %%--------------------------------------------------------------------
 %% PUT
