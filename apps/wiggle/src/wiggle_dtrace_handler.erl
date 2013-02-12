@@ -65,6 +65,8 @@ websocket_handle(_Any, Req, State) ->
 
 websocket_info({tcp, _Port, Data}, Req, State) ->
     case binary_to_term(Data) of
+        {dtrace, ok} ->
+            {ok, Req, State, hibernate};
         {dtrace, JSON} ->
             {reply, {text, jsx:encode(JSON)}, Req, State};
         _ ->
@@ -74,6 +76,6 @@ websocket_info({tcp, _Port, Data}, Req, State) ->
 websocket_info(_Info, Req, State) ->
     {ok, Req, State, hibernate}.
 
-websocket_terminate(_Reason, _Req, {Console} = _State) ->
-    libchunter_console_server:close(Console),
+websocket_terminate(_Reason, _Req, {Port} = _State) ->
+    gen_tcp:close(Port),
     ok.
