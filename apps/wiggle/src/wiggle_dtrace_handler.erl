@@ -64,7 +64,12 @@ websocket_handle(_Any, Req, State) ->
     {ok, Req, State}.
 
 websocket_info({tcp, _Port, Data}, Req, State) ->
-    {reply, {text, jsx:encode(Data)}, Req, State};
+    case binary_to_term(Data) of
+        {dtrace, JSON} ->
+            {reply, {text, jsx:encode(JSON)}, Req, State};
+        _ ->
+            {ok, Req, State, hibernate}
+    end;
 
 websocket_info(_Info, Req, State) ->
     {ok, Req, State, hibernate}.
