@@ -55,8 +55,20 @@ websocket_init(_Any, Req, []) ->
     end.
 
 
+
+websocket_handle({text, <<"">>}, Req, State) ->
+    {ok, Servers} = libsniffle:hypervisor_list(),
+    case libsniffle:dtrace_run(State#state.id, [{<<"servers">>, Servers}]) of
+        {ok, S} ->
+            {ok, Req, State#state{socket = S}};
+        E ->
+            {ok, Req1} = cowboy_http_req:reply(505, [{'Content-Type', <<"text/html">>}],
+                                               list_to_binary(io_lib:format("~p", [E])), Req),
+            {shutdown, Req1}
+    end;
+
 websocket_handle({text, Msg}, Req, State) ->
-    {ok, Config} = jsx:decode(Msg),
+    Config = jsx:decode(Msg),
     {ok, Servers} = libsniffle:hypervisor_list(),
     Config1 = jsxd:update([<<"srevers">>], fun(S) ->
                                                    S
