@@ -18,6 +18,8 @@ init({_Any, http}, Req, []) ->
         {<<"WebSocket">>, _Req2} -> {upgrade, protocol, cowboy_http_websocket}
     end.
 
+-record(state, {id, socket}).
+
 handle(Req, State) ->
     {ok, Req1} =  cowboy_http_req:reply(200, [], <<"">>, Req),
     {ok, Req1, State}.
@@ -44,21 +46,29 @@ websocket_init(_Any, Req, []) ->
                             {ok, ReqX1} = cowboy_http_req:set_resp_header(<<"X-Snarl-Token">>, TokenX, ReqX),
                             {TokenX, ReqX1}
                     end,
-    case libsnarl:allowed({token, Token}, [<<"dtrace">>, ID, <<"consume">>]) of
+    case libsnarl:allowed({token, Token}, [<<"dtrace">>, ID, <<"stream">>]) of
         true ->
-            {ok, Servers} = libsniffle:hypervisor_list(),
-            case libsniffle:dtrace_run(ID, Servers) of
-                {ok, S} ->
-                    {ok, Req5, {S}};
-                E ->
-                    {ok, Req6} = cowboy_http_req:reply(505, [{'Content-Type', <<"text/html">>}],
-                                                       list_to_binary(io_lib:format("~p", [E])), Req5),
-                    {shutdown, Req6}
-            end;
+            {ok, Req, #state{id = ID}};
         false ->
             {ok, Req6} = cowboy_http_req:reply(401, [{'Content-Type', <<"text/html">>}], <<"">>, Req5),
             {shutdown, Req6}
     end.
+
+
+websocket_handle({text, Msg}, Req, State) ->
+    {ok, Config} = jsx:decode(Msg),
+    {ok, Servers} = libsniffle:hypervisor_list(),
+    Config1 = jsxd:update([<<"srevers">>], fun(S) ->
+                                                   S
+                                           end, Servers, Config),
+    case libsniffle:dtrace_run(State#state.id, Config1) of
+        {ok, S} ->
+            {ok, Req, State#state{socket = S}};
+        E ->
+            {ok, Req1} = cowboy_http_req:reply(505, [{'Content-Type', <<"text/html">>}],
+                                               list_to_binary(io_lib:format("~p", [E])), Req),
+            {shutdown, Req1}
+    end;
 
 websocket_handle(_Any, Req, State) ->
     {ok, Req, State}.
