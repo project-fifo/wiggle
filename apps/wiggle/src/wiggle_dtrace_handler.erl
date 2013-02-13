@@ -70,7 +70,7 @@ websocket_handle({text, <<"">>}, Req, State) ->
 websocket_handle({text, Msg}, Req, State) ->
     Config = jsx:decode(Msg),
     {ok, Servers} = libsniffle:hypervisor_list(),
-    Config1 = jsxd:update([<<"srevers">>], fun(S) ->
+    Config1 = jsxd:update([<<"servers">>], fun(S) ->
                                                    S
                                            end, Servers, Config),
     case libsniffle:dtrace_run(State#state.id, Config1) of
