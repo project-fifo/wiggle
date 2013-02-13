@@ -18,7 +18,7 @@ init({_Any, http}, Req, []) ->
         {<<"WebSocket">>, _Req2} -> {upgrade, protocol, cowboy_http_websocket}
     end.
 
--record(state, {id, socket}).
+-record(state, {id, socket, config}).
 
 handle(Req, State) ->
     {ok, Req1} =  cowboy_http_req:reply(200, [], <<"">>, Req),
@@ -48,7 +48,15 @@ websocket_init(_Any, Req, []) ->
                     end,
     case libsnarl:allowed({token, Token}, [<<"dtrace">>, ID, <<"stream">>]) of
         true ->
-            {ok, Req, #state{id = ID}};
+            case libsniffle:dtrace_get(ID) of
+                {ok, Obj} ->
+                    {ok, Req, #state{id = ID, config = jsxd:get(<<"config">>, [], Obj)}};
+                _ ->
+                    {ok, Req6} = cowboy_http_req:reply(404,
+                                                       [{'Content-Type', <<"text/html">>}],
+                                                       <<"not found">>, Req5),
+                    {shutdown, Req6}
+            end;
         false ->
             {ok, Req6} = cowboy_http_req:reply(401, [{'Content-Type', <<"text/html">>}], <<"">>, Req5),
             {shutdown, Req6}
@@ -60,8 +68,7 @@ websocket_handle({text, <<"">>}, Req, State) ->
     {ok, Servers} = libsniffle:hypervisor_list(),
     case libsniffle:dtrace_run(State#state.id, [{<<"servers">>, Servers}]) of
         {ok, S} ->
-
-            {reply, {text, jsx:encode([{<<"config">>, [{<<"servers">>, Servers}]}])},
+            {reply, {text, jsx:encode([{<<"config">>, jsxd:merge([{<<"servers">>, Servers}], State#state.config)}])},
              Req, State#state{socket = S}};
         E ->
             {ok, Req1} = cowboy_http_req:reply(505, [{'Content-Type', <<"text/html">>}],
@@ -77,7 +84,7 @@ websocket_handle({text, Msg}, Req, State) ->
                                            end, Servers, Config),
     case libsniffle:dtrace_run(State#state.id, Config1) of
         {ok, S} ->
-            {reply, {text, jsx:encode([{<<"config">>, Config1}])},
+            {reply, {text, jsx:encode([{<<"config">>, jsxd:merge(Config1, State#state.config)}])},
              Req, State#state{socket = S}};
         E ->
             {ok, Req1} = cowboy_http_req:reply(505, [{'Content-Type', <<"text/html">>}],
