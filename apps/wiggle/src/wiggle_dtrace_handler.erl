@@ -86,6 +86,9 @@ websocket_info({tcp, _Port, Data}, Req, State) ->
 websocket_info(_Info, Req, State) ->
     {ok, Req, State, hibernate}.
 
-websocket_terminate(_Reason, _Req, {Port} = _State) ->
+websocket_terminate(_Reason, _Req, #state{socket = undefined} = _State) ->
+    ok;
+
+websocket_terminate(_Reason, _Req, #state{socket = Port} = _State) ->
     gen_tcp:close(Port),
     ok.
