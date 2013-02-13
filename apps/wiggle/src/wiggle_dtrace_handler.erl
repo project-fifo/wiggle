@@ -60,7 +60,9 @@ websocket_handle({text, <<"">>}, Req, State) ->
     {ok, Servers} = libsniffle:hypervisor_list(),
     case libsniffle:dtrace_run(State#state.id, [{<<"servers">>, Servers}]) of
         {ok, S} ->
-            {ok, Req, State#state{socket = S}};
+
+            {reply, {text, jsx:encode([{<<"config">>, [{<<"servers">>, Servers}]}])},
+             Req, State#state{socket = S}};
         E ->
             {ok, Req1} = cowboy_http_req:reply(505, [{'Content-Type', <<"text/html">>}],
                                                list_to_binary(io_lib:format("~p", [E])), Req),
@@ -75,7 +77,8 @@ websocket_handle({text, Msg}, Req, State) ->
                                            end, Servers, Config),
     case libsniffle:dtrace_run(State#state.id, Config1) of
         {ok, S} ->
-            {ok, Req, State#state{socket = S}};
+            {reply, {text, jsx:encode([{<<"config">>, Config1}])},
+             Req, State#state{socket = S}};
         E ->
             {ok, Req1} = cowboy_http_req:reply(505, [{'Content-Type', <<"text/html">>}],
                                                list_to_binary(io_lib:format("~p", [E])), Req),
