@@ -1,116 +1,229 @@
+%% Feel free to use, reuse and abuse the code in this file.
+
+%% @doc Hello world handler.
 -module(wiggle_dtrace_handler).
 
--behaviour(cowboy_http_handler).
--behaviour(cowboy_http_websocket_handler).
-
 -export([init/3,
-         handle/2,
-         terminate/2]).
--export([websocket_init/3,
-         websocket_handle/3,
-         websocket_info/3,
-         websocket_terminate/3]).
+         rest_init/2]).
 
-init({_Any, http}, Req, []) ->
-    case cowboy_http_req:header('Upgrade', Req) of
-        {undefined, Req2} -> {ok, Req2, undefined};
-        {<<"websocket">>, _Req2} -> {upgrade, protocol, cowboy_http_websocket};
-        {<<"WebSocket">>, _Req2} -> {upgrade, protocol, cowboy_http_websocket}
+-export([content_types_provided/2,
+         content_types_accepted/2,
+         allowed_methods/2,
+         resource_exists/2,
+         service_available/2,
+         delete_resource/2,
+         forbidden/2,
+         options/2,
+         create_path/2,
+         post_is_create/2,
+         is_authorized/2]).
+
+-export([to_json/2,
+         from_json/2]).
+
+-ignore_xref([to_json/2,
+              from_json/2,
+              allowed_methods/2,
+              content_types_accepted/2,
+              content_types_provided/2,
+              delete_resource/2,
+              forbidden/2,
+              init/3,
+              is_authorized/2,
+              options/2,
+              service_available/2,
+              resource_exists/2,
+              create_path/2,
+              post_is_create/2,
+              rest_init/2]).
+
+-record(state, {path, method, version, token, content, reply, obj, body}).
+
+init(_Transport, _Req, []) ->
+    {upgrade, protocol, cowboy_http_rest}.
+
+rest_init(Req, _) ->
+    wiggle_handler:initial_state(Req, <<"dtraces">>).
+
+post_is_create(Req, State) ->
+    {true, Req, State}.
+
+service_available(Req, State) ->
+    case {libsniffle:servers(), libsnarl:servers()} of
+        {[], _} ->
+            {false, Req, State};
+        {_, []} ->
+            {false, Req, State};
+        _ ->
+            {true, Req, State}
     end.
 
--record(state, {id, socket, config}).
-
-handle(Req, State) ->
-    {ok, Req1} =  cowboy_http_req:reply(200, [], <<"">>, Req),
+options(Req, State) ->
+    Methods = allowed_methods(Req, State, State#state.path),
+    {ok, Req1} = cowboy_http_req:set_resp_header(
+                   <<"Access-Control-Allow-Methods">>,
+                   string:join(
+                     lists:map(fun erlang:atom_to_list/1,
+                               ['HEAD', 'OPTIONS' | Methods]), ", "), Req),
     {ok, Req1, State}.
 
-terminate(_Req, _State) ->
-    ok.
+content_types_provided(Req, State) ->
+    {[
+      {<<"application/json">>, to_json}
+     ], Req, State}.
 
-websocket_init(_Any, Req, []) ->
-    {[<<"api">>, _, <<"dtrace">>, ID, <<"stream">>], Req1} = cowboy_http_req:path(Req),
-    {ok, Req2} = cowboy_http_req:set_resp_header(
-                   <<"Access-Control-Allow-Headers">>,
-                   <<"X-Snarl-Token">>, Req1),
-    {ok, Req3} = cowboy_http_req:set_resp_header(
-                   <<"Access-Control-Expose-Headers">>,
-                   <<"X-Snarl-Token">>, Req2),
-    {ok, Req4} = cowboy_http_req:set_resp_header(
-                   <<"Allow-Access-Control-Credentials">>,
-                   <<"true">>, Req3),
-    {Token, Req5} = case cowboy_http_req:header(<<"X-Snarl-Token">>, Req4) of
-                        {undefined, ReqX} ->
-                            {TokenX, ReqX1} = cowboy_http_req:cookie(<<"X-Snarl-Token">>, ReqX),
-                            {TokenX, ReqX1};
-                        {TokenX, ReqX} ->
-                            {ok, ReqX1} = cowboy_http_req:set_resp_header(<<"X-Snarl-Token">>, TokenX, ReqX),
-                            {TokenX, ReqX1}
-                    end,
-    case libsnarl:allowed({token, Token}, [<<"dtrace">>, ID, <<"stream">>]) of
-        true ->
-            case libsniffle:dtrace_get(ID) of
-                {ok, Obj} ->
-                    {ok, Req, #state{id = ID, config = jsxd:get(<<"config">>, [], Obj)}};
-                _ ->
-                    {ok, Req6} = cowboy_http_req:reply(404,
-                                                       [{'Content-Type', <<"text/html">>}],
-                                                       <<"not found">>, Req5),
-                    {shutdown, Req6}
-            end;
-        false ->
-            {ok, Req6} = cowboy_http_req:reply(401, [{'Content-Type', <<"text/html">>}], <<"">>, Req5),
-            {shutdown, Req6}
+content_types_accepted(Req, State) ->
+    {wiggle_handler:accepted(), Req, State}.
+
+allowed_methods(Req, State) ->
+    {['HEAD', 'OPTIONS' | allowed_methods(State#state.version, State#state.token, State#state.path)], Req, State}.
+
+allowed_methods(_Version, _Token, []) ->
+    ['GET', 'POST'];
+
+allowed_methods(_Version, _Token, [_Dtrace, <<"metadata">>|_]) ->
+    ['PUT', 'DELETE'];
+
+allowed_methods(_Version, _Token, [_Dtrace]) ->
+    ['GET', 'PUT', 'DELETE'].
+
+resource_exists(Req, State = #state{path = []}) ->
+    {true, Req, State};
+
+resource_exists(Req, State = #state{path = [Dtrace | _]}) ->
+    case libsniffle:dtrace_get(Dtrace) of
+        {ok, not_found} ->
+            {false, Req, State};
+        {ok, Obj} ->
+            {true, Req, State#state{obj = Obj}}
     end.
 
+is_authorized(Req, State = #state{method = 'OPTIONS'}) ->
+    {true, Req, State};
+
+is_authorized(Req, State = #state{token = undefined}) ->
+    {{false, <<"X-Snarl-Token">>}, Req, State};
+
+is_authorized(Req, State) ->
+    {true, Req, State}.
+
+forbidden(Req, State = #state{method = 'OPTIONS'}) ->
+    {false, Req, State};
+
+forbidden(Req, State = #state{token = undefined}) ->
+    {true, Req, State};
+
+forbidden(Req, State = #state{method= 'GET', path = []}) ->
+    {allowed(State#state.token, [<<"cloud">>, <<"dtraces">>, <<"list">>]), Req, State};
+
+forbidden(Req, State = #state{method= 'POST', path = []}) ->
+    {allowed(State#state.token, [<<"cloud">>, <<"dtraces">>, <<"create">>]), Req, State};
+
+forbidden(Req, State = #state{method = 'GET', path = [Dtrace]}) ->
+    {allowed(State#state.token, [<<"dtraces">>, Dtrace, <<"get">>]), Req, State};
+
+forbidden(Req, State = #state{method = 'DELETE', path = [Dtrace]}) ->
+    {allowed(State#state.token, [<<"dtraces">>, Dtrace, <<"delete">>]), Req, State};
+
+forbidden(Req, State = #state{method = 'PUT', path = [_Dtrace]}) ->
+    {allowed(State#state.token, [<<"cloud">>, <<"dtraces">>, <<"create">>]), Req, State};
+
+forbidden(Req, State = #state{method = 'PUT', path = [Dtrace, <<"metadata">> | _]}) ->
+    {allowed(State#state.token, [<<"dtraces">>, Dtrace, <<"edit">>]), Req, State};
+
+forbidden(Req, State = #state{method = 'DELETE', path = [Dtrace, <<"metadata">> | _]}) ->
+    {allowed(State#state.token, [<<"dtraces">>, Dtrace, <<"edit">>]), Req, State};
+
+forbidden(Req, State) ->
+    {true, Req, State}.
+
+%%--------------------------------------------------------------------
+%% GET
+%%--------------------------------------------------------------------
+
+to_json(Req, State) ->
+    {Reply, Req1, State1} = handle_request(Req, State),
+    {jsx:encode(Reply), Req1, State1}.
+
+handle_request(Req, State = #state{token = Token, path = []}) ->
+    {ok, Permissions} = libsnarl:user_cache({token, Token}),
+    {ok, Res} = libsniffle:dtrace_list([{must, 'allowed', [<<"dtraces">>, {<<"res">>, <<"uuid">>}, <<"get">>], Permissions}]),
+    {lists:map(fun ({E, _}) -> E end,  Res), Req, State};
+
+handle_request(Req, State = #state{path = [_Dtrace], obj = Obj}) ->
+    {Obj, Req, State}.
 
 
-websocket_handle({text, <<"">>}, Req, State) ->
-    {ok, Servers} = libsniffle:hypervisor_list(),
-    case libsniffle:dtrace_run(State#state.id, [{<<"servers">>, Servers}]) of
-        {ok, S} ->
-            {reply, {text, jsx:encode([{<<"config">>, jsxd:merge([{<<"servers">>, Servers}], State#state.config)}])},
-             Req, State#state{socket = S}};
-        E ->
-            {ok, Req1} = cowboy_http_req:reply(505, [{'Content-Type', <<"text/html">>}],
-                                               list_to_binary(io_lib:format("~p", [E])), Req),
-            {shutdown, Req1}
-    end;
+%%--------------------------------------------------------------------
+%% PUT
+%%--------------------------------------------------------------------
 
-websocket_handle({text, Msg}, Req, State) ->
-    Config = jsx:decode(Msg),
-    {ok, Servers} = libsniffle:hypervisor_list(),
-    Config1 = jsxd:update([<<"servers">>], fun(S) ->
-                                                   S
-                                           end, Servers, Config),
-    case libsniffle:dtrace_run(State#state.id, Config1) of
-        {ok, S} ->
-            {reply, {text, jsx:encode([{<<"config">>, jsxd:merge(Config1, State#state.config)}])},
-             Req, State#state{socket = S}};
-        E ->
-            {ok, Req1} = cowboy_http_req:reply(505, [{'Content-Type', <<"text/html">>}],
-                                               list_to_binary(io_lib:format("~p", [E])), Req),
-            {shutdown, Req1}
-    end;
+create_path(Req, State = #state{path = [], version = Version}) ->
+    {ok, Body, Req1} = cowboy_http_req:body(Req),
+    {Data, Req2} = case Body of
+                       <<>> ->
+                           {[], Req1};
+                       _ ->
+                           D = jsxd:from_list(jsx:decode(Body)),
+                           {D, Req1}
+                   end,
+    {ok, Dtrace} = jsxd:get(<<"name">>, Data),
+    {ok, Script} = jsxd:get(<<"script">>, Data),
+    case libsniffle:dtrace_add(Dtrace, Script) of
+        {ok, UUID} ->
+            case jsxd:get(<<"config">>, Data) of
+                {ok, Config} ->
+                    ok = libsniffle:dtrace_set(UUID, <<"config">>, Config);
+                _ ->
+                    ok
+            end,
+            {<<"/api/", Version/binary, "/dtraces/", UUID/binary>>, Req2, State};
+        duplicate ->
+            {ok, Req3} = cowboy_http_req:reply(409, Req2),
+            {halt, Req3, State}
+    end.
 
-websocket_handle(_Any, Req, State) ->
-    {ok, Req, State}.
+from_json(Req, State) ->
+    {ok, Body, Req1} = cowboy_http_req:body(Req),
+    {Reply, Req2, State1} = case Body of
+                                <<>> ->
+                                    handle_write(Req1, State, null);
+                                _ ->
+                                    Decoded = jsx:decode(Body),
+                                    handle_write(Req1, State, Decoded)
+                            end,
+    {Reply, Req2, State1}.
 
-websocket_info({tcp, _Port, Data}, Req, State) ->
-    case binary_to_term(Data) of
-        {dtrace, ok} ->
-            {ok, Req, State, hibernate};
-        {dtrace, JSON} ->
-            {reply, {text, jsx:encode(JSON)}, Req, State};
-        _ ->
-            {ok, Req, State, hibernate}
-    end;
+%% TODO : This is a icky case it is called after post.
 
-websocket_info(_Info, Req, State) ->
-    {ok, Req, State, hibernate}.
+handle_write(Req, State = #state{method = 'POST', path = []}, _) ->
+    {true, Req, State};
 
-websocket_terminate(_Reason, _Req, #state{socket = undefined} = _State) ->
-    ok;
+handle_write(Req, State = #state{path = [Dtrace, <<"metadata">> | Path]}, [{K, V}]) ->
+    libsniffle:dtrace_set(Dtrace, [<<"metadata">> | Path] ++ [K], jsxd:from_list(V)),
+    {true, Req, State};
 
-websocket_terminate(_Reason, _Req, #state{socket = Port} = _State) ->
-    gen_tcp:close(Port),
-    ok.
+handle_write(Req, State, _Body) ->
+    {false, Req, State}.
+
+%%--------------------------------------------------------------------
+%% DEETE
+%%--------------------------------------------------------------------
+
+delete_resource(Req, State = #state{path = [Dtrace, <<"metadata">> | Path]}) ->
+    libsniffle:dtrace_set(Dtrace, [<<"metadata">> | Path], delete),
+    {true, Req, State};
+
+delete_resource(Req, State = #state{path = [Dtrace]}) ->
+    ok = libsniffle:dtrace_delete(Dtrace),
+    {true, Req, State}.
+
+allowed(Token, Perm) ->
+    case libsnarl:allowed({token, Token}, Perm) of
+        not_found ->
+            true;
+        true ->
+            false;
+        false ->
+            true
+    end.
