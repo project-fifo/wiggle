@@ -89,7 +89,7 @@ allowed_methods(_Version, _Token, []) ->
     ['POST'];
 
 allowed_methods(_Version, _Token, [_Session]) ->
-    ['GET', 'POST'].
+    ['GET', 'POST', 'DELETE'].
 
 resource_exists(Req, State = #state{path = []}) ->
     {true, Req, State};
