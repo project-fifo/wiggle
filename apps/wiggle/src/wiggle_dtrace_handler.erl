@@ -43,7 +43,7 @@ init(_Transport, _Req, []) ->
     {upgrade, protocol, cowboy_http_rest}.
 
 rest_init(Req, _) ->
-    wiggle_handler:initial_state(Req, <<"dtraces">>).
+    wiggle_handler:initial_state(Req, <<"dtrace">>).
 
 post_is_create(Req, State) ->
     {true, Req, State}.
