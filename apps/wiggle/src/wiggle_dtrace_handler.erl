@@ -151,7 +151,10 @@ handle_request(Req, State = #state{token = Token, path = []}) ->
     {lists:map(fun ({E, _}) -> E end,  Res), Req, State};
 
 handle_request(Req, State = #state{path = [_Dtrace], obj = Obj}) ->
-    {Obj, Req, State}.
+    Obj1 = jsxd:update(<<"script">>, fun (S) ->
+                                             list_to_binary(S)
+                                     end, Obj),
+    {Obj1, Req, State}.
 
 
 %%--------------------------------------------------------------------
