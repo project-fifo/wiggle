@@ -170,8 +170,8 @@ handle_write(Req, State, _) ->
 %% DEETE
 %%--------------------------------------------------------------------
 
-delete_resource(Req, State = #state{path = [_Session]}) ->
-    %% TODO
+delete_resource(Req, State = #state{path = [Session]}) ->
+    libsnarl:token_delete(Session),
     {true, Req, State}.
 
 
