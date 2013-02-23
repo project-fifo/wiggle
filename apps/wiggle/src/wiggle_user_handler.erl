@@ -289,7 +289,7 @@ handle_write(Req, State = #state{path = [User, <<"metadata">> | Path]}, [{K, V}]
     {true, Req, State};
 
 handle_write(Req, State = #state{path = [User, <<"groups">>, Group]}, _) ->
-    {ok, joined} = libsnarl:user_join(User, Group),
+    ok = libsnarl:user_join(User, Group),
     {true, Req, State};
 
 handle_write(Req, State = #state{path = [User, <<"permissions">> | Permission]}, _) ->
