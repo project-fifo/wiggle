@@ -89,7 +89,7 @@ allowed_methods(_Version, _Token, []) ->
     ['POST'];
 
 allowed_methods(_Version, _Token, [_Session]) ->
-    ['GET', 'POST'].
+    ['GET', 'POST', 'DELETE'].
 
 resource_exists(Req, State = #state{path = []}) ->
     {true, Req, State};
@@ -170,8 +170,8 @@ handle_write(Req, State, _) ->
 %% DEETE
 %%--------------------------------------------------------------------
 
-delete_resource(Req, State = #state{path = [_Session]}) ->
-    %% TODO
+delete_resource(Req, State = #state{path = [Session]}) ->
+    libsnarl:token_delete(Session),
     {true, Req, State}.
 
 

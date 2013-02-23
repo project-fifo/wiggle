@@ -75,12 +75,15 @@ allowed_methods(_Version, _Token, []) ->
     ['GET'];
 
 allowed_methods(_Version, _Token, [_Dataset]) ->
-    ['GET', 'DELETE'].
+    ['GET', 'DELETE'];
+
+allowed_methods(_Version, _Token, [_Dataset, <<"metadata">>|_]) ->
+    ['PUT', 'DELETE'].
 
 resource_exists(Req, State = #state{path = []}) ->
     {true, Req, State};
 
-resource_exists(Req, State = #state{path = [Dataset]}) ->
+resource_exists(Req, State = #state{path = [Dataset | _]}) ->
     case libsniffle:dataset_get(Dataset) of
         {ok, not_found} ->
             {false, Req, State};
@@ -111,6 +114,12 @@ forbidden(Req, State = #state{method = 'GET', path = [Dataset]}) ->
 
 forbidden(Req, State = #state{method = 'DELETE', path = [Dataset]}) ->
     {allowed(State#state.token, [<<"datasets">>, Dataset, <<"delete">>]), Req, State};
+
+forbidden(Req, State = #state{method = 'PUT', path = [Dataset, <<"metadata">> | _]}) ->
+    {allowed(State#state.token, [<<"datasets">>, Dataset, <<"edit">>]), Req, State};
+
+forbidden(Req, State = #state{method = 'DELETE', path = [Dataset, <<"metadata">> | _]}) ->
+    {allowed(State#state.token, [<<"datasets">>, Dataset, <<"edit">>]), Req, State};
 
 forbidden(Req, State) ->
     {true, Req, State}.
@@ -146,12 +155,20 @@ from_json(Req, State) ->
                             end,
     {Reply, Req2, State1}.
 
+handle_write(Req, State = #state{path = [Dataset, <<"metadata">> | Path]}, [{K, V}]) ->
+    libsniffle:dataset_set(Dataset, [<<"metadata">> | Path] ++ [K], jsxd:from_list(V)),
+    {true, Req, State};
+
 handle_write(Req, State, _Body) ->
     {false, Req, State}.
 
 %%--------------------------------------------------------------------
 %% DELETE
 %%--------------------------------------------------------------------
+
+delete_resource(Req, State = #state{path = [Dataset, <<"metadata">> | Path]}) ->
+    libsniffle:dataset_set(Dataset, [<<"metadata">> | Path], delete),
+    {true, Req, State};
 
 delete_resource(Req, State = #state{path = [Dataset]}) ->
     ok = libsniffle:dataset_delete(Dataset),

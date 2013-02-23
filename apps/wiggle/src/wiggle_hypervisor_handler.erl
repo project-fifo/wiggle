@@ -13,6 +13,7 @@
          forbidden/2,
          service_available/2,
          options/2,
+         delete_resource/2,
          is_authorized/2]).
 
 -export([to_json/2,
@@ -76,8 +77,11 @@ allowed_methods(_Version, _Token, []) ->
 allowed_methods(_Version, _Token, [_Hypervisor]) ->
     ['GET'];
 
-allowed_methods(_Version, _Token, [_Hypervisor, <<"metadata">>]) ->
-    ['PUT'].
+allowed_methods(_Version, _Token, [_Hypervisor, <<"characteristics">>|_]) ->
+    ['PUT', 'DELETE'];
+
+allowed_methods(_Version, _Token, [_Hypervisor, <<"metadata">>|_]) ->
+    ['PUT', 'DELETE'].
 
 resource_exists(Req, State = #state{path = []}) ->
     {true, Req, State};
@@ -111,7 +115,16 @@ forbidden(Req, State = #state{path = []}) ->
 forbidden(Req, State = #state{method = 'GET', path = [Hypervisor]}) ->
     {allowed(State#state.token, [<<"hypervisors">>, Hypervisor, <<"get">>]), Req, State};
 
-forbidden(Req, State = #state{method = 'PUT', path = [Hypervisor, <<"metadata">>]}) ->
+forbidden(Req, State = #state{method = 'PUT', path = [Hypervisor, <<"metadata">> | _]}) ->
+    {allowed(State#state.token, [<<"hypervisors">>, Hypervisor, <<"edit">>]), Req, State};
+
+forbidden(Req, State = #state{method = 'DELETE', path = [Hypervisor, <<"metadata">> | _]}) ->
+    {allowed(State#state.token, [<<"hypervisors">>, Hypervisor, <<"edit">>]), Req, State};
+
+forbidden(Req, State = #state{method = 'PUT', path = [Hypervisor, <<"characteristics">> | _]}) ->
+    {allowed(State#state.token, [<<"hypervisors">>, Hypervisor, <<"edit">>]), Req, State};
+
+forbidden(Req, State = #state{method = 'DELETE', path = [Hypervisor, <<"characteristics">> | _]}) ->
     {allowed(State#state.token, [<<"hypervisors">>, Hypervisor, <<"edit">>]), Req, State};
 
 forbidden(Req, State) ->
@@ -131,10 +144,7 @@ handle_request(Req, State = #state{token = Token, path = []}) ->
     {lists:map(fun ({E, _}) -> E end,  Res), Req, State};
 
 handle_request(Req, State = #state{path = [_Hypervisor], obj = Obj}) ->
-    Res1 = jsxd:thread([{delete, <<"host">>},
-                        {delete, <<"port">>}],
-                       Obj),
-    {Res1, Req, State}.
+    {Obj, Req, State}.
 
 %%--------------------------------------------------------------------
 %% PUT
@@ -151,8 +161,12 @@ from_json(Req, State) ->
                             end,
     {Reply, Req2, State1}.
 
-handle_write(Req, State = #state{path = [Hypervisor, <<"metadata">>]}, [{K, V}]) ->
-    libsniffle:hypervisor_set(Hypervisor, <<"metadata.", K/binary>>, jsxd:from_list(V)),
+handle_write(Req, State = #state{path = [Hypervisor, <<"characteristics">> | Path]}, [{K, V}]) ->
+    libsniffle:hypervisor_set(Hypervisor, [<<"characteristics">> | Path] ++ [K], jsxd:from_list(V)),
+    {true, Req, State};
+
+handle_write(Req, State = #state{path = [Hypervisor, <<"metadata">> | Path]}, [{K, V}]) ->
+    libsniffle:hypervisor_set(Hypervisor, [<<"metadata">> | Path] ++ [K], jsxd:from_list(V)),
     {true, Req, State};
 
 handle_write(Req, State, _Body) ->
@@ -162,6 +176,15 @@ handle_write(Req, State, _Body) ->
 %%--------------------------------------------------------------------
 %% DELETE
 %%--------------------------------------------------------------------
+
+delete_resource(Req, State = #state{path = [Hypervisor, <<"characteristics">> | Path]}) ->
+    libsniffle:hypervisor_set(Hypervisor, [<<"characteristics">> | Path], delete),
+    {true, Req, State};
+
+delete_resource(Req, State = #state{path = [Hypervisor, <<"metadata">> | Path]}) ->
+    libsniffle:hypervisor_set(Hypervisor, [<<"metadata">> | Path], delete),
+    {true, Req, State}.
+
 
 %% Internal Functions
 

@@ -5,9 +5,12 @@ REBAR = $(shell pwd)/rebar
 all: deps compile
 
 version:
-	echo "-define(VERSION, <<\"$(shell git symbolic-ref HEAD 2> /dev/null | cut -b 12-)-$(shell git log --pretty=format:'%h, %ad' -1)\">>)." > apps/wiggle/src/wiggle_version.hrl
+	echo "$(shell git symbolic-ref HEAD 2> /dev/null | cut -b 12-)-$(shell git log --pretty=format:'%h, %ad' -1)" > wiggle.version
 
-compile: version
+version_header: version
+	echo "-define(VERSION, <<\"$(shell cat wiggle.version)\">>)." > apps/wiggle/src/wiggle_version.hrl
+
+compile: version_header
 	$(REBAR) compile
 
 deps:

@@ -1,7 +1,7 @@
 {application, wiggle,
  [
   {description, ""},
-  {vsn, "0.4.3"},
+  {vsn, "0.4.4"},
   {registered, []},
   {applications, [
                   kernel,
@@ -9,6 +9,7 @@
 		  libsnarl,
 		  libsniffle,
 		  libhowl,
+		  libchunter,
 		  jsx,
 		  lager,
 		  mimetypes,

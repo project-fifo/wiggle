@@ -70,9 +70,7 @@ content_types_provided(Req, State) ->
      ], Req, State}.
 
 content_types_accepted(Req, State) ->
-    {[
-      {<<"application/json; charset=UTF-8">>, from_json}
-     ], Req, State}.
+    {wiggle_handler:accepted(), Req, State}.
 
 post_is_create(Req, State) ->
     {true, Req, State}.
@@ -86,6 +84,9 @@ allowed_methods(_Version, _Token, []) ->
 allowed_methods(_Version, _Token, [_Vm]) ->
     ['GET', 'PUT', 'DELETE'];
 
+allowed_methods(_Version, _Token, [_Vm, <<"metadata">>|_]) ->
+    ['PUT', 'DELETE'];
+
 allowed_methods(_Version, _Token, [_Vm, <<"snapshots">>, _ID]) ->
     ['GET', 'PUT', 'DELETE'];
 
@@ -95,14 +96,6 @@ allowed_methods(_Version, _Token, [_Vm, <<"snapshots">>]) ->
 
 resource_exists(Req, State = #state{path = []}) ->
     {true, Req, State};
-
-resource_exists(Req, State = #state{path = [Vm]}) ->
-    case libsniffle:vm_get(Vm) of
-        {ok, not_found} ->
-            {false, Req, State};
-        {ok, Obj} ->
-            {true, Req, State#state{obj=Obj}}
-    end;
 
 resource_exists(Req, State = #state{path = [Vm, <<"snapshots">>]}) ->
     case libsniffle:vm_get(Vm) of
@@ -123,6 +116,13 @@ resource_exists(Req, State = #state{path = [Vm, <<"snapshots">>, Snap]}) ->
                 {ok, _} ->
                     {true, Req, State#state{obj=Obj}}
             end
+    end;
+resource_exists(Req, State = #state{path = [Vm | _]}) ->
+    case libsniffle:vm_get(Vm) of
+        {ok, not_found} ->
+            {false, Req, State};
+        {ok, Obj} ->
+            {true, Req, State#state{obj=Obj}}
     end.
 
 is_authorized(Req, State = #state{method = 'OPTIONS'}) ->
@@ -162,13 +162,13 @@ forbidden(Req, State = #state{method = 'PUT', path = [Vm]}) ->
               end,
     case Decoded of
         [{<<"action">>, <<"start">>}] ->
-            {allowed(State#state.token, [<<"vms">>, Vm, <<"edit">>]), Req1, State#state{body=Decoded}};
+            {allowed(State#state.token, [<<"vms">>, Vm, <<"start">>]), Req1, State#state{body=Decoded}};
         [{<<"action">>, <<"stop">>}] ->
             {allowed(State#state.token, [<<"vms">>, Vm, <<"stop">>]), Req1, State#state{body=Decoded}};
         [{<<"action">>, <<"reboot">>}] ->
             {allowed(State#state.token, [<<"vms">>, Vm, <<"reboot">>]), Req1, State#state{body=Decoded}};
         _ ->
-            {allowed(State#state.token, [<<"vms">>, Vm, <<"edit">>]), Req1, State}
+            {allowed(State#state.token, [<<"vms">>, Vm, <<"edit">>]), Req1, State#state{body=Decoded}}
     end;
 
 forbidden(Req, State = #state{method = 'GET', path = [Vm, <<"snapshots">>]}) ->
@@ -198,7 +198,21 @@ forbidden(Req, State = #state{method = 'PUT', path = [Vm, <<"snapshots">>, _Snap
 forbidden(Req, State = #state{method = 'DELETE', path = [Vm, <<"snapshots">>, _Snap]}) ->
     {allowed(State#state.token, [<<"vms">>, Vm, <<"snapshot_delete">>]), Req, State};
 
+forbidden(Req, State = #state{method = 'PUT', path = [Vm, <<"metadata">> | _]}) ->
+    {ok, Body, Req1} = cowboy_http_req:body(Req),
+    Decoded = case Body of
+                  <<>> ->
+                      [];
+                  _ ->
+                      jsx:decode(Body)
+              end,
+    {allowed(State#state.token, [<<"vms">>, Vm, <<"edit">>]), Req1, State#state{body=Decoded}};
+
+forbidden(Req, State = #state{method = 'DELETE', path = [Vm, <<"metadata">> | _]}) ->
+    {allowed(State#state.token, [<<"vms">>, Vm, <<"edit">>]), Req, State};
+
 forbidden(Req, State) ->
+    lager:error("Access to unknown path: ~p~n.", [State]),
     {true, Req, State}.
 
 %%--------------------------------------------------------------------
@@ -282,6 +296,10 @@ from_json(Req, #state{body = undefined} = State) ->
 from_json(Req, #state{body = Decoded} = State) ->
     handle_write(Req, State, Decoded).
 
+handle_write(Req, State = #state{path = [Vm, <<"metadata">> | Path]}, [{K, V}]) ->
+    libsniffle:vm_set(Vm, [<<"metadata">> | Path] ++ [K], jsxd:from_list(V)),
+    {true, Req, State};
+
 handle_write(Req, State = #state{path = [Vm]}, [{<<"action">>, <<"start">>}]) ->
     libsniffle:vm_start(Vm),
     {true, Req, State};
@@ -292,6 +310,19 @@ handle_write(Req, State = #state{path = [Vm]}, [{<<"action">>, <<"stop">>}]) ->
 
 handle_write(Req, State = #state{path = [Vm]}, [{<<"action">>, <<"reboot">>}]) ->
     libsniffle:vm_reboot(Vm),
+    {true, Req, State};
+
+handle_write(Req, State = #state{path = [Vm]}, [{<<"config">>, Config},
+                                                {<<"package">>, Package}]) ->
+    libsniffle:vm_update(Vm, Package, Config),
+    {true, Req, State};
+
+handle_write(Req, State = #state{path = [Vm]}, [{<<"config">>, Config}]) ->
+    libsniffle:vm_update(Vm, undefined, Config),
+    {true, Req, State};
+
+handle_write(Req, State = #state{path = [Vm]}, [{<<"package">>, Package}]) ->
+    libsniffle:vm_update(Vm, Package, []),
     {true, Req, State};
 
 handle_write(Req, State = #state{path = []}, _Body) ->
@@ -305,6 +336,7 @@ handle_write(Req, State = #state{path = [Vm, <<"snapshots">>, UUID]}, [{<<"actio
     {true, Req, State};
 
 handle_write(Req, State, _Body) ->
+    lager:error("Unknown PUT request: ~p~n.", [State]),
     {false, Req, State}.
 
 %%--------------------------------------------------------------------
@@ -317,6 +349,10 @@ delete_resource(Req, State = #state{path = [Vm, <<"snapshots">>, UUID]}) ->
 
 delete_resource(Req, State = #state{path = [Vm]}) ->
     ok = libsniffle:vm_delete(Vm),
+    {true, Req, State};
+
+delete_resource(Req, State = #state{path = [Vm, <<"metadata">> | Path]}) ->
+    libsniffle:vm_set(Vm, [<<"metadata">> | Path], delete),
     {true, Req, State}.
 
 allowed(Token, Perm) ->
