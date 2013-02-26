@@ -19,6 +19,8 @@ start(_StartType, _StartArgs) ->
                        {[<<"api">>, '_', <<"groups">>, '...'], wiggle_group_handler, []},
                        {[<<"api">>, '_', <<"cloud">>, '...'], wiggle_cloud_handler, []},
                        {[<<"api">>, '_', <<"hypervisors">>, '...'], wiggle_hypervisor_handler, []},
+                       {[<<"api">>, '_', <<"dtrace">>, '_', <<"stream">>], wiggle_dtrace_stream, []},
+                       {[<<"api">>, '_', <<"dtrace">>, '...'], wiggle_dtrace_handler, []},
                        {[<<"api">>, '_', <<"vms">>, '_', <<"console">>], wiggle_console_handler, []},
                        {[<<"api">>, '_', <<"vms">>, '_', <<"vnc">>], wiggle_vnc_handler, []},
                        {[<<"api">>, '_', <<"vms">>, '...'], wiggle_vm_handler, []},
@@ -27,8 +29,7 @@ start(_StartType, _StartArgs) ->
                        {[<<"api">>, '_', <<"packages">>, '...'], wiggle_package_handler, []}]}],
     {ok, _} = cowboy:start_listener(http, Acceptors,
                                     cowboy_tcp_transport, [{port, Port}],
-                                    cowboy_http_protocol, [{dispatch, Dispatch}]
-                                   ),
+                                    cowboy_http_protocol, [{dispatch, Dispatch}]),
 
     wiggle_sup:start_link().
 

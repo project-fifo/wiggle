@@ -145,7 +145,8 @@ create_path(Req, State = #state{path = [], version = Version}) ->
         {ok, {token, UUID}} ->
             {ok, Req3} = cowboy_http_req:set_resp_cookie(<<"X-Snarl-Token">>, UUID,
                                                          [{max_age, 364*24*60*60}], Req2),
-            {<<"/api/", Version/binary, "/sessions/", UUID/binary>>, Req3, State};
+            {ok, Req4} = cowboy_http_req:set_resp_header(<<"X-Snarl-Token">>, UUID, Req3),
+            {<<"/api/", Version/binary, "/sessions/", UUID/binary>>, Req4, State};
         _ ->
             {ok, Req3} = cowboy_http_req:reply(403, [], <<"Forbidden!">>, Req2),
             {halt, Req3, State}
