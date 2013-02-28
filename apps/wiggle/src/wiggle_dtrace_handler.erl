@@ -181,7 +181,7 @@ create_path(Req, State = #state{path = [], version = Version}) ->
                 _ ->
                     ok
             end,
-            {<<"/api/", Version/binary, "/dtraces/", UUID/binary>>, Req2, State};
+            {<<"/api/", Version/binary, "/dtrace/", UUID/binary>>, Req2, State};
         duplicate ->
             {ok, Req3} = cowboy_http_req:reply(409, Req2),
             {halt, Req3, State}
