@@ -172,7 +172,8 @@ create_path(Req, State = #state{path = [], version = Version}) ->
                    end,
     {ok, Dtrace} = jsxd:get(<<"name">>, Data),
     {ok, Script} = jsxd:get(<<"script">>, Data),
-    case libsniffle:dtrace_add(Dtrace, Script) of
+    Script1 = binary_to_list(Script),
+    case libsniffle:dtrace_add(Dtrace, Script1) of
         {ok, UUID} ->
             case jsxd:get(<<"config">>, Data) of
                 {ok, Config} ->
@@ -180,7 +181,7 @@ create_path(Req, State = #state{path = [], version = Version}) ->
                 _ ->
                     ok
             end,
-            {<<"/api/", Version/binary, "/dtraces/", UUID/binary>>, Req2, State};
+            {<<"/api/", Version/binary, "/dtrace/", UUID/binary>>, Req2, State};
         duplicate ->
             {ok, Req3} = cowboy_http_req:reply(409, Req2),
             {halt, Req3, State}
