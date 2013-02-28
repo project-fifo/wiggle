@@ -171,7 +171,7 @@ create_path(Req, State = #state{path = [], version = Version}) ->
                            {D, Req1}
                    end,
     {ok, Dtrace} = jsxd:get(<<"name">>, Data),
-    {ok, Script} = jsxd:get(<<"script">>, Data),
+    {ok, Script} = binary_to_list(jsxd:get(<<"script">>, Data)),
     case libsniffle:dtrace_add(Dtrace, Script) of
         {ok, UUID} ->
             case jsxd:get(<<"config">>, Data) of
