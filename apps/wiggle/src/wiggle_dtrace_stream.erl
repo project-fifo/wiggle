@@ -84,7 +84,13 @@ websocket_handle({text, Msg}, Req, State) ->
                       VMs0 = [libsniffle:vm_get(V) || V <- VMs],
                       VMs1 = [jsxd:get([<<"hypervisor">>], V) || {ok, V} <- VMs0],
                       Servers2 = [S || {ok, S} <- VMs1],
-                      jsxd:set([<<"servers">>], lists:usort(Servers2), Config)
+                      Filter = [[<<"zonename">>, V] || V <- VMs],
+
+                      jsxd:thread([{set, [<<"servers">>], lists:usort(Servers2)},
+                                   {update, [<<"filter">>],
+                                    fun (F) ->
+                                            [{<<"and">>, [Filter | F]}]
+                                   end, [{<<"and">>, Filter}]}], Config)
               end,
     Config2 = jsxd:update([<<"servers">>], fun(S) ->
                                                    S
@@ -92,7 +98,8 @@ websocket_handle({text, Msg}, Req, State) ->
     io:format("Now we got a config: ~p~n", [Config2]),
     case libsniffle:dtrace_run(State#state.id, Config2) of
         {ok, S} ->
-            {reply, {text, jsx:encode([{<<"config">>, jsxd:merge(Config1, State#state.config)}])},
+
+            {reply, {text, jsx:encode(jsxd:merge(Config1, State#state.config))},
              Req, State#state{socket = S}};
         E ->
             {ok, Req1} = cowboy_http_req:reply(505, [{'Content-Type', <<"text/html">>}],
