@@ -77,10 +77,20 @@ websocket_handle({text, <<"">>}, Req, State) ->
 websocket_handle({text, Msg}, Req, State) ->
     Config = jsx:decode(Msg),
     {ok, Servers} = libsniffle:hypervisor_list(),
-    Config1 = jsxd:update([<<"servers">>], fun(S) ->
+    Config1 = case jsxd:get([<<"vms">>], [], Config) of
+                  [] ->
+                      Config;
+                  VMs ->
+                      VMs0 = [libsniffle:vm_get(V) || V <- VMs],
+                      VMs1 = [jsxd:get([<<"hypervisor">>], V) || {ok, V} <- VMs0],
+                      Servers2 = [S || {ok, S} <- VMs1],
+                      jsxd:set([<<"servers">>], lists:usort(Servers2), Config)
+              end,
+    Config2 = jsxd:update([<<"servers">>], fun(S) ->
                                                    S
-                                           end, Servers, Config),
-    case libsniffle:dtrace_run(State#state.id, Config1) of
+                                           end, Servers, Config1),
+    io:format("Now we got a config: ~p~n", [Config2]),
+    case libsniffle:dtrace_run(State#state.id, Config2) of
         {ok, S} ->
             {reply, {text, jsx:encode([{<<"config">>, jsxd:merge(Config1, State#state.config)}])},
              Req, State#state{socket = S}};
