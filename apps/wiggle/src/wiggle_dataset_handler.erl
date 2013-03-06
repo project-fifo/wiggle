@@ -183,6 +183,9 @@ handle_write(Req, State = #state{path = [Dataset, <<"metadata">> | Path]}, [{K, 
     libsniffle:dataset_set(Dataset, [<<"metadata">> | Path] ++ [K], jsxd:from_list(V)),
     {true, Req, State};
 
+handle_write(Req, State = #state{path = []}, _Body) ->
+    {true, Req, State};
+
 handle_write(Req, State, _Body) ->
     {false, Req, State}.
 
