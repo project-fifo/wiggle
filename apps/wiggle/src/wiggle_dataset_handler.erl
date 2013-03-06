@@ -13,6 +13,8 @@
          delete_resource/2,
          forbidden/2,
          options/2,
+         post_is_create/2,
+         create_path/2,
          service_available/2,
          is_authorized/2]).
 
@@ -28,6 +30,8 @@
               delete_resource/2,
               forbidden/2,
               init/3,
+              post_is_create/2,
+              create_path/2,
               is_authorized/2,
               options/2,
               service_available/2,
@@ -60,6 +64,9 @@ options(Req, State) ->
                                ['HEAD', 'OPTIONS' | Methods]), ", "), Req),
     {ok, Req1, State}.
 
+post_is_create(Req, State) ->
+    {true, Req, State}.
+
 content_types_provided(Req, State) ->
     {[
       {<<"application/json">>, to_json}
@@ -72,7 +79,7 @@ allowed_methods(Req, State) ->
     {['HEAD', 'OPTIONS' | allowed_methods(State#state.version, State#state.token, State#state.path)], Req, State}.
 
 allowed_methods(_Version, _Token, []) ->
-    ['GET'];
+    ['GET', 'POST'];
 
 allowed_methods(_Version, _Token, [_Dataset]) ->
     ['GET', 'DELETE'];
@@ -106,8 +113,12 @@ forbidden(Req, State = #state{method = 'OPTIONS'}) ->
 forbidden(Req, State = #state{token = undefined}) ->
     {true, Req, State};
 
+forbidden(Req, State = #state{method = 'POST', path = []}) ->
+    {allowed(State#state.token, [<<"cloud">>, <<"datasets">>, <<"create">>]), Req, State};
+
 forbidden(Req, State = #state{path = []}) ->
     {allowed(State#state.token, [<<"cloud">>, <<"datasets">>, <<"list">>]), Req, State};
+
 
 forbidden(Req, State = #state{method = 'GET', path = [Dataset]}) ->
     {allowed(State#state.token, [<<"datasets">>, Dataset, <<"get">>]), Req, State};
@@ -144,6 +155,19 @@ handle_request(Req, State = #state{path = [_Dataset], obj = Obj}) ->
 %% PUT
 %%--------------------------------------------------------------------
 
+create_path(Req, State = #state{path = [], version = Version}) ->
+    {ok, Body, Req1} = cowboy_http_req:body(Req),
+    {Decoded, Req2} = case Body of
+                          <<>> ->
+                              {[], Req1};
+                          _ ->
+                              D = jsx:decode(Body),
+                              {D, Req1}
+                      end,
+    {ok, URL} = jsxd:get(<<"url">>, Decoded),
+    {ok, UUID} = libsniffle:dataset_import(URL),
+    {<<"/api/", Version/binary, "/datasets/", UUID/binary>>, Req2, State}.
+
 from_json(Req, State) ->
     {ok, Body, Req1} = cowboy_http_req:body(Req),
     {Reply, Req2, State1} = case Body of
@@ -157,6 +181,9 @@ from_json(Req, State) ->
 
 handle_write(Req, State = #state{path = [Dataset, <<"metadata">> | Path]}, [{K, V}]) ->
     libsniffle:dataset_set(Dataset, [<<"metadata">> | Path] ++ [K], jsxd:from_list(V)),
+    {true, Req, State};
+
+handle_write(Req, State = #state{path = []}, _Body) ->
     {true, Req, State};
 
 handle_write(Req, State, _Body) ->
