@@ -82,7 +82,7 @@ allowed_methods(_Version, _Token, []) ->
     ['GET', 'POST'];
 
 allowed_methods(_Version, _Token, [_Dataset]) ->
-    ['GET', 'DELETE'];
+    ['GET', 'DELETE', 'PUT'];
 
 allowed_methods(_Version, _Token, [_Dataset, <<"metadata">>|_]) ->
     ['PUT', 'DELETE'].
@@ -122,6 +122,9 @@ forbidden(Req, State = #state{path = []}) ->
 
 forbidden(Req, State = #state{method = 'GET', path = [Dataset]}) ->
     {allowed(State#state.token, [<<"datasets">>, Dataset, <<"get">>]), Req, State};
+
+forbidden(Req, State = #state{method = 'PUT', path = [Dataset]}) ->
+    {allowed(State#state.token, [<<"datasets">>, Dataset, <<"edit">>]), Req, State};
 
 forbidden(Req, State = #state{method = 'DELETE', path = [Dataset]}) ->
     {allowed(State#state.token, [<<"datasets">>, Dataset, <<"delete">>]), Req, State};
@@ -181,6 +184,10 @@ from_json(Req, State) ->
 
 handle_write(Req, State = #state{path = [Dataset, <<"metadata">> | Path]}, [{K, V}]) ->
     libsniffle:dataset_set(Dataset, [<<"metadata">> | Path] ++ [K], jsxd:from_list(V)),
+    {true, Req, State};
+
+handle_write(Req, State = #state{path = [Dataset]}, [{K, V}]) ->
+    libsniffle:dataset_set(Dataset, [K], jsxd:from_list(V)),
     {true, Req, State};
 
 handle_write(Req, State = #state{path = []}, _Body) ->
