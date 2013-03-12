@@ -19,10 +19,14 @@
          is_authorized/2]).
 
 -export([to_json/2,
-         from_json/2]).
+         from_json/2,
+         to_msgpack/2,
+         from_msgpack/2]).
 
 -ignore_xref([to_json/2,
               from_json/2,
+              from_msgpack/2,
+              to_msgpack/2,
               allowed_methods/2,
               content_types_accepted/2,
               content_types_provided/2,
@@ -153,13 +157,7 @@ forbidden(Req, State = #state{method = 'DELETE', path = [Vm]}) ->
     {allowed(State#state.token, [<<"vms">>, Vm, <<"delete">>]), Req, State};
 
 forbidden(Req, State = #state{method = 'PUT', path = [Vm]}) ->
-    {ok, Body, Req1} = cowboy_http_req:body(Req),
-    Decoded = case Body of
-                  <<>> ->
-                      [];
-                  _ ->
-                      jsx:decode(Body)
-              end,
+    {ok, Decoded, Req1} = wiggle_handler:decode(Req),
     case Decoded of
         [{<<"action">>, <<"start">>}] ->
             {allowed(State#state.token, [<<"vms">>, Vm, <<"start">>]), Req1, State#state{body=Decoded}};
@@ -181,13 +179,7 @@ forbidden(Req, State = #state{method = 'GET', path = [Vm, <<"snapshots">>, _Snap
     {allowed(State#state.token, [<<"vms">>, Vm, <<"get">>]), Req, State};
 
 forbidden(Req, State = #state{method = 'PUT', path = [Vm, <<"snapshots">>, _Snap]}) ->
-    {ok, Body, Req1} = cowboy_http_req:body(Req),
-    Decoded = case Body of
-                  <<>> ->
-                      [];
-                  _ ->
-                      jsx:decode(Body)
-              end,
+    {ok, Decoded, Req1} = wiggle_handler:decode(Req),
     case Decoded of
         [{<<"action">>, <<"rollback">>}] ->
             {allowed(State#state.token, [<<"vms">>, Vm, <<"rollback">>]), Req1, State#state{body=Decoded}};
@@ -199,13 +191,7 @@ forbidden(Req, State = #state{method = 'DELETE', path = [Vm, <<"snapshots">>, _S
     {allowed(State#state.token, [<<"vms">>, Vm, <<"snapshot_delete">>]), Req, State};
 
 forbidden(Req, State = #state{method = 'PUT', path = [Vm, <<"metadata">> | _]}) ->
-    {ok, Body, Req1} = cowboy_http_req:body(Req),
-    Decoded = case Body of
-                  <<>> ->
-                      [];
-                  _ ->
-                      jsx:decode(Body)
-              end,
+    {ok, Decoded, Req1} = wiggle_handler:decode(Req),
     {allowed(State#state.token, [<<"vms">>, Vm, <<"edit">>]), Req1, State#state{body=Decoded}};
 
 forbidden(Req, State = #state{method = 'DELETE', path = [Vm, <<"metadata">> | _]}) ->
@@ -222,6 +208,10 @@ forbidden(Req, State) ->
 to_json(Req, State) ->
     {Reply, Req1, State1} = handle_request(Req, State),
     {jsx:encode(Reply), Req1, State1}.
+
+to_msgpack(Req, State) ->
+    {Reply, Req1, State1} = handle_request(Req, State),
+    {msgpack:pack(Reply, [jsx]), Req1, State1}.
 
 handle_request(Req, State = #state{token = Token, path = []}) ->
     {ok, Permissions} = libsnarl:user_cache({token, Token}),
@@ -246,14 +236,7 @@ handle_request(Req, State = #state{path = [_Vm], obj = Obj}) ->
 %%--------------------------------------------------------------------
 
 create_path(Req, State = #state{path = [], version = Version, token = Token}) ->
-    {ok, Body, Req1} = cowboy_http_req:body(Req),
-    {Decoded, Req2} = case Body of
-                          <<>> ->
-                              {[], Req1};
-                          _ ->
-                              D = jsx:decode(Body),
-                              {D, Req1}
-                      end,
+    {ok, Decoded, Req1} = wiggle_handler:decode(Req),
     try
         {ok, Dataset} = jsxd:get(<<"dataset">>, Decoded),
         {ok, Package} = jsxd:get(<<"package">>, Decoded),
@@ -263,37 +246,36 @@ create_path(Req, State = #state{path = [], version = Version, token = Token}) ->
             {ok, User} = libsnarl:user_get({token, Token}),
             {ok, Owner} = jsxd:get(<<"uuid">>, User),
             {ok, UUID} = libsniffle:create(Package, Dataset, jsxd:set(<<"owner">>, Owner, Config)),
-            {<<"/api/", Version/binary, "/vms/", UUID/binary>>, Req2, State#state{body = Decoded}}
+            {<<"/api/", Version/binary, "/vms/", UUID/binary>>, Req1, State#state{body = Decoded}}
         catch
             G:E ->
                 lager:error("Error creating VM(~p): ~p / ~p", [Decoded, G, E]),
-                {ok, Req3} = cowboy_http_req:reply(500, Req2),
-                {halt, Req3, State}
+                {ok, Req2} = cowboy_http_req:reply(500, Req1),
+                {halt, Req2, State}
         end
     catch
         G1:E1 ->
             lager:error("Error creating VM(~p): ~p / ~p", [Decoded, G1, E1]),
-            {ok, Req4} = cowboy_http_req:reply(400, Req2),
-            {halt, Req4, State}
+            {ok, Req3} = cowboy_http_req:reply(400, Req1),
+            {halt, Req3, State}
     end;
 
 create_path(Req, State = #state{path = [Vm, <<"snapshots">>], version = Version}) ->
-    {ok, Body, Req1} = cowboy_http_req:body(Req),
-    {Decoded, Req2} = case Body of
-                          <<>> ->
-                              {[], Req1};
-                          _ ->
-                              D = jsx:decode(Body),
-                              {D, Req1}
-                      end,
+    {ok, Decoded, Req1} = wiggle_handler:decode(Req),
     Comment = jsxd:get(<<"comment">>, <<"">>, Decoded),
     {ok, UUID} = libsniffle:vm_snapshot(Vm, Comment),
-    {<<"/api/", Version/binary, "/vms/", Vm/binary, "/snapshots/", UUID/binary>>, Req2, State}.
+    {<<"/api/", Version/binary, "/vms/", Vm/binary, "/snapshots/", UUID/binary>>, Req1, State#state{body = Decoded}}.
 
 from_json(Req, #state{body = undefined} = State) ->
     handle_write(Req, State, []);
 
 from_json(Req, #state{body = Decoded} = State) ->
+    handle_write(Req, State, Decoded).
+
+from_msgpack(Req, #state{body = undefined} = State) ->
+    handle_write(Req, State, []);
+
+from_msgpack(Req, #state{body = Decoded} = State) ->
     handle_write(Req, State, Decoded).
 
 handle_write(Req, State = #state{path = [Vm, <<"metadata">> | Path]}, [{K, V}]) ->

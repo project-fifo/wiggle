@@ -2,7 +2,8 @@
 
 -export([
          initial_state/2,
-         accepted/0
+         accepted/0,
+         decode/1
         ]).
 
 -record(state, {path, method, version, token, content, reply, obj, body}).
@@ -37,9 +38,30 @@ initial_state(Req, Component) ->
 
 accepted() ->
     [
+     {<<"application/x-msgpack; charset=UTF-8">>, from_msgpack},
+     {<<"application/x-msgpack; charset=utf-8">>, from_msgpack},
+     {<<"application/x-msgpack;charset=utf-8">>, from_msgpack},
+     {<<"application/x-msgpack; charset=UTF-8">>, from_msgpack},
+     {<<"application/x-msgpack">>, from_msgpack},
      {<<"application/json; charset=UTF-8">>, from_json},
      {<<"application/json; charset=utf-8">>, from_json},
      {<<"application/json;charset=UTF-8">>, from_json},
      {<<"application/json;charset=utf-8">>, from_json},
      {<<"application/json">>, from_json}
     ].
+
+decode(Req) ->
+    {ok, ContentType, Req0} = cowboy_http_req:header('Content-Type', Req),
+    {ok, Body, Req1} = cowboy_http_req:body(Req0),
+    Decoded = case Body of
+                  <<>> ->
+                      [];
+                  _ ->
+                      case lists:keyfind(ContentType, 1, accepted()) of
+                          from_json ->
+                              jsx:decode(Body);
+                          from_msgpack ->
+                              msgpack:unpack(Body, [jsx])
+                      end
+              end,
+    {ok, Decoded, Req1}.
