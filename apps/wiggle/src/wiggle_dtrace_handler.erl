@@ -125,8 +125,8 @@ forbidden(Req, State = #state{method = 'GET', path = [Dtrace]}) ->
 forbidden(Req, State = #state{method = 'DELETE', path = [Dtrace]}) ->
     {allowed(State#state.token, [<<"dtraces">>, Dtrace, <<"delete">>]), Req, State};
 
-forbidden(Req, State = #state{method = 'PUT', path = [_Dtrace]}) ->
-    {allowed(State#state.token, [<<"cloud">>, <<"dtraces">>, <<"create">>]), Req, State};
+forbidden(Req, State = #state{method = 'PUT', path = [Dtrace]}) ->
+    {allowed(State#state.token, [<<"dtraces">>, Dtrace, <<"edit">>]), Req, State};
 
 forbidden(Req, State = #state{method = 'PUT', path = [Dtrace, <<"metadata">> | _]}) ->
     {allowed(State#state.token, [<<"dtraces">>, Dtrace, <<"edit">>]), Req, State};
