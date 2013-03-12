@@ -163,9 +163,9 @@ forbidden(Req, State = #state{method = 'PUT', path = [Vm]}) ->
     case Decoded of
         [{<<"action">>, <<"start">>}] ->
             {allowed(State#state.token, [<<"vms">>, Vm, <<"start">>]), Req1, State#state{body=Decoded}};
-        [{<<"action">>, <<"stop">>}] ->
+        [{<<"action">>, <<"stop">>}|_] ->
             {allowed(State#state.token, [<<"vms">>, Vm, <<"stop">>]), Req1, State#state{body=Decoded}};
-        [{<<"action">>, <<"reboot">>}] ->
+        [{<<"action">>, <<"reboot">>}|_] ->
             {allowed(State#state.token, [<<"vms">>, Vm, <<"reboot">>]), Req1, State#state{body=Decoded}};
         _ ->
             {allowed(State#state.token, [<<"vms">>, Vm, <<"edit">>]), Req1, State#state{body=Decoded}}
@@ -308,8 +308,16 @@ handle_write(Req, State = #state{path = [Vm]}, [{<<"action">>, <<"stop">>}]) ->
     libsniffle:vm_stop(Vm),
     {true, Req, State};
 
+handle_write(Req, State = #state{path = [Vm]}, [{<<"action">>, <<"stop">>}, {<<"force">>, true}]) ->
+    libsniffle:vm_stop(Vm, [force]),
+    {true, Req, State};
+
 handle_write(Req, State = #state{path = [Vm]}, [{<<"action">>, <<"reboot">>}]) ->
     libsniffle:vm_reboot(Vm),
+    {true, Req, State};
+
+handle_write(Req, State = #state{path = [Vm]}, [{<<"action">>, <<"reboot">>}, {<<"force">>, true}]) ->
+    libsniffle:vm_reboot(Vm, [force]),
     {true, Req, State};
 
 handle_write(Req, State = #state{path = [Vm]}, [{<<"config">>, Config},
