@@ -51,16 +51,17 @@ accepted() ->
     ].
 
 decode(Req) ->
-    {ContentType, Req0} = cowboy_http_req:parse_header('Content-Type', Req, <<"application/json">>),
+    {{G, C, _}, Req0} = cowboy_http_req:parse_header('Content-Type', Req, {<<"application">>, <<"json">>, []}),
+    ContentType = <<G/binary, "/", C/binary>>,
     {ok, Body, Req1} = cowboy_http_req:body(Req0),
     Decoded = case Body of
                   <<>> ->
                       [];
                   _ ->
                       case lists:keyfind(ContentType, 1, accepted()) of
-                          from_json ->
+                          {_, from_json} ->
                               jsx:decode(Body);
-                          from_msgpack ->
+                          {_, from_msgpack} ->
                               msgpack:unpack(Body, [jsx])
                       end
               end,
