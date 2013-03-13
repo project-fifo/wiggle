@@ -28,7 +28,7 @@ terminate(_Req, _State) ->
     ok.
 
 websocket_init(_Any, Req, []) ->
-    {C, Req0} = cowboy_http_req:header(<<"Sec-WebSocket-Protocol">>, Req),
+    {C, Req0} = cowboy_http_req:parse_header(<<"Sec-Websocket-Protocol">>, Req, <<"json">>),
     {[<<"api">>, _, <<"dtrace">>, ID, <<"stream">>], Req1} = cowboy_http_req:path(Req0),
     {ok, Req2} = cowboy_http_req:set_resp_header(
                    <<"Access-Control-Allow-Headers">>,
@@ -48,13 +48,6 @@ websocket_init(_Any, Req, []) ->
                                           msgpack:unpack(D, [jsx])
                                   end};
                              <<"json">> ->
-                                 {fun(O) ->
-                                          jsx:encode(O)
-                                  end,
-                                  fun(D) ->
-                                          jsx:decode(D)
-                                  end};
-                             undefined ->
                                  {fun(O) ->
                                           jsx:encode(O)
                                   end,
