@@ -19,10 +19,14 @@
          is_authorized/2]).
 
 -export([to_json/2,
-         from_json/2]).
+         from_json/2,
+         to_msgpack/2,
+         from_msgpack/2]).
 
 -ignore_xref([to_json/2,
               from_json/2,
+              from_msgpack/2,
+              to_msgpack/2,
               allowed_methods/2,
               content_types_accepted/2,
               content_types_provided/2,
@@ -69,7 +73,8 @@ options(Req, State) ->
 
 content_types_provided(Req, State) ->
     {[
-      {<<"application/json">>, to_json}
+      {<<"application/json">>, to_json},
+      {<<"application/x-msgpack">>, to_msgpack}
      ], Req, State}.
 
 content_types_accepted(Req, State) ->
@@ -145,6 +150,10 @@ to_json(Req, State) ->
     {Reply, Req1, State1} = handle_request(Req, State),
     {jsx:encode(Reply), Req1, State1}.
 
+to_msgpack(Req, State) ->
+    {Reply, Req1, State1} = handle_request(Req, State),
+    {msgpack:pack(Reply, [jsx]), Req1, State1}.
+
 handle_request(Req, State = #state{token = Token, path = []}) ->
     {ok, Permissions} = libsnarl:user_cache({token, Token}),
     {ok, Res} = libsniffle:dtrace_list([{must, 'allowed', [<<"dtraces">>, {<<"res">>, <<"uuid">>}, <<"get">>], Permissions}]),
@@ -162,14 +171,7 @@ handle_request(Req, State = #state{path = [_Dtrace], obj = Obj}) ->
 %%--------------------------------------------------------------------
 
 create_path(Req, State = #state{path = [], version = Version}) ->
-    {ok, Body, Req1} = cowboy_http_req:body(Req),
-    {Data, Req2} = case Body of
-                       <<>> ->
-                           {[], Req1};
-                       _ ->
-                           D = jsxd:from_list(jsx:decode(Body)),
-                           {D, Req1}
-                   end,
+    {ok, Data, Req1} = wiggle_handler:decode(Req),
     {ok, Dtrace} = jsxd:get(<<"name">>, Data),
     {ok, Script} = jsxd:get(<<"script">>, Data),
     Script1 = binary_to_list(Script),
@@ -181,9 +183,9 @@ create_path(Req, State = #state{path = [], version = Version}) ->
                 _ ->
                     ok
             end,
-            {<<"/api/", Version/binary, "/dtrace/", UUID/binary>>, Req2, State};
+            {<<"/api/", Version/binary, "/dtrace/", UUID/binary>>, Req1, State#state{body = Data}};
         duplicate ->
-            {ok, Req3} = cowboy_http_req:reply(409, Req2),
+            {ok, Req3} = cowboy_http_req:reply(409, Req1),
             {halt, Req3, State}
     end.
 
@@ -194,6 +196,17 @@ from_json(Req, State) ->
                                     handle_write(Req1, State, null);
                                 _ ->
                                     Decoded = jsx:decode(Body),
+                                    handle_write(Req1, State, Decoded)
+                            end,
+    {Reply, Req2, State1}.
+
+from_msgpack(Req, State) ->
+    {ok, Body, Req1} = cowboy_http_req:body(Req),
+    {Reply, Req2, State1} = case Body of
+                                <<>> ->
+                                    handle_write(Req1, State, null);
+                                _ ->
+                                    Decoded = msgpack:unpack(Body, [jsx]),
                                     handle_write(Req1, State, Decoded)
                             end,
     {Reply, Req2, State1}.

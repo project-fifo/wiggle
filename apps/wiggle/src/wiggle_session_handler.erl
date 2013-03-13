@@ -23,10 +23,14 @@
          is_authorized/2]).
 
 -export([to_json/2,
-         from_json/2]).
+         from_json/2,
+         to_msgpack/2,
+         from_msgpack/2]).
 
 -ignore_xref([to_json/2,
               from_json/2,
+              from_msgpack/2,
+              to_msgpack/2,
               create_path/2,
               allowed_methods/2,
               content_types_accepted/2,
@@ -73,14 +77,12 @@ options(Req, State) ->
 
 content_types_provided(Req, State) ->
     {[
-      {<<"application/json">>, to_json}
+      {<<"application/json">>, to_json},
+      {<<"application/x-msgpack">>, to_msgpack}
      ], Req, State}.
 
 content_types_accepted(Req, State) ->
-    {[
-      {<<"application/json; charset=UTF-8">>, from_json},
-      {<<"application/json; charset=utf-8">>, from_json}
-     ], Req, State}.
+    {wiggle_handler:accepted(), Req, State}.
 
 allowed_methods(Req, State) ->
     {['HEAD', 'OPTIONS' | allowed_methods(State#state.version, State#state.token, State#state.path)], Req, State}.
@@ -116,6 +118,10 @@ to_json(Req, State) ->
     {Reply, Req1, State1} = handle_request(Req, State),
     {jsx:encode(Reply), Req1, State1}.
 
+to_msgpack(Req, State) ->
+    {Reply, Req1, State1} = handle_request(Req, State),
+    {msgpack:pack(Reply, [jsx]), Req1, State1}.
+
 handle_request(Req, State = #state{path = [Session], obj = Obj}) ->
     Obj1 = jsxd:thread([{set, <<"session">>, Session},
                         {delete, <<"password">>},
@@ -131,25 +137,18 @@ handle_request(Req, State = #state{path = [Session], obj = Obj}) ->
 %%--------------------------------------------------------------------
 
 create_path(Req, State = #state{path = [], version = Version}) ->
-    {ok, Body, Req1} = cowboy_http_req:body(Req),
-    {Decoded, Req2} = case Body of
-                          <<>> ->
-                              {[], Req1};
-                          _ ->
-                              D = jsx:decode(Body),
-                              {D, Req1}
-                      end,
+    {ok, Decoded, Req1} = wiggle_handler:decode(Req),
     {ok, User} = jsxd:get(<<"user">>, Decoded),
     {ok, Pass} = jsxd:get(<<"password">>, Decoded),
     case libsnarl:auth(User, Pass) of
         {ok, {token, UUID}} ->
-            {ok, Req3} = cowboy_http_req:set_resp_cookie(<<"X-Snarl-Token">>, UUID,
-                                                         [{max_age, 364*24*60*60}], Req2),
-            {ok, Req4} = cowboy_http_req:set_resp_header(<<"X-Snarl-Token">>, UUID, Req3),
-            {<<"/api/", Version/binary, "/sessions/", UUID/binary>>, Req4, State};
+            {ok, Req2} = cowboy_http_req:set_resp_cookie(<<"X-Snarl-Token">>, UUID,
+                                                         [{max_age, 364*24*60*60}], Req1),
+            {ok, Req3} = cowboy_http_req:set_resp_header(<<"X-Snarl-Token">>, UUID, Req2),
+            {<<"/api/", Version/binary, "/sessions/", UUID/binary>>, Req3, State#state{body = Decoded}};
         _ ->
-            {ok, Req3} = cowboy_http_req:reply(403, [], <<"Forbidden!">>, Req2),
-            {halt, Req3, State}
+            {ok, Req2} = cowboy_http_req:reply(403, [], <<"Forbidden!">>, Req1),
+            {halt, Req2, State}
     end.
 
 from_json(Req, State) ->
@@ -159,6 +158,18 @@ from_json(Req, State) ->
                                     handle_write(Req1, State, []);
                                 _ ->
                                     Decoded = jsx:decode(Body),
+                                    handle_write(Req1, State, Decoded)
+                            end,
+
+    {Reply, Req2, State1}.
+
+from_msgpack(Req, State) ->
+    {ok, Body, Req1} = cowboy_http_req:body(Req),
+    {Reply, Req2, State1} = case Body of
+                                <<>> ->
+                                    handle_write(Req1, State, []);
+                                _ ->
+                                    Decoded = msgpack:unpack(Body, [jsx]),
                                     handle_write(Req1, State, Decoded)
                             end,
 
