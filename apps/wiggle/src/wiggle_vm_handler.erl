@@ -70,7 +70,8 @@ options(Req, State) ->
 
 content_types_provided(Req, State) ->
     {[
-      {<<"application/json">>, to_json}
+      {<<"application/json">>, to_json},
+      {<<"application/x-msgpack">>, to_msgpack}
      ], Req, State}.
 
 content_types_accepted(Req, State) ->
