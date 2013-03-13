@@ -45,7 +45,8 @@ websocket_init(_Any, Req, []) ->
                                           msgpack:pack(O, [jsx])
                                   end,
                                   fun(D) ->
-                                          msgpack:unpack(D, [jsx])
+                                          {ok, D} = msgpack:unpack(D, [jsx])
+                                          jsxd:from_list(D)
                                   end,
                                   binary};
                              <<"json">> ->
@@ -53,7 +54,7 @@ websocket_init(_Any, Req, []) ->
                                           jsx:encode(O)
                                   end,
                                   fun(D) ->
-                                          jsx:decode(D)
+                                          jsxd:from_list(jsx:decode(D))
                                   end, text}
                          end,
 
