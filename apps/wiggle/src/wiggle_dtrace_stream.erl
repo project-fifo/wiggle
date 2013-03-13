@@ -18,7 +18,7 @@ init({_Any, http}, Req, []) ->
         {<<"WebSocket">>, _Req2} -> {upgrade, protocol, cowboy_http_websocket}
     end.
 
--record(state, {id, socket, config, encoder, decoder}).
+-record(state, {id, socket, config, encoder, decoder, type}).
 
 handle(Req, State) ->
     {ok, Req1} =  cowboy_http_req:reply(200, [], <<"">>, Req),
@@ -39,21 +39,22 @@ websocket_init(_Any, Req, []) ->
     {ok, Req4} = cowboy_http_req:set_resp_header(
                    <<"Allow-Access-Control-Credentials">>,
                    <<"true">>, Req3),
-    {Encoder, Decoder} = case C of
+    {Encoder, Decoder, Type} = case C of
                              <<"msgpack">> ->
                                  {fun(O) ->
                                           msgpack:pack(O, [jsx])
                                   end,
                                   fun(D) ->
                                           msgpack:unpack(D, [jsx])
-                                  end};
+                                  end,
+                                  binary};
                              <<"json">> ->
                                  {fun(O) ->
                                           jsx:encode(O)
                                   end,
                                   fun(D) ->
                                           jsx:decode(D)
-                                  end}
+                                  end, text}
                          end,
 
     {Token, Req5} = case cowboy_http_req:header(<<"X-Snarl-Token">>, Req4) of
@@ -69,7 +70,7 @@ websocket_init(_Any, Req, []) ->
             case libsniffle:dtrace_get(ID) of
                 {ok, Obj} ->
                     {ok, Req, #state{id = ID, config = jsxd:get(<<"config">>, [], Obj),
-                                     encoder = Encoder, decoder = Decoder}};
+                                     encoder = Encoder, decoder = Decoder, type = Type}};
                 _ ->
                     {ok, Req6} = cowboy_http_req:reply(404,
                                                        [{'Content-Type', <<"text/html">>}],
@@ -81,19 +82,11 @@ websocket_init(_Any, Req, []) ->
             {shutdown, Req6}
     end.
 
-websocket_handle({text, <<>>}, Req, State) ->
+websocket_handle({Type, <<>>}, Req, State = #state{type = Type}) ->
     handle(undefined, Req, State);
 
-websocket_handle({text, M}, Req, State = #state{decoder = Dec}) ->
-
+websocket_handle({Type, M}, Req, State = #state{decoder = Dec, type = Type}) ->
     handle(Dec(M), Req, State);
-
-websocket_handle({binary, <<>>}, Req, State) ->
-    handle(undefined, Req, State);
-
-websocket_handle({binary, M}, Req, State = #state{decoder = Dec}) ->
-    handle(Dec(M), Req, State);
-
 
 websocket_handle(_Any, Req, State) ->
     {ok, Req, State}.
@@ -118,11 +111,11 @@ websocket_terminate(_Reason, _Req, #state{socket = Port} = _State) ->
     gen_tcp:close(Port),
     ok.
 
-handle(null, Req, State = #state{encoder = Enc}) ->
+handle(null, Req, State = #state{encoder = Enc, type = Type}) ->
     {ok, Servers} = libsniffle:hypervisor_list(),
     case libsniffle:dtrace_run(State#state.id, [{<<"servers">>, Servers}]) of
         {ok, S} ->
-            {reply, {text, Enc([{<<"config">>, jsxd:merge([{<<"servers">>, Servers}], State#state.config)}])},
+            {reply, {Type, Enc([{<<"config">>, jsxd:merge([{<<"servers">>, Servers}], State#state.config)}])},
              Req, State#state{socket = S}};
         E ->
             {ok, Req1} = cowboy_http_req:reply(505, [{'Content-Type', <<"text/html">>}],
@@ -130,7 +123,7 @@ handle(null, Req, State = #state{encoder = Enc}) ->
             {shutdown, Req1}
     end;
 
-handle(Config, Req, State  = #state{encoder = Enc}) ->
+handle(Config, Req, State  = #state{encoder = Enc, type = Type}) ->
     {ok, Servers} = libsniffle:hypervisor_list(),
     Config1 = case jsxd:get([<<"vms">>], [], Config) of
                   [] ->
@@ -153,8 +146,7 @@ handle(Config, Req, State  = #state{encoder = Enc}) ->
     io:format("Now we got a config: ~p~n", [Config2]),
     case libsniffle:dtrace_run(State#state.id, Config2) of
         {ok, S} ->
-
-            {reply, {text, Enc(jsxd:merge(Config1, State#state.config))},
+            {reply, {Type, Enc(jsxd:merge(Config1, State#state.config))},
              Req, State#state{socket = S}};
         E ->
             {ok, Req1} = cowboy_http_req:reply(505, [{'Content-Type', <<"text/html">>}],
