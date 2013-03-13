@@ -51,7 +51,7 @@ accepted() ->
     ].
 
 decode(Req) ->
-    {ok, ContentType, Req0} = cowboy_http_req:header('Content-Type', Req),
+    {ContentType, Req0} = cowboy_http_req:parse_header('Content-Type', Req, <<"application/json">>),
     {ok, Body, Req1} = cowboy_http_req:body(Req0),
     Decoded = case Body of
                   <<>> ->
