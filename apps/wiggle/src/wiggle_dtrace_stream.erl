@@ -81,7 +81,44 @@ websocket_init(_Any, Req, []) ->
             {shutdown, Req6}
     end.
 
-websocket_handle({text, <<"">>}, Req, State = #state{encoder = Enc}) ->
+websocket_handle({text, <<>>}, Req, State) ->
+    handle(undefined, Req, State);
+
+websocket_handle({text, M}, Req, State = #state{decoder = Dec}) ->
+
+    handle(Dec(M), Req, State);
+
+websocket_handle({binary, <<>>}, Req, State) ->
+    handle(undefined, Req, State);
+
+websocket_handle({binary, M}, Req, State = #state{decoder = Dec}) ->
+    handle(Dec(M), Req, State);
+
+
+websocket_handle(_Any, Req, State) ->
+    {ok, Req, State}.
+
+websocket_info({tcp, _Port, Data}, Req, State  = #state{encoder = Enc}) ->
+    case binary_to_term(Data) of
+        {dtrace, ok} ->
+            {ok, Req, State, hibernate};
+        {dtrace, JSON} ->
+            {reply, {text, Enc(JSON)}, Req, State};
+        _ ->
+            {ok, Req, State, hibernate}
+    end;
+
+websocket_info(_Info, Req, State) ->
+    {ok, Req, State, hibernate}.
+
+websocket_terminate(_Reason, _Req, #state{socket = undefined} = _State) ->
+    ok;
+
+websocket_terminate(_Reason, _Req, #state{socket = Port} = _State) ->
+    gen_tcp:close(Port),
+    ok.
+
+handle(null, Req, State = #state{encoder = Enc}) ->
     {ok, Servers} = libsniffle:hypervisor_list(),
     case libsniffle:dtrace_run(State#state.id, [{<<"servers">>, Servers}]) of
         {ok, S} ->
@@ -93,8 +130,7 @@ websocket_handle({text, <<"">>}, Req, State = #state{encoder = Enc}) ->
             {shutdown, Req1}
     end;
 
-websocket_handle({text, Msg}, Req, State  = #state{encoder = Enc, decoder = Dec}) ->
-    Config = Dec(Msg),
+handle(Config, Req, State  = #state{encoder = Enc}) ->
     {ok, Servers} = libsniffle:hypervisor_list(),
     Config1 = case jsxd:get([<<"vms">>], [], Config) of
                   [] ->
@@ -124,27 +160,4 @@ websocket_handle({text, Msg}, Req, State  = #state{encoder = Enc, decoder = Dec}
             {ok, Req1} = cowboy_http_req:reply(505, [{'Content-Type', <<"text/html">>}],
                                                list_to_binary(io_lib:format("~p", [E])), Req),
             {shutdown, Req1}
-    end;
-
-websocket_handle(_Any, Req, State) ->
-    {ok, Req, State}.
-
-websocket_info({tcp, _Port, Data}, Req, State  = #state{encoder = Enc}) ->
-    case binary_to_term(Data) of
-        {dtrace, ok} ->
-            {ok, Req, State, hibernate};
-        {dtrace, JSON} ->
-            {reply, {text, Enc(JSON)}, Req, State};
-        _ ->
-            {ok, Req, State, hibernate}
-    end;
-
-websocket_info(_Info, Req, State) ->
-    {ok, Req, State, hibernate}.
-
-websocket_terminate(_Reason, _Req, #state{socket = undefined} = _State) ->
-    ok;
-
-websocket_terminate(_Reason, _Req, #state{socket = Port} = _State) ->
-    gen_tcp:close(Port),
-    ok.
+    end.
