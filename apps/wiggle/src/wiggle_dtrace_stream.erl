@@ -92,12 +92,12 @@ websocket_handle({Type, M}, Req, State = #state{decoder = Dec, type = Type}) ->
 websocket_handle(_Any, Req, State) ->
     {ok, Req, State}.
 
-websocket_info({tcp, _Port, Data}, Req, State  = #state{encoder = Enc}) ->
+websocket_info({tcp, _Port, Data}, Req, State  = #state{encoder = Enc, type = Type}) ->
     case binary_to_term(Data) of
         {dtrace, ok} ->
             {ok, Req, State, hibernate};
         {dtrace, JSON} ->
-            {reply, {text, Enc(JSON)}, Req, State};
+            {reply, {Type, Enc(JSON)}, Req, State};
         _ ->
             {ok, Req, State, hibernate}
     end;
