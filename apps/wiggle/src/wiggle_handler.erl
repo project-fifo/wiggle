@@ -60,9 +60,9 @@ decode(Req) ->
                   _ ->
                       case lists:keyfind(ContentType, 1, accepted()) of
                           {_, from_json} ->
-                              jsx:decode(Body);
+                              jsxd:from_list(jsx:decode(Body));
                           {_, from_msgpack} ->
-                              msgpack:unpack(Body, [jsx])
+                              jsxd:from_list(msgpack:unpack(Body, [jsx]))
                       end
               end,
     {ok, Decoded, Req1}.
