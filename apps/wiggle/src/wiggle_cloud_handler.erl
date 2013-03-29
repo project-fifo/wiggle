@@ -18,10 +18,14 @@
          is_authorized/2]).
 
 -export([to_json/2,
-         from_json/2]).
+         from_json/2,
+         to_msgpack/2,
+         from_msgpack/2]).
 
 -ignore_xref([to_json/2,
               from_json/2,
+              from_msgpack/2,
+              to_msgpack/2,
               allowed_methods/2,
               content_types_accepted/2,
               content_types_provided/2,
@@ -66,7 +70,8 @@ options(Req, State) ->
 
 content_types_provided(Req, State) ->
     {[
-      {<<"application/json">>, to_json}
+      {<<"application/json">>, to_json},
+      {<<"application/x-msgpack">>, to_msgpack}
      ], Req, State}.
 
 content_types_accepted(Req, State) ->
@@ -122,6 +127,10 @@ to_json(Req, State) ->
     {Reply, Req1, State1} = handle_request(Req, State),
     {jsx:encode(Reply), Req1, State1}.
 
+to_msgpack(Req, State) ->
+    {Reply, Req1, State1} = handle_request(Req, State),
+    {msgpack:pack(Reply, [jsx]), Req1, State1}.
+
 handle_request(Req, State = #state{path = [<<"connection">>]}) ->
     Res = jsxd:thread([{set, <<"sniffle">>, length(libsniffle:servers())},
                        {set, <<"snarl">>, length(libsnarl:servers())},
@@ -167,6 +176,9 @@ handle_request(Req, State = #state{path = []}) ->
 %%--------------------------------------------------------------------
 
 from_json(Req, State) ->
+    {false, Req, State}.
+
+from_msgpack(Req, State) ->
     {false, Req, State}.
 
 %%--------------------------------------------------------------------

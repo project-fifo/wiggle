@@ -13,21 +13,28 @@
          delete_resource/2,
          forbidden/2,
          options/2,
+         post_is_create/2,
+         create_path/2,
          service_available/2,
          is_authorized/2]).
 
 -export([to_json/2,
-         from_json/2]).
-
+         from_json/2,
+         to_msgpack/2,
+         from_msgpack/2]).
 
 -ignore_xref([to_json/2,
               from_json/2,
+              from_msgpack/2,
+              to_msgpack/2,
               allowed_methods/2,
               content_types_accepted/2,
               content_types_provided/2,
               delete_resource/2,
               forbidden/2,
               init/3,
+              post_is_create/2,
+              create_path/2,
               is_authorized/2,
               options/2,
               service_available/2,
@@ -60,9 +67,13 @@ options(Req, State) ->
                                ['HEAD', 'OPTIONS' | Methods]), ", "), Req),
     {ok, Req1, State}.
 
+post_is_create(Req, State) ->
+    {true, Req, State}.
+
 content_types_provided(Req, State) ->
     {[
-      {<<"application/json">>, to_json}
+      {<<"application/json">>, to_json},
+      {<<"application/x-msgpack">>, to_msgpack}
      ], Req, State}.
 
 content_types_accepted(Req, State) ->
@@ -72,10 +83,10 @@ allowed_methods(Req, State) ->
     {['HEAD', 'OPTIONS' | allowed_methods(State#state.version, State#state.token, State#state.path)], Req, State}.
 
 allowed_methods(_Version, _Token, []) ->
-    ['GET'];
+    ['GET', 'POST'];
 
 allowed_methods(_Version, _Token, [_Dataset]) ->
-    ['GET', 'DELETE'];
+    ['GET', 'DELETE', 'PUT'];
 
 allowed_methods(_Version, _Token, [_Dataset, <<"metadata">>|_]) ->
     ['PUT', 'DELETE'].
@@ -106,11 +117,18 @@ forbidden(Req, State = #state{method = 'OPTIONS'}) ->
 forbidden(Req, State = #state{token = undefined}) ->
     {true, Req, State};
 
+forbidden(Req, State = #state{method = 'POST', path = []}) ->
+    {allowed(State#state.token, [<<"cloud">>, <<"datasets">>, <<"create">>]), Req, State};
+
 forbidden(Req, State = #state{path = []}) ->
     {allowed(State#state.token, [<<"cloud">>, <<"datasets">>, <<"list">>]), Req, State};
 
+
 forbidden(Req, State = #state{method = 'GET', path = [Dataset]}) ->
     {allowed(State#state.token, [<<"datasets">>, Dataset, <<"get">>]), Req, State};
+
+forbidden(Req, State = #state{method = 'PUT', path = [Dataset]}) ->
+    {allowed(State#state.token, [<<"datasets">>, Dataset, <<"edit">>]), Req, State};
 
 forbidden(Req, State = #state{method = 'DELETE', path = [Dataset]}) ->
     {allowed(State#state.token, [<<"datasets">>, Dataset, <<"delete">>]), Req, State};
@@ -132,6 +150,10 @@ to_json(Req, State) ->
     {Reply, Req1, State1} = handle_request(Req, State),
     {jsx:encode(Reply), Req1, State1}.
 
+to_msgpack(Req, State) ->
+    {Reply, Req1, State1} = handle_request(Req, State),
+    {msgpack:pack(Reply, [jsx]), Req1, State1}.
+
 handle_request(Req, State = #state{token = Token, path = []}) ->
     {ok, Permissions} = libsnarl:user_cache({token, Token}),
     {ok, Res} = libsniffle:dataset_list([{must, 'allowed', [<<"datasets">>, {<<"res">>, <<"dataset">>}, <<"get">>], Permissions}]),
@@ -144,6 +166,12 @@ handle_request(Req, State = #state{path = [_Dataset], obj = Obj}) ->
 %% PUT
 %%--------------------------------------------------------------------
 
+create_path(Req, State = #state{path = [], version = Version}) ->
+    {ok, Decoded, Req1} = wiggle_handler:decode(Req),
+    {ok, URL} = jsxd:get(<<"url">>, Decoded),
+    {ok, UUID} = libsniffle:dataset_import(URL),
+    {<<"/api/", Version/binary, "/datasets/", UUID/binary>>, Req1, State#state{body = Decoded}}.
+
 from_json(Req, State) ->
     {ok, Body, Req1} = cowboy_http_req:body(Req),
     {Reply, Req2, State1} = case Body of
@@ -155,8 +183,26 @@ from_json(Req, State) ->
                             end,
     {Reply, Req2, State1}.
 
+from_msgpack(Req, State) ->
+    {ok, Body, Req1} = cowboy_http_req:body(Req),
+    {Reply, Req2, State1} = case Body of
+                                <<>> ->
+                                    handle_write(Req1, State, []);
+                                _ ->
+                                    Decoded = msgpack:unpack(Body, [jsx]),
+                                    handle_write(Req1, State, Decoded)
+                            end,
+    {Reply, Req2, State1}.
+
 handle_write(Req, State = #state{path = [Dataset, <<"metadata">> | Path]}, [{K, V}]) ->
     libsniffle:dataset_set(Dataset, [<<"metadata">> | Path] ++ [K], jsxd:from_list(V)),
+    {true, Req, State};
+
+handle_write(Req, State = #state{path = [Dataset]}, [{K, V}]) ->
+    libsniffle:dataset_set(Dataset, [K], jsxd:from_list(V)),
+    {true, Req, State};
+
+handle_write(Req, State = #state{path = []}, _Body) ->
     {true, Req, State};
 
 handle_write(Req, State, _Body) ->

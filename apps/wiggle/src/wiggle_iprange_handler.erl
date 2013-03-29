@@ -19,10 +19,14 @@
          is_authorized/2]).
 
 -export([to_json/2,
-         from_json/2]).
+         from_json/2,
+         to_msgpack/2,
+         from_msgpack/2]).
 
 -ignore_xref([to_json/2,
               from_json/2,
+              from_msgpack/2,
+              to_msgpack/2,
               allowed_methods/2,
               content_types_accepted/2,
               content_types_provided/2,
@@ -69,7 +73,8 @@ options(Req, State) ->
 
 content_types_provided(Req, State) ->
     {[
-      {<<"application/json">>, to_json}
+      {<<"application/json">>, to_json},
+      {<<"application/x-msgpack">>, to_msgpack}
      ], Req, State}.
 
 content_types_accepted(Req, State) ->
@@ -145,6 +150,10 @@ to_json(Req, State) ->
     {Reply, Req1, State1} = handle_request(Req, State),
     {jsx:encode(Reply), Req1, State1}.
 
+to_msgpack(Req, State) ->
+    {Reply, Req1, State1} = handle_request(Req, State),
+    {msgpack:pack(Reply, [jsx]), Req1, State1}.
+
 handle_request(Req, State = #state{token = Token, path = []}) ->
     {ok, Permissions} = libsnarl:user_cache({token, Token}),
     {ok, Res} = libsniffle:iprange_list([{must, 'allowed', [<<"ipranges">>, {<<"res">>, <<"uuid">>}, <<"get">>], Permissions}]),
@@ -167,14 +176,7 @@ handle_request(Req, State = #state{path = [_Iprange], obj = Obj}) ->
 %%--------------------------------------------------------------------
 
 create_path(Req, State = #state{path = [], version = Version}) ->
-    {ok, Body, Req1} = cowboy_http_req:body(Req),
-    {Data, Req2} = case Body of
-                       <<>> ->
-                           {[], Req1};
-                       _ ->
-                           D = jsxd:from_list(jsx:decode(Body)),
-                           {D, Req1}
-                   end,
+    {ok, Data, Req1} = wiggle_handler:decode(Req),
     {ok, Iprange} = jsxd:get(<<"name">>, Data),
     {ok, Network} = jsxd:get(<<"network">>, Data),
     {ok, Gateway} = jsxd:get(<<"gateway">>, Data),
@@ -185,10 +187,10 @@ create_path(Req, State = #state{path = [], version = Version}) ->
     Vlan = jsxd:get(<<"vlan">>, 0, Data),
     case libsniffle:iprange_create(Iprange, Network, Gateway, Netmask, First, Last, Tag, Vlan) of
         {ok, UUID} ->
-            {<<"/api/", Version/binary, "/ipranges/", UUID/binary>>, Req2, State};
+            {<<"/api/", Version/binary, "/ipranges/", UUID/binary>>, Req1, State#state{body = Data}};
         duplicate ->
-            {ok, Req3} = cowboy_http_req:reply(409, Req2),
-            {halt, Req3, State}
+            {ok, Req2} = cowboy_http_req:reply(409, Req1),
+            {halt, Req2, State}
     end.
 
 
@@ -199,6 +201,17 @@ from_json(Req, State) ->
                                     handle_write(Req1, State, []);
                                 _ ->
                                     Decoded = jsxd:from_list(jsx:decode(Body)),
+                                    handle_write(Req1, State, Decoded)
+                            end,
+    {Reply, Req2, State1}.
+
+from_msgpack(Req, State) ->
+    {ok, Body, Req1} = cowboy_http_req:body(Req),
+    {Reply, Req2, State1} = case Body of
+                                <<>> ->
+                                    handle_write(Req1, State, []);
+                                _ ->
+                                    Decoded = jsxd:from_list(msgpack:unpack(Body, [jsx])),
                                     handle_write(Req1, State, Decoded)
                             end,
     {Reply, Req2, State1}.

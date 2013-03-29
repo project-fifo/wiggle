@@ -1,7 +1,7 @@
 %% Feel free to use, reuse and abuse the code in this file.
 
 %% @doc Hello world handler.
--module(wiggle_package_handler).
+-module(wiggle_dtrace_handler).
 
 -export([init/3,
          rest_init/2]).
@@ -41,14 +41,13 @@
               post_is_create/2,
               rest_init/2]).
 
-
 -record(state, {path, method, version, token, content, reply, obj, body}).
 
 init(_Transport, _Req, []) ->
     {upgrade, protocol, cowboy_http_rest}.
 
 rest_init(Req, _) ->
-    wiggle_handler:initial_state(Req, <<"packages">>).
+    wiggle_handler:initial_state(Req, <<"dtrace">>).
 
 post_is_create(Req, State) ->
     {true, Req, State}.
@@ -87,17 +86,17 @@ allowed_methods(Req, State) ->
 allowed_methods(_Version, _Token, []) ->
     ['GET', 'POST'];
 
-allowed_methods(_Version, _Token, [_Package, <<"metadata">>|_]) ->
+allowed_methods(_Version, _Token, [_Dtrace, <<"metadata">>|_]) ->
     ['PUT', 'DELETE'];
 
-allowed_methods(_Version, _Token, [_Package]) ->
+allowed_methods(_Version, _Token, [_Dtrace]) ->
     ['GET', 'PUT', 'DELETE'].
 
 resource_exists(Req, State = #state{path = []}) ->
     {true, Req, State};
 
-resource_exists(Req, State = #state{path = [Package | _]}) ->
-    case libsniffle:package_get(Package) of
+resource_exists(Req, State = #state{path = [Dtrace | _]}) ->
+    case libsniffle:dtrace_get(Dtrace) of
         {ok, not_found} ->
             {false, Req, State};
         {ok, Obj} ->
@@ -120,25 +119,25 @@ forbidden(Req, State = #state{token = undefined}) ->
     {true, Req, State};
 
 forbidden(Req, State = #state{method= 'GET', path = []}) ->
-    {allowed(State#state.token, [<<"cloud">>, <<"packages">>, <<"list">>]), Req, State};
+    {allowed(State#state.token, [<<"cloud">>, <<"dtraces">>, <<"list">>]), Req, State};
 
 forbidden(Req, State = #state{method= 'POST', path = []}) ->
-    {allowed(State#state.token, [<<"cloud">>, <<"packages">>, <<"create">>]), Req, State};
+    {allowed(State#state.token, [<<"cloud">>, <<"dtraces">>, <<"create">>]), Req, State};
 
-forbidden(Req, State = #state{method = 'GET', path = [Package]}) ->
-    {allowed(State#state.token, [<<"packages">>, Package, <<"get">>]), Req, State};
+forbidden(Req, State = #state{method = 'GET', path = [Dtrace]}) ->
+    {allowed(State#state.token, [<<"dtraces">>, Dtrace, <<"get">>]), Req, State};
 
-forbidden(Req, State = #state{method = 'DELETE', path = [Package]}) ->
-    {allowed(State#state.token, [<<"packages">>, Package, <<"delete">>]), Req, State};
+forbidden(Req, State = #state{method = 'DELETE', path = [Dtrace]}) ->
+    {allowed(State#state.token, [<<"dtraces">>, Dtrace, <<"delete">>]), Req, State};
 
-forbidden(Req, State = #state{method = 'PUT', path = [_Package]}) ->
-    {allowed(State#state.token, [<<"cloud">>, <<"packages">>, <<"create">>]), Req, State};
+forbidden(Req, State = #state{method = 'PUT', path = [Dtrace]}) ->
+    {allowed(State#state.token, [<<"dtraces">>, Dtrace, <<"edit">>]), Req, State};
 
-forbidden(Req, State = #state{method = 'PUT', path = [Package, <<"metadata">> | _]}) ->
-    {allowed(State#state.token, [<<"packages">>, Package, <<"edit">>]), Req, State};
+forbidden(Req, State = #state{method = 'PUT', path = [Dtrace, <<"metadata">> | _]}) ->
+    {allowed(State#state.token, [<<"dtraces">>, Dtrace, <<"edit">>]), Req, State};
 
-forbidden(Req, State = #state{method = 'DELETE', path = [Package, <<"metadata">> | _]}) ->
-    {allowed(State#state.token, [<<"packages">>, Package, <<"edit">>]), Req, State};
+forbidden(Req, State = #state{method = 'DELETE', path = [Dtrace, <<"metadata">> | _]}) ->
+    {allowed(State#state.token, [<<"dtraces">>, Dtrace, <<"edit">>]), Req, State};
 
 forbidden(Req, State) ->
     {true, Req, State}.
@@ -157,11 +156,14 @@ to_msgpack(Req, State) ->
 
 handle_request(Req, State = #state{token = Token, path = []}) ->
     {ok, Permissions} = libsnarl:user_cache({token, Token}),
-    {ok, Res} = libsniffle:package_list([{must, 'allowed', [<<"packages">>, {<<"res">>, <<"uuid">>}, <<"get">>], Permissions}]),
+    {ok, Res} = libsniffle:dtrace_list([{must, 'allowed', [<<"dtraces">>, {<<"res">>, <<"uuid">>}, <<"get">>], Permissions}]),
     {lists:map(fun ({E, _}) -> E end,  Res), Req, State};
 
-handle_request(Req, State = #state{path = [_Package], obj = Obj}) ->
-    {Obj, Req, State}.
+handle_request(Req, State = #state{path = [_Dtrace], obj = Obj}) ->
+    Obj1 = jsxd:update(<<"script">>, fun (S) ->
+                                             list_to_binary(S)
+                                     end, Obj),
+    {Obj1, Req, State}.
 
 
 %%--------------------------------------------------------------------
@@ -170,15 +172,21 @@ handle_request(Req, State = #state{path = [_Package], obj = Obj}) ->
 
 create_path(Req, State = #state{path = [], version = Version}) ->
     {ok, Data, Req1} = wiggle_handler:decode(Req),
-    Data1 = jsxd:select([<<"cpu_cap">>,<<"quota">>, <<"ram">>, <<"requirements">>], Data),
-    {ok, Package} = jsxd:get(<<"name">>, Data),
-    case libsniffle:package_create(Package) of
+    {ok, Dtrace} = jsxd:get(<<"name">>, Data),
+    {ok, Script} = jsxd:get(<<"script">>, Data),
+    Script1 = binary_to_list(Script),
+    case libsniffle:dtrace_add(Dtrace, Script1) of
         {ok, UUID} ->
-            ok = libsniffle:package_set(UUID, Data1),
-            {<<"/api/", Version/binary, "/packages/", UUID/binary>>, Req1, State#state{body = Data1}};
+            case jsxd:get(<<"config">>, Data) of
+                {ok, Config} ->
+                    ok = libsniffle:dtrace_set(UUID, <<"config">>, Config);
+                _ ->
+                    ok
+            end,
+            {<<"/api/", Version/binary, "/dtrace/", UUID/binary>>, Req1, State#state{body = Data}};
         duplicate ->
-            {ok, Req2} = cowboy_http_req:reply(409, Req1),
-            {halt, Req2, State}
+            {ok, Req3} = cowboy_http_req:reply(409, Req1),
+            {halt, Req3, State}
     end.
 
 from_json(Req, State) ->
@@ -208,8 +216,8 @@ from_msgpack(Req, State) ->
 handle_write(Req, State = #state{method = 'POST', path = []}, _) ->
     {true, Req, State};
 
-handle_write(Req, State = #state{path = [Package, <<"metadata">> | Path]}, [{K, V}]) ->
-    libsniffle:package_set(Package, [<<"metadata">> | Path] ++ [K], jsxd:from_list(V)),
+handle_write(Req, State = #state{path = [Dtrace, <<"metadata">> | Path]}, [{K, V}]) ->
+    libsniffle:dtrace_set(Dtrace, [<<"metadata">> | Path] ++ [K], jsxd:from_list(V)),
     {true, Req, State};
 
 handle_write(Req, State, _Body) ->
@@ -219,12 +227,12 @@ handle_write(Req, State, _Body) ->
 %% DEETE
 %%--------------------------------------------------------------------
 
-delete_resource(Req, State = #state{path = [Package, <<"metadata">> | Path]}) ->
-    libsniffle:package_set(Package, [<<"metadata">> | Path], delete),
+delete_resource(Req, State = #state{path = [Dtrace, <<"metadata">> | Path]}) ->
+    libsniffle:dtrace_set(Dtrace, [<<"metadata">> | Path], delete),
     {true, Req, State};
 
-delete_resource(Req, State = #state{path = [Package]}) ->
-    ok = libsniffle:package_delete(Package),
+delete_resource(Req, State = #state{path = [Dtrace]}) ->
+    ok = libsniffle:dtrace_delete(Dtrace),
     {true, Req, State}.
 
 allowed(Token, Perm) ->
