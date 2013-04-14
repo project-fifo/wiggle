@@ -51,7 +51,7 @@ init(_Transport, _Req, []) ->
     {upgrade, protocol, cowboy_http_rest}.
 
 rest_init(Req, _) ->
-    wiggle_handler:initial_state(Req, <<"sessions">>).
+    wiggle_handler:initial_state(Req).
 
 post_is_create(Req, State) ->
     {true, Req, State}.
@@ -67,12 +67,12 @@ service_available(Req, State) ->
     end.
 
 options(Req, State) ->
-    Methods = allowed_methods(Req, State, State#state.path),
-    {ok, Req1} = cowboy_http_req:set_resp_header(
-                   <<"Access-Control-Allow-Methods">>,
-                   string:join(
-                     lists:map(fun erlang:atom_to_list/1,
-                               ['HEAD', 'GET', 'OPTIONS' | Methods]), ", "), Req),
+    Methods = allowed_methods(State#state.version, State#state.token, State#state.path),
+    Req1 = cowboy_req:set_resp_header(
+             <<"Access-Control-Allow-Methods">>,
+             string:join(
+               lists:map(fun erlang:atom_to_list/1,
+                         ['HEAD', 'GET', 'OPTIONS' | Methods]), ", "), Req),
     {ok, Req1, State}.
 
 content_types_provided(Req, State) ->
@@ -142,17 +142,17 @@ create_path(Req, State = #state{path = [], version = Version}) ->
     {ok, Pass} = jsxd:get(<<"password">>, Decoded),
     case libsnarl:auth(User, Pass) of
         {ok, {token, UUID}} ->
-            {ok, Req2} = cowboy_http_req:set_resp_cookie(<<"X-Snarl-Token">>, UUID,
-                                                         [{max_age, 364*24*60*60}], Req1),
-            {ok, Req3} = cowboy_http_req:set_resp_header(<<"X-Snarl-Token">>, UUID, Req2),
+            Req2 = cowboy_req:set_resp_cookie(<<"X-Snarl-Token">>, UUID,
+                                              [{max_age, 364*24*60*60}], Req1),
+            Req3 = cowboy_req:set_resp_header(<<"X-Snarl-Token">>, UUID, Req2),
             {<<"/api/", Version/binary, "/sessions/", UUID/binary>>, Req3, State#state{body = Decoded}};
         _ ->
-            {ok, Req2} = cowboy_http_req:reply(403, [], <<"Forbidden!">>, Req1),
+            {ok, Req2} = cowboy_req:reply(403, [], <<"Forbidden!">>, Req1),
             {halt, Req2, State}
     end.
 
 from_json(Req, State) ->
-    {ok, Body, Req1} = cowboy_http_req:body(Req),
+    {ok, Body, Req1} = cowboy_req:body(Req),
     {Reply, Req2, State1} = case Body of
                                 <<>> ->
                                     handle_write(Req1, State, []);
@@ -164,7 +164,7 @@ from_json(Req, State) ->
     {Reply, Req2, State1}.
 
 from_msgpack(Req, State) ->
-    {ok, Body, Req1} = cowboy_http_req:body(Req),
+    {ok, Body, Req1} = cowboy_req:body(Req),
     {Reply, Req2, State1} = case Body of
                                 <<>> ->
                                     handle_write(Req1, State, []);

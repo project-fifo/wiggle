@@ -47,7 +47,7 @@ init(_Transport, _Req, []) ->
     {upgrade, protocol, cowboy_http_rest}.
 
 rest_init(Req, _) ->
-    wiggle_handler:initial_state(Req, <<"ipranges">>).
+    wiggle_handler:initial_state(Req).
 
 post_is_create(Req, State) ->
     {true, Req, State}.
@@ -63,12 +63,12 @@ service_available(Req, State) ->
     end.
 
 options(Req, State) ->
-    Methods = allowed_methods(Req, State, State#state.path),
-    {ok, Req1} = cowboy_http_req:set_resp_header(
-                   <<"Access-Control-Allow-Methods">>,
-                   string:join(
-                     lists:map(fun erlang:atom_to_list/1,
-                               ['HEAD', 'OPTIONS' | Methods]), ", "), Req),
+    Methods = allowed_methods(State#state.version, State#state.token, State#state.path),
+    Req1 = cowboy_req:set_resp_header(
+             <<"Access-Control-Allow-Methods">>,
+             string:join(
+               lists:map(fun erlang:atom_to_list/1,
+                         ['HEAD', 'OPTIONS' | Methods]), ", "), Req),
     {ok, Req1, State}.
 
 content_types_provided(Req, State) ->
@@ -189,13 +189,13 @@ create_path(Req, State = #state{path = [], version = Version}) ->
         {ok, UUID} ->
             {<<"/api/", Version/binary, "/ipranges/", UUID/binary>>, Req1, State#state{body = Data}};
         duplicate ->
-            {ok, Req2} = cowboy_http_req:reply(409, Req1),
+            {ok, Req2} = cowboy_req:reply(409, Req1),
             {halt, Req2, State}
     end.
 
 
 from_json(Req, State) ->
-    {ok, Body, Req1} = cowboy_http_req:body(Req),
+    {ok, Body, Req1} = cowboy_req:body(Req),
     {Reply, Req2, State1} = case Body of
                                 <<>> ->
                                     handle_write(Req1, State, []);
@@ -206,12 +206,13 @@ from_json(Req, State) ->
     {Reply, Req2, State1}.
 
 from_msgpack(Req, State) ->
-    {ok, Body, Req1} = cowboy_http_req:body(Req),
+    {ok, Body, Req1} = cowboy_req:body(Req),
     {Reply, Req2, State1} = case Body of
                                 <<>> ->
                                     handle_write(Req1, State, []);
                                 _ ->
-                                    Decoded = jsxd:from_list(msgpack:unpack(Body, [jsx])),
+                                    {ok, D} = msgpack:unpack(Body, [jsx]),
+                                    Decoded = jsxd:from_list(D),
                                     handle_write(Req1, State, Decoded)
                             end,
     {Reply, Req2, State1}.

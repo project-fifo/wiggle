@@ -59,12 +59,12 @@ service_available(Req, State) ->
     end.
 
 options(Req, State) ->
-    Methods = allowed_methods(Req, State, State#state.path),
-    {ok, Req1} = cowboy_http_req:set_resp_header(
-                   <<"Access-Control-Allow-Methods">>,
-                   string:join(
-                     lists:map(fun erlang:atom_to_list/1,
-                               ['HEAD', 'OPTIONS' | Methods]), ", "), Req),
+    Methods = allowed_methods(State#state.version, State#state.token, State#state.path),
+    Req1 = cowboy_req:set_resp_header(
+             <<"Access-Control-Allow-Methods">>,
+             string:join(
+               lists:map(fun erlang:atom_to_list/1,
+                         ['HEAD', 'OPTIONS' | Methods]), ", "), Req),
     {ok, Req1, State}.
 
 post_is_create(Req, State) ->
@@ -96,7 +96,7 @@ resource_exists(Req, State = #state{path = []}) ->
 
 resource_exists(Req, State = #state{path = [Dataset | _]}) ->
     case libsniffle:dataset_get(Dataset) of
-        {ok, not_found} ->
+        not_found ->
             {false, Req, State};
         {ok, Obj} ->
             {true, Req, State#state{obj = Obj}}
@@ -173,7 +173,7 @@ create_path(Req, State = #state{path = [], version = Version}) ->
     {<<"/api/", Version/binary, "/datasets/", UUID/binary>>, Req1, State#state{body = Decoded}}.
 
 from_json(Req, State) ->
-    {ok, Body, Req1} = cowboy_http_req:body(Req),
+    {ok, Body, Req1} = cowboy_req:body(Req),
     {Reply, Req2, State1} = case Body of
                                 <<>> ->
                                     handle_write(Req1, State, []);
@@ -184,7 +184,7 @@ from_json(Req, State) ->
     {Reply, Req2, State1}.
 
 from_msgpack(Req, State) ->
-    {ok, Body, Req1} = cowboy_http_req:body(Req),
+    {ok, Body, Req1} = cowboy_req:body(Req),
     {Reply, Req2, State1} = case Body of
                                 <<>> ->
                                     handle_write(Req1, State, []);
