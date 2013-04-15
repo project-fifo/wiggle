@@ -66,7 +66,7 @@ options(Req, State) ->
              <<"Access-Control-Allow-Methods">>,
              string:join(
                lists:map(fun erlang:atom_to_list/1,
-                         ['HEAD', 'OPTIONS' | Methods]), ", "), Req),
+                         [<<"HEAD">>, <<"OPTIONS">> | Methods]), ", "), Req),
     {ok, Req1, State}.
 
 content_types_provided(Req, State) ->
@@ -82,22 +82,22 @@ post_is_create(Req, State) ->
     {true, Req, State}.
 
 allowed_methods(Req, State) ->
-    {['HEAD', 'OPTIONS' | allowed_methods(State#state.version, State#state.token, State#state.path)], Req, State}.
+    {[<<"HEAD">>, <<"OPTIONS">> | allowed_methods(State#state.version, State#state.token, State#state.path)], Req, State}.
 
 allowed_methods(_Version, _Token, []) ->
-    ['GET', 'POST'];
+    [<<"GET">>, <<"POST">>];
 
 allowed_methods(_Version, _Token, [_Vm]) ->
-    ['GET', 'PUT', 'DELETE'];
+    [<<"GET">>, <<"PUT">>, <<"DELETE">>];
 
 allowed_methods(_Version, _Token, [_Vm, <<"metadata">>|_]) ->
-    ['PUT', 'DELETE'];
+    [<<"PUT">>, <<"DELETE">>];
 
 allowed_methods(_Version, _Token, [_Vm, <<"snapshots">>, _ID]) ->
-    ['GET', 'PUT', 'DELETE'];
+    [<<"GET">>, <<"PUT">>, <<"DELETE">>];
 
 allowed_methods(_Version, _Token, [_Vm, <<"snapshots">>]) ->
-    ['GET', 'POST'].
+    [<<"GET">>, <<"POST">>].
 
 
 resource_exists(Req, State = #state{path = []}) ->
@@ -131,7 +131,7 @@ resource_exists(Req, State = #state{path = [Vm | _]}) ->
             {true, Req, State#state{obj=Obj}}
     end.
 
-is_authorized(Req, State = #state{method = 'OPTIONS'}) ->
+is_authorized(Req, State = #state{method = <<"OPTIONS">>}) ->
     {true, Req, State};
 
 is_authorized(Req, State = #state{token = undefined}) ->
@@ -140,25 +140,25 @@ is_authorized(Req, State = #state{token = undefined}) ->
 is_authorized(Req, State) ->
     {true, Req, State}.
 
-forbidden(Req, State = #state{method = 'OPTIONS'}) ->
+forbidden(Req, State = #state{method = <<"OPTIONS">>}) ->
     {false, Req, State};
 
 forbidden(Req, State = #state{token = undefined}) ->
     {true, Req, State};
 
-forbidden(Req, State = #state{method = 'GET', path = []}) ->
+forbidden(Req, State = #state{method = <<"GET">>, path = []}) ->
     {allowed(State#state.token, [<<"cloud">>, <<"vms">>, <<"list">>]), Req, State};
 
-forbidden(Req, State = #state{method = 'POST', path = []}) ->
+forbidden(Req, State = #state{method = <<"POST">>, path = []}) ->
     {allowed(State#state.token, [<<"cloud">>, <<"vms">>, <<"create">>]), Req, State};
 
-forbidden(Req, State = #state{method = 'GET', path = [Vm]}) ->
+forbidden(Req, State = #state{method = <<"GET">>, path = [Vm]}) ->
     {allowed(State#state.token, [<<"vms">>, Vm, <<"get">>]), Req, State};
 
-forbidden(Req, State = #state{method = 'DELETE', path = [Vm]}) ->
+forbidden(Req, State = #state{method = <<"DELETE">>, path = [Vm]}) ->
     {allowed(State#state.token, [<<"vms">>, Vm, <<"delete">>]), Req, State};
 
-forbidden(Req, State = #state{method = 'PUT', path = [Vm]}) ->
+forbidden(Req, State = #state{method = <<"PUT">>, path = [Vm]}) ->
     {ok, Decoded, Req1} = wiggle_handler:decode(Req),
     case Decoded of
         [{<<"action">>, <<"start">>}] ->
@@ -171,16 +171,16 @@ forbidden(Req, State = #state{method = 'PUT', path = [Vm]}) ->
             {allowed(State#state.token, [<<"vms">>, Vm, <<"edit">>]), Req1, State#state{body=Decoded}}
     end;
 
-forbidden(Req, State = #state{method = 'GET', path = [Vm, <<"snapshots">>]}) ->
+forbidden(Req, State = #state{method = <<"GET">>, path = [Vm, <<"snapshots">>]}) ->
     {allowed(State#state.token, [<<"vms">>, Vm, <<"get">>]), Req, State};
 
-forbidden(Req, State = #state{method = 'POST', path = [Vm, <<"snapshots">>]}) ->
+forbidden(Req, State = #state{method = <<"POST">>, path = [Vm, <<"snapshots">>]}) ->
     {allowed(State#state.token, [<<"vms">>, Vm, <<"snapshot">>]), Req, State};
 
-forbidden(Req, State = #state{method = 'GET', path = [Vm, <<"snapshots">>, _Snap]}) ->
+forbidden(Req, State = #state{method = <<"GET">>, path = [Vm, <<"snapshots">>, _Snap]}) ->
     {allowed(State#state.token, [<<"vms">>, Vm, <<"get">>]), Req, State};
 
-forbidden(Req, State = #state{method = 'PUT', path = [Vm, <<"snapshots">>, _Snap]}) ->
+forbidden(Req, State = #state{method = <<"PUT">>, path = [Vm, <<"snapshots">>, _Snap]}) ->
     {ok, Decoded, Req1} = wiggle_handler:decode(Req),
     case Decoded of
         [{<<"action">>, <<"rollback">>}] ->
@@ -189,14 +189,14 @@ forbidden(Req, State = #state{method = 'PUT', path = [Vm, <<"snapshots">>, _Snap
             {allowed(State#state.token, [<<"vms">>, Vm, <<"edit">>]), Req1, State}
     end;
 
-forbidden(Req, State = #state{method = 'DELETE', path = [Vm, <<"snapshots">>, _Snap]}) ->
+forbidden(Req, State = #state{method = <<"DELETE">>, path = [Vm, <<"snapshots">>, _Snap]}) ->
     {allowed(State#state.token, [<<"vms">>, Vm, <<"snapshot_delete">>]), Req, State};
 
-forbidden(Req, State = #state{method = 'PUT', path = [Vm, <<"metadata">> | _]}) ->
+forbidden(Req, State = #state{method = <<"PUT">>, path = [Vm, <<"metadata">> | _]}) ->
     {ok, Decoded, Req1} = wiggle_handler:decode(Req),
     {allowed(State#state.token, [<<"vms">>, Vm, <<"edit">>]), Req1, State#state{body=Decoded}};
 
-forbidden(Req, State = #state{method = 'DELETE', path = [Vm, <<"metadata">> | _]}) ->
+forbidden(Req, State = #state{method = <<"DELETE">>, path = [Vm, <<"metadata">> | _]}) ->
     {allowed(State#state.token, [<<"vms">>, Vm, <<"edit">>]), Req, State};
 
 forbidden(Req, State) ->

@@ -72,7 +72,7 @@ options(Req, State) ->
              <<"Access-Control-Allow-Methods">>,
              string:join(
                lists:map(fun erlang:atom_to_list/1,
-                         ['HEAD', 'GET', 'OPTIONS' | Methods]), ", "), Req),
+                         [<<"HEAD">>, <<"GET">>, <<"OPTIONS">> | Methods]), ", "), Req),
     {ok, Req1, State}.
 
 content_types_provided(Req, State) ->
@@ -85,13 +85,13 @@ content_types_accepted(Req, State) ->
     {wiggle_handler:accepted(), Req, State}.
 
 allowed_methods(Req, State) ->
-    {['HEAD', 'OPTIONS' | allowed_methods(State#state.version, State#state.token, State#state.path)], Req, State}.
+    {[<<"HEAD">>, <<"OPTIONS">> | allowed_methods(State#state.version, State#state.token, State#state.path)], Req, State}.
 
 allowed_methods(_Version, _Token, []) ->
-    ['POST'];
+    [<<"POST">>];
 
 allowed_methods(_Version, _Token, [_Session]) ->
-    ['GET', 'POST', 'DELETE'].
+    [<<"GET">>, <<"POST">>, <<"DELETE">>].
 
 resource_exists(Req, State = #state{path = []}) ->
     {true, Req, State};

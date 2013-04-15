@@ -64,7 +64,7 @@ options(Req, State) ->
              <<"Access-Control-Allow-Methods">>,
              string:join(
                lists:map(fun erlang:atom_to_list/1,
-                         ['HEAD', 'OPTIONS' | Methods]), ", "), Req),
+                         [<<"HEAD">>, <<"OPTIONS">> | Methods]), ", "), Req),
     {ok, Req1, State}.
 
 content_types_provided(Req, State) ->
@@ -77,13 +77,13 @@ content_types_accepted(Req, State) ->
     {wiggle_handler:accepted(), Req, State}.
 
 allowed_methods(Req, State) ->
-    {['HEAD', 'OPTIONS' | allowed_methods(State#state.version, State#state.token, State#state.path)], Req, State}.
+    {[<<"HEAD">>, <<"OPTIONS">> | allowed_methods(State#state.version, State#state.token, State#state.path)], Req, State}.
 
 allowed_methods(_Version, _Token, [<<"connection">>]) ->
-    ['GET'];
+    [<<"GET">>];
 
 allowed_methods(_Version, _Token, []) ->
-    ['GET'].
+    [<<"GET">>].
 
 resource_exists(Req, State = #state{path = []}) ->
     {true, Req, State};
@@ -91,7 +91,7 @@ resource_exists(Req, State = #state{path = []}) ->
 resource_exists(Req, State = #state{path = [<<"connection">>]}) ->
     {true, Req, State}.
 
-is_authorized(Req, State = #state{method = 'OPTIONS'}) ->
+is_authorized(Req, State = #state{method = <<"OPTIONS">>}) ->
     {true, Req, State};
 
 is_authorized(Req, State = #state{path = [<<"connection">>]}) ->
@@ -103,7 +103,7 @@ is_authorized(Req, State = #state{token = undefined}) ->
 is_authorized(Req, State) ->
     {true, Req, State}.
 
-forbidden(Req, State = #state{method = 'OPTIONS'}) ->
+forbidden(Req, State = #state{method = <<"OPTIONS">>}) ->
     {false, Req, State};
 
 forbidden(Req, State = #state{path = [<<"connection">>]}) ->

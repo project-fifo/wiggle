@@ -61,7 +61,7 @@ options(Req, State) ->
              <<"Access-Control-Allow-Methods">>,
              string:join(
                lists:map(fun erlang:atom_to_list/1,
-                         ['HEAD', 'OPTIONS' | Methods]), ", "), Req),
+                         [<<"HEAD">>, <<"OPTIONS">> | Methods]), ", "), Req),
     {ok, Req1, State}.
 
 content_types_provided(Req, State) ->
@@ -74,19 +74,19 @@ content_types_accepted(Req, State) ->
     {wiggle_handler:accepted(), Req, State}.
 
 allowed_methods(Req, State) ->
-    {['HEAD', 'OPTIONS' | allowed_methods(State#state.version, State#state.token, State#state.path)], Req, State}.
+    {[<<"HEAD">>, <<"OPTIONS">> | allowed_methods(State#state.version, State#state.token, State#state.path)], Req, State}.
 
 allowed_methods(_Version, _Token, []) ->
-    ['GET'];
+    [<<"GET">>];
 
 allowed_methods(_Version, _Token, [_Hypervisor]) ->
-    ['GET'];
+    [<<"GET">>];
 
 allowed_methods(_Version, _Token, [_Hypervisor, <<"characteristics">>|_]) ->
-    ['PUT', 'DELETE'];
+    [<<"PUT">>, <<"DELETE">>];
 
 allowed_methods(_Version, _Token, [_Hypervisor, <<"metadata">>|_]) ->
-    ['PUT', 'DELETE'].
+    [<<"PUT">>, <<"DELETE">>].
 
 resource_exists(Req, State = #state{path = []}) ->
     {true, Req, State};
@@ -99,7 +99,7 @@ resource_exists(Req, State = #state{path = [Hypervisor | _]}) ->
             {true, Req, State#state{obj = Obj}}
     end.
 
-is_authorized(Req, State = #state{method = 'OPTIONS'}) ->
+is_authorized(Req, State = #state{method = <<"OPTIONS">>}) ->
     {true, Req, State};
 
 is_authorized(Req, State = #state{token = undefined}) ->
@@ -108,7 +108,7 @@ is_authorized(Req, State = #state{token = undefined}) ->
 is_authorized(Req, State) ->
     {true, Req, State}.
 
-forbidden(Req, State = #state{method = 'OPTIONS'}) ->
+forbidden(Req, State = #state{method = <<"OPTIONS">>}) ->
     {false, Req, State};
 
 forbidden(Req, State = #state{token = undefined}) ->
@@ -117,19 +117,19 @@ forbidden(Req, State = #state{token = undefined}) ->
 forbidden(Req, State = #state{path = []}) ->
     {allowed(State#state.token, [<<"cloud">>, <<"hypervisors">>, <<"list">>]), Req, State};
 
-forbidden(Req, State = #state{method = 'GET', path = [Hypervisor]}) ->
+forbidden(Req, State = #state{method = <<"GET">>, path = [Hypervisor]}) ->
     {allowed(State#state.token, [<<"hypervisors">>, Hypervisor, <<"get">>]), Req, State};
 
-forbidden(Req, State = #state{method = 'PUT', path = [Hypervisor, <<"metadata">> | _]}) ->
+forbidden(Req, State = #state{method = <<"PUT">>, path = [Hypervisor, <<"metadata">> | _]}) ->
     {allowed(State#state.token, [<<"hypervisors">>, Hypervisor, <<"edit">>]), Req, State};
 
-forbidden(Req, State = #state{method = 'DELETE', path = [Hypervisor, <<"metadata">> | _]}) ->
+forbidden(Req, State = #state{method = <<"DELETE">>, path = [Hypervisor, <<"metadata">> | _]}) ->
     {allowed(State#state.token, [<<"hypervisors">>, Hypervisor, <<"edit">>]), Req, State};
 
-forbidden(Req, State = #state{method = 'PUT', path = [Hypervisor, <<"characteristics">> | _]}) ->
+forbidden(Req, State = #state{method = <<"PUT">>, path = [Hypervisor, <<"characteristics">> | _]}) ->
     {allowed(State#state.token, [<<"hypervisors">>, Hypervisor, <<"edit">>]), Req, State};
 
-forbidden(Req, State = #state{method = 'DELETE', path = [Hypervisor, <<"characteristics">> | _]}) ->
+forbidden(Req, State = #state{method = <<"DELETE">>, path = [Hypervisor, <<"characteristics">> | _]}) ->
     {allowed(State#state.token, [<<"hypervisors">>, Hypervisor, <<"edit">>]), Req, State};
 
 forbidden(Req, State) ->

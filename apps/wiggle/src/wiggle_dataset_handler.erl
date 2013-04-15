@@ -64,7 +64,7 @@ options(Req, State) ->
              <<"Access-Control-Allow-Methods">>,
              string:join(
                lists:map(fun erlang:atom_to_list/1,
-                         ['HEAD', 'OPTIONS' | Methods]), ", "), Req),
+                         [<<"HEAD">>, <<"OPTIONS">> | Methods]), ", "), Req),
     {ok, Req1, State}.
 
 post_is_create(Req, State) ->
@@ -80,16 +80,16 @@ content_types_accepted(Req, State) ->
     {wiggle_handler:accepted(), Req, State}.
 
 allowed_methods(Req, State) ->
-    {['HEAD', 'OPTIONS' | allowed_methods(State#state.version, State#state.token, State#state.path)], Req, State}.
+    {[<<"HEAD">>, <<"OPTIONS">> | allowed_methods(State#state.version, State#state.token, State#state.path)], Req, State}.
 
 allowed_methods(_Version, _Token, []) ->
-    ['GET', 'POST'];
+    [<<"GET">>, <<"POST">>];
 
 allowed_methods(_Version, _Token, [_Dataset]) ->
-    ['GET', 'DELETE', 'PUT'];
+    [<<"GET">>, <<"DELETE">>, <<"PUT">>];
 
 allowed_methods(_Version, _Token, [_Dataset, <<"metadata">>|_]) ->
-    ['PUT', 'DELETE'].
+    [<<"PUT">>, <<"DELETE">>].
 
 resource_exists(Req, State = #state{path = []}) ->
     {true, Req, State};
@@ -102,7 +102,7 @@ resource_exists(Req, State = #state{path = [Dataset | _]}) ->
             {true, Req, State#state{obj = Obj}}
     end.
 
-is_authorized(Req, State = #state{method = 'OPTIONS'}) ->
+is_authorized(Req, State = #state{method = <<"OPTIONS">>}) ->
     {true, Req, State};
 
 is_authorized(Req, State = #state{token = undefined}) ->
@@ -111,32 +111,32 @@ is_authorized(Req, State = #state{token = undefined}) ->
 is_authorized(Req, State) ->
     {true, Req, State}.
 
-forbidden(Req, State = #state{method = 'OPTIONS'}) ->
+forbidden(Req, State = #state{method = <<"OPTIONS">>}) ->
     {false, Req, State};
 
 forbidden(Req, State = #state{token = undefined}) ->
     {true, Req, State};
 
-forbidden(Req, State = #state{method = 'POST', path = []}) ->
+forbidden(Req, State = #state{method = <<"POST">>, path = []}) ->
     {allowed(State#state.token, [<<"cloud">>, <<"datasets">>, <<"create">>]), Req, State};
 
 forbidden(Req, State = #state{path = []}) ->
     {allowed(State#state.token, [<<"cloud">>, <<"datasets">>, <<"list">>]), Req, State};
 
 
-forbidden(Req, State = #state{method = 'GET', path = [Dataset]}) ->
+forbidden(Req, State = #state{method = <<"GET">>, path = [Dataset]}) ->
     {allowed(State#state.token, [<<"datasets">>, Dataset, <<"get">>]), Req, State};
 
-forbidden(Req, State = #state{method = 'PUT', path = [Dataset]}) ->
+forbidden(Req, State = #state{method = <<"PUT">>, path = [Dataset]}) ->
     {allowed(State#state.token, [<<"datasets">>, Dataset, <<"edit">>]), Req, State};
 
-forbidden(Req, State = #state{method = 'DELETE', path = [Dataset]}) ->
+forbidden(Req, State = #state{method = <<"DELETE">>, path = [Dataset]}) ->
     {allowed(State#state.token, [<<"datasets">>, Dataset, <<"delete">>]), Req, State};
 
-forbidden(Req, State = #state{method = 'PUT', path = [Dataset, <<"metadata">> | _]}) ->
+forbidden(Req, State = #state{method = <<"PUT">>, path = [Dataset, <<"metadata">> | _]}) ->
     {allowed(State#state.token, [<<"datasets">>, Dataset, <<"edit">>]), Req, State};
 
-forbidden(Req, State = #state{method = 'DELETE', path = [Dataset, <<"metadata">> | _]}) ->
+forbidden(Req, State = #state{method = <<"DELETE">>, path = [Dataset, <<"metadata">> | _]}) ->
     {allowed(State#state.token, [<<"datasets">>, Dataset, <<"edit">>]), Req, State};
 
 forbidden(Req, State) ->

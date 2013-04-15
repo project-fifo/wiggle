@@ -69,7 +69,7 @@ options(Req, State) ->
              <<"Access-Control-Allow-Methods">>,
              string:join(
                lists:map(fun erlang:atom_to_list/1,
-                         ['HEAD', 'OPTIONS' | Methods]), ", "), Req),
+                         [<<"HEAD">>, <<"OPTIONS">> | Methods]), ", "), Req),
     {ok, Req1, State}.
 
 content_types_provided(Req, State) ->
@@ -82,16 +82,16 @@ content_types_accepted(Req, State) ->
     {wiggle_handler:accepted(), Req, State}.
 
 allowed_methods(Req, State) ->
-    {['HEAD', 'OPTIONS' | allowed_methods(State#state.version, State#state.token, State#state.path)], Req, State}.
+    {[<<"HEAD">>, <<"OPTIONS">> | allowed_methods(State#state.version, State#state.token, State#state.path)], Req, State}.
 
 allowed_methods(_Version, _Token, []) ->
-    ['GET', 'POST'];
+    [<<"GET">>, <<"POST">>];
 
 allowed_methods(_Version, _Token, [_Package, <<"metadata">>|_]) ->
-    ['PUT', 'DELETE'];
+    [<<"PUT">>, <<"DELETE">>];
 
 allowed_methods(_Version, _Token, [_Package]) ->
-    ['GET', 'PUT', 'DELETE'].
+    [<<"GET">>, <<"PUT">>, <<"DELETE">>].
 
 resource_exists(Req, State = #state{path = []}) ->
     {true, Req, State};
@@ -104,7 +104,7 @@ resource_exists(Req, State = #state{path = [Package | _]}) ->
             {true, Req, State#state{obj = Obj}}
     end.
 
-is_authorized(Req, State = #state{method = 'OPTIONS'}) ->
+is_authorized(Req, State = #state{method = <<"OPTIONS">>}) ->
     {true, Req, State};
 
 is_authorized(Req, State = #state{token = undefined}) ->
@@ -113,31 +113,31 @@ is_authorized(Req, State = #state{token = undefined}) ->
 is_authorized(Req, State) ->
     {true, Req, State}.
 
-forbidden(Req, State = #state{method = 'OPTIONS'}) ->
+forbidden(Req, State = #state{method = <<"OPTIONS">>}) ->
     {false, Req, State};
 
 forbidden(Req, State = #state{token = undefined}) ->
     {true, Req, State};
 
-forbidden(Req, State = #state{method= 'GET', path = []}) ->
+forbidden(Req, State = #state{method= <<"GET">>, path = []}) ->
     {allowed(State#state.token, [<<"cloud">>, <<"packages">>, <<"list">>]), Req, State};
 
-forbidden(Req, State = #state{method= 'POST', path = []}) ->
+forbidden(Req, State = #state{method= <<"POST">>, path = []}) ->
     {allowed(State#state.token, [<<"cloud">>, <<"packages">>, <<"create">>]), Req, State};
 
-forbidden(Req, State = #state{method = 'GET', path = [Package]}) ->
+forbidden(Req, State = #state{method = <<"GET">>, path = [Package]}) ->
     {allowed(State#state.token, [<<"packages">>, Package, <<"get">>]), Req, State};
 
-forbidden(Req, State = #state{method = 'DELETE', path = [Package]}) ->
+forbidden(Req, State = #state{method = <<"DELETE">>, path = [Package]}) ->
     {allowed(State#state.token, [<<"packages">>, Package, <<"delete">>]), Req, State};
 
-forbidden(Req, State = #state{method = 'PUT', path = [_Package]}) ->
+forbidden(Req, State = #state{method = <<"PUT">>, path = [_Package]}) ->
     {allowed(State#state.token, [<<"cloud">>, <<"packages">>, <<"create">>]), Req, State};
 
-forbidden(Req, State = #state{method = 'PUT', path = [Package, <<"metadata">> | _]}) ->
+forbidden(Req, State = #state{method = <<"PUT">>, path = [Package, <<"metadata">> | _]}) ->
     {allowed(State#state.token, [<<"packages">>, Package, <<"edit">>]), Req, State};
 
-forbidden(Req, State = #state{method = 'DELETE', path = [Package, <<"metadata">> | _]}) ->
+forbidden(Req, State = #state{method = <<"DELETE">>, path = [Package, <<"metadata">> | _]}) ->
     {allowed(State#state.token, [<<"packages">>, Package, <<"edit">>]), Req, State};
 
 forbidden(Req, State) ->
@@ -205,7 +205,7 @@ from_msgpack(Req, State) ->
 
 %% TODO : This is a icky case it is called after post.
 
-handle_write(Req, State = #state{method = 'POST', path = []}, _) ->
+handle_write(Req, State = #state{method = <<"POST">>, path = []}, _) ->
     {true, Req, State};
 
 handle_write(Req, State = #state{path = [Package, <<"metadata">> | Path]}, [{K, V}]) ->
