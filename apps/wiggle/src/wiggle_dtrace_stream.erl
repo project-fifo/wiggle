@@ -16,18 +16,17 @@
 init({_Andy, http}, _Req, _Opts) ->
     {upgrade, protocol, cowboy_websocket}.
 
+e(Code, Req) ->
+    e(Code, <<"">>, Req).
+
+e(Code, Msg, Req) ->
+    {ok, Req1} = cowboy_req:reply(Code, [], Msg, Req),
+    {shutdown, Req1}.
+
 websocket_init(_Any, Req, []) ->
     {_, C, Req0} = cowboy_req:parse_header(<<"sec-websocket-protocol">>, Req, <<"json">>),
     {ID, Req1} = cowboy_req:binding(uuid, Req0),
-    Req2 = cowboy_req:set_resp_header(
-             <<"access-control-allow-headers">>,
-             <<"x-snarl-token">>, Req1),
-    Req3 = cowboy_req:set_resp_header(
-             <<"access-control-expose-headers">>,
-             <<"x-snarl-token">>, Req2),
-    Req4 = cowboy_req:set_resp_header(
-             <<"allow-access-control-credentials">>,
-             <<"true">>, Req3),
+    Req2 = wiggle_handler:set_access_header(Req1),
     {Encoder, Decoder, Type} = case C of
                                    <<"msgpack">> ->
                                        {fun(O) ->
@@ -46,28 +45,22 @@ websocket_init(_Any, Req, []) ->
                                                 jsxd:from_list(jsx:decode(D))
                                         end, text}
                                end,
-
-    {Token, Req5} = case cowboy_req:header(<<"x-snarl-token">>, Req4) of
-                        {undefined, ReqX} ->
-                            {TokenX, ReqX1} = cowboy_req:cookie(<<"X-Snarl-Token">>, ReqX),
-                            {TokenX, ReqX1};
-                        {TokenX, ReqX} ->
-                            ReqX1 = cowboy_req:set_resp_header(<<"x-snarl-token">>, TokenX, ReqX),
-                            {TokenX, ReqX1}
-                    end,
-    case libsnarl:allowed({token, Token}, [<<"dtrace">>, ID, <<"stream">>]) of
-        true ->
-            case libsniffle:dtrace_get(ID) of
-                {ok, Obj} ->
-                    {ok, Req, #state{id = ID, config = jsxd:get(<<"config">>, [], Obj),
-                                     encoder = Encoder, decoder = Decoder, type = Type}};
-                _ ->
-                    {ok, Req6} = cowboy_req:reply(404, Req5),
-                    {shutdown, Req6}
-            end;
-        false ->
-            {ok, Req6} = cowboy_req:reply(401, Req5),
-            {shutdown, Req6}
+    case wiggle_handler:get_token(Req2) of
+        {undefined, Req3} ->
+            e(401, Req3);
+        {Token, Req3} ->
+            case libsnarl:allowed({token, Token}, [<<"dtrace">>, ID, <<"stream">>]) of
+                true ->
+                    case libsniffle:dtrace_get(ID) of
+                        {ok, Obj} ->
+                            {ok, Req, #state{id = ID, config = jsxd:get(<<"config">>, [], Obj),
+                                             encoder = Encoder, decoder = Decoder, type = Type}};
+                        _ ->
+                            e(404, Req3)
+                    end;
+                false ->
+                    e(401, Req3)
+            end
     end.
 
 websocket_handle({Type, <<>>}, Req, State = #state{type = Type}) ->
