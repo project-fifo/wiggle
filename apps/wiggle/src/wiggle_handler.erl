@@ -12,23 +12,23 @@ initial_state(Req) ->
     {Method, Req0} = cowboy_req:method(Req),
     {Version, Req1} = cowboy_req:path_info(Req0),
     {Path, Req2} = cowboy_req:path_info(Req1),
-    Req3 = cowboy_req:set_resp_header(<<"Access-Control-Allow-Origin">>, <<"*">>, Req2),
-    {Token, Req4} = case cowboy_req:header(<<"X-Snarl-Token">>, Req3) of
+    Req3 = cowboy_req:set_resp_header(<<"access-control-allow-origin">>, <<"*">>, Req2),
+    {Token, Req4} = case cowboy_req:header(<<"x-snarl-token">>, Req3) of
                         {undefined, ReqX} ->
-                            {TokenX, ReqX1} = cowboy_req:cookie(<<"X-Snarl-Token">>, ReqX),
+                            {TokenX, ReqX1} = cowboy_req:cookie(<<"x-snarl-token">>, ReqX),
                             {TokenX, ReqX1};
                         {TokenX, ReqX} ->
-                            ReqX1 = cowboy_req:set_resp_header(<<"X-Snarl-Token">>, TokenX, ReqX),
+                            ReqX1 = cowboy_req:set_resp_header(<<"x-snarl-token">>, TokenX, ReqX),
                             {TokenX, ReqX1}
                     end,
     Req5 = cowboy_req:set_resp_header(
-             <<"Access-Control-Allow-Headers">>,
-             <<"Content-Type, X-Snarl-Token">>, Req4),
+             <<"access-control-allow-headers">>,
+             <<"content-type, x-snarl-token">>, Req4),
     Req6 = cowboy_req:set_resp_header(
-             <<"Access-Control-Expose-Headers">>,
-             <<"X-Snarl-Token">>, Req5),
+             <<"access-control-expose-headers">>,
+             <<"x-snarl-token">>, Req5),
     Req7 = cowboy_req:set_resp_header(
-             <<"Allow-Access-Control-Credentials">>,
+             <<"allow-access-control-credentials">>,
              <<"true">>, Req6),
     State =  #state{version = Version,
                     method = Method,
@@ -52,7 +52,8 @@ accepted() ->
     ].
 
 decode(Req) ->
-    {ok, {G, C, _}, Req0} = cowboy_req:parse_header(<<"Content-Type">>, Req, {<<"application">>, <<"json">>, []}),
+    {{G, C, _}, Req0} =
+        cowboy_req:header(<<"content-type">>, Req, {<<"application">>, <<"json">>, []}),
     ContentType = <<G/binary, "/", C/binary>>,
     {ok, Body, Req1} = cowboy_req:body(Req0),
     Decoded = case Body of
