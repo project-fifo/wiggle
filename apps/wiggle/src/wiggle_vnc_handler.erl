@@ -18,20 +18,20 @@ init({_Any, http}, _Req, _Opts) ->
 websocket_init(_Any, Req, []) ->
     {ID, Req1} = cowboy_req:binding(uuid, Req),
     Req2 = cowboy_req:set_resp_header(
-             <<"Access-Control-Allow-Headers">>,
-             <<"X-Snarl-Token">>, Req1),
+             <<"access-control-allow-headers">>,
+             <<"x-snarl-token">>, Req1),
     Req3 = cowboy_req:set_resp_header(
-             <<"Access-Control-Expose-Headers">>,
-             <<"X-Snarl-Token">>, Req2),
+             <<"access-control-expose-headers">>,
+             <<"x-snarl-token">>, Req2),
     Req4 = cowboy_req:set_resp_header(
-             <<"Allow-Access-Control-Credentials">>,
+             <<"allow-access-control-credentials">>,
              <<"true">>, Req3),
-    {Token, Req5} = case cowboy_req:header(<<"X-Snarl-Token">>, Req4) of
+    {Token, Req5} = case cowboy_req:header(<<"x-snarl-token">>, Req4) of
                         {undefined, ReqX} ->
-                            {TokenX, ReqX1} = cowboy_req:cookie(<<"X-Snarl-Token">>, ReqX),
+                            {TokenX, ReqX1} = cowboy_req:cookie(<<"x-snarl-token">>, ReqX),
                             {TokenX, ReqX1};
                         {TokenX, ReqX} ->
-                            ReqX1 = cowboy_req:set_resp_header(<<"X-Snarl-Token">>, TokenX, ReqX),
+                            ReqX1 = cowboy_req:set_resp_header(<<"x-snarl-token">>, TokenX, ReqX),
                             {TokenX, ReqX1}
                     end,
     case libsnarl:allowed({token, Token}, [<<"vms">>, ID, <<"console">>]) of

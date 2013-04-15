@@ -66,9 +66,9 @@ service_available(Req, State) ->
 options(Req, State) ->
     Methods = allowed_methods(State#state.version, State#state.token, State#state.path),
     Req1 = cowboy_req:set_resp_header(
-             <<"Access-Control-Allow-Methods">>,
+             <<"access-control-allow-methods">>,
              string:join(
-               lists:map(fun erlang:atom_to_list/1,
+               lists:map(fun erlang:binary_to_list/1,
                          [<<"HEAD">>, <<"OPTIONS">> | Methods]), ", "), Req),
     {ok, Req1, State}.
 
@@ -128,7 +128,7 @@ is_authorized(Req, State = #state{method = <<"OPTIONS">>}) ->
     {true, Req, State};
 
 is_authorized(Req, State = #state{token = undefined}) ->
-    {{false, <<"X-Snarl-Token">>}, Req, State};
+    {{false, <<"x-snarl-token">>}, Req, State};
 
 is_authorized(Req, State) ->
     {true, Req, State}.

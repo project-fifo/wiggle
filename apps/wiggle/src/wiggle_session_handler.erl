@@ -69,9 +69,9 @@ service_available(Req, State) ->
 options(Req, State) ->
     Methods = allowed_methods(State#state.version, State#state.token, State#state.path),
     Req1 = cowboy_req:set_resp_header(
-             <<"Access-Control-Allow-Methods">>,
+             <<"access-control-allow-methods">>,
              string:join(
-               lists:map(fun erlang:atom_to_list/1,
+               lists:map(fun erlang:binary_to_list/1,
                          [<<"HEAD">>, <<"GET">>, <<"OPTIONS">> | Methods]), ", "), Req),
     {ok, Req1, State}.
 
@@ -142,9 +142,9 @@ create_path(Req, State = #state{path = [], version = Version}) ->
     {ok, Pass} = jsxd:get(<<"password">>, Decoded),
     case libsnarl:auth(User, Pass) of
         {ok, {token, UUID}} ->
-            Req2 = cowboy_req:set_resp_cookie(<<"X-Snarl-Token">>, UUID,
+            Req2 = cowboy_req:set_resp_cookie(<<"x-snarl-token">>, UUID,
                                               [{max_age, 364*24*60*60}], Req1),
-            Req3 = cowboy_req:set_resp_header(<<"X-Snarl-Token">>, UUID, Req2),
+            Req3 = cowboy_req:set_resp_header(<<"x-snarl-token">>, UUID, Req2),
             {<<"/api/", Version/binary, "/sessions/", UUID/binary>>, Req3, State#state{body = Decoded}};
         _ ->
             {ok, Req2} = cowboy_req:reply(403, [], <<"Forbidden!">>, Req1),
