@@ -14,53 +14,46 @@
 init({_Any, http}, _Req, []) ->
     {upgrade, protocol, cowboy_websocket}.
 
+
+e(Code, Req) ->
+    e(Code, <<"">>, Req).
+
+e(Code, Msg, Req) ->
+    {ok, Req1} = cowboy_req:reply(Code, [], Msg, Req),
+    {shutdown, Req1}.
+
 websocket_init(_Any, Req, []) ->
     {ID, Req1} = cowboy_req:binding(uuid, Req),
-    Req2 = cowboy_req:set_resp_header(
-             <<"access-control-allow-headers">>,
-             <<"x-snarl-token">>, Req1),
-    Req3 = cowboy_req:set_resp_header(
-             <<"access-control-expose-headers">>,
-             <<"x-snarl-token">>, Req2),
-    Req4 = cowboy_req:set_resp_header(
-             <<"allow-access-control-credentials">>,
-             <<"true">>, Req3),
-    {Token, Req5} = case cowboy_req:header(<<"x-snarl-token">>, Req4) of
-                        {undefined, ReqX} ->
-                            {TokenX, ReqX1} = cowboy_req:cookie(<<"X-Snarl-Token">>, ReqX),
-                            {TokenX, ReqX1};
-                        {TokenX, ReqX} ->
-                            ReqX1 = cowboy_req:set_resp_header(<<"x-snarl-token">>, TokenX, ReqX),
-                            {TokenX, ReqX1}
-                    end,
-    case libsnarl:allowed({token, Token}, [<<"vms">>, ID, <<"console">>]) of
-        true ->
-            case libsniffle:vm_get(ID) of
-                {ok, VM} ->
-                    case jsxd:get(<<"hypervisor">>, VM) of
-                        {ok, HID} ->
-                            case libsniffle:hypervisor_get(HID) of
-                                {ok, H} ->
-                                    {ok,HostBin} = jsxd:get(<<"host">>, H),
-                                    Host = binary_to_list(HostBin),
-                                    {ok, Port} = jsxd:get(<<"port">>, H),
-                                    {ok, Console} = libchunter:console_open(Host, Port, ID, self()),
-                                    {ok, Req5, {Console}};
+    Req2 = wiggle_handler:set_access_header(Req1),
+    case wiggle_handler:get_token(Req2) of
+        {undefined, Req3} ->
+            e(401, Req3);
+        {Token, Req3} ->
+            case libsnarl:allowed({token, Token}, [<<"vms">>, ID, <<"console">>]) of
+                true ->
+                    case libsniffle:vm_get(ID) of
+                        {ok, VM} ->
+                            case jsxd:get(<<"hypervisor">>, VM) of
+                                {ok, HID} ->
+                                    case libsniffle:hypervisor_get(HID) of
+                                        {ok, H} ->
+                                            {ok,HostBin} = jsxd:get(<<"host">>, H),
+                                            Host = binary_to_list(HostBin),
+                                            {ok, Port} = jsxd:get(<<"port">>, H),
+                                            {ok, Console} = libchunter:console_open(Host, Port, ID, self()),
+                                            {ok, Req3, {Console}};
+                                        _ ->
+                                            e(505, <<"could not find hypervisor">>, Req3)
+                                    end;
                                 _ ->
-                                    {ok, Req6} = cowboy_req:reply(505, [], <<"could not find hypervisor">>, Req5),
-                                    {shutdown, Req6}
+                                    e(505, <<"could not find hypervisor">>, Req3)
                             end;
-                        _ ->
-                            {ok, Req6} = cowboy_req:reply(505, [],  <<"could not find hypervisor">>, Req5),
-                            {shutdown, Req6}
+                        E ->
+                            e(505, list_to_binary(io_lib:format("~p", [E])), Req3)
                     end;
-                E ->
-                    {ok, Req6} = cowboy_req:reply(505, [], list_to_binary(io_lib:format("~p", [E])), Req5),
-                    {shutdown, Req6}
-            end;
-        false ->
-            {ok, Req6} = cowboy_req:reply(401, Req5),
-            {shutdown, Req6}
+                false ->
+                    e(401, Req3)
+            end
     end.
 
 websocket_handle({text, Msg}, Req, {Console} = State) ->
