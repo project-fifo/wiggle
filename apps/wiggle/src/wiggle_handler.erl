@@ -10,7 +10,7 @@
 
 initial_state(Req) ->
     {Method, Req0} = cowboy_req:method(Req),
-    {Version, Req1} = cowboy_req:path_info(Req0),
+    {Version, Req1} = cowboy_req:binding(version, Req0),
     {Path, Req2} = cowboy_req:path_info(Req1),
     Req3 = cowboy_req:set_resp_header(<<"access-control-allow-origin">>, <<"*">>, Req2),
     {Token, Req4} = case cowboy_req:header(<<"x-snarl-token">>, Req3) of
