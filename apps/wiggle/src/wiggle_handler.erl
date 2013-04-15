@@ -15,7 +15,7 @@ initial_state(Req) ->
     Req3 = cowboy_req:set_resp_header(<<"access-control-allow-origin">>, <<"*">>, Req2),
     {Token, Req4} = case cowboy_req:header(<<"x-snarl-token">>, Req3) of
                         {undefined, ReqX} ->
-                            {TokenX, ReqX1} = cowboy_req:cookie(<<"x-snarl-token">>, ReqX),
+                            {TokenX, ReqX1} = cowboy_req:cookie(<<"X-Snarl-Token">>, ReqX),
                             {TokenX, ReqX1};
                         {TokenX, ReqX} ->
                             ReqX1 = cowboy_req:set_resp_header(<<"x-snarl-token">>, TokenX, ReqX),

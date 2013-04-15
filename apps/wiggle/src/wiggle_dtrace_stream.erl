@@ -49,7 +49,7 @@ websocket_init(_Any, Req, []) ->
 
     {Token, Req5} = case cowboy_req:header(<<"x-snarl-token">>, Req4) of
                         {undefined, ReqX} ->
-                            {TokenX, ReqX1} = cowboy_req:cookie(<<"x-snarl-token">>, ReqX),
+                            {TokenX, ReqX1} = cowboy_req:cookie(<<"X-Snarl-Token">>, ReqX),
                             {TokenX, ReqX1};
                         {TokenX, ReqX} ->
                             ReqX1 = cowboy_req:set_resp_header(<<"x-snarl-token">>, TokenX, ReqX),
