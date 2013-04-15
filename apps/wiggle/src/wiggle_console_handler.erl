@@ -2,32 +2,17 @@
 
 -behaviour(cowboy_websocket_handler).
 
--export([init/3,
-         handle/2,
-         terminate/2]).
+-export([init/3]).
 
 -export([websocket_init/3,
          websocket_handle/3,
          websocket_info/3,
          websocket_terminate/3]).
 
--ignore_xref([init/3,
-              handle/2,
-              terminate/2]).
+-ignore_xref([init/3]).
 
-init({_Any, http}, Req, []) ->
-    case cowboy_req:header(<<"Upgrade">>, Req) of
-        {undefined, Req2} -> {ok, Req2, undefined};
-        {<<"websocket">>, _Req2} -> {upgrade, protocol, cowboy_http_websocket};
-        {<<"WebSocket">>, _Req2} -> {upgrade, protocol, cowboy_http_websocket}
-    end.
-
-handle(Req, State) ->
-    {ok, Req1} =  cowboy_req:reply(200, [], <<"">>, Req),
-    {ok, Req1, State}.
-
-terminate(_Req, _State) ->
-    ok.
+init({_Any, http}, _Req, []) ->
+    {upgrade, protocol, cowboy_websocket}.
 
 websocket_init(_Any, Req, []) ->
     {ID, Req1} = cowboy_req:binding(uuid, Req),

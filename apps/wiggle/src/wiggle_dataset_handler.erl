@@ -46,7 +46,7 @@ init(_Transport, _Req, []) ->
     {upgrade, protocol, cowboy_http_rest}.
 
 rest_init(Req, _) ->
-    wiggle_handler:initial_state(Req, <<"datasets">>).
+    wiggle_handler:initial_state(Req).
 
 service_available(Req, State) ->
     case {libsniffle:servers(), libsnarl:servers()} of

@@ -50,7 +50,7 @@
 
 
 init(_Transport, _Req, []) ->
-    {upgrade, protocol, cowboy_http_rest}.
+    {upgrade, protocol, cowboy_rest}.
 
 rest_init(Req, _) ->
     wiggle_handler:initial_state(Req).
