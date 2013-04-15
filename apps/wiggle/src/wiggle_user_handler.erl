@@ -50,10 +50,10 @@
 
 
 init(_Transport, _Req, []) ->
-    {upgrade, protocol, cowboy_http_rest}.
+    {upgrade, protocol, cowboy_rest}.
 
 rest_init(Req, _) ->
-    wiggle_handler:initial_state(Req, <<"users">>).
+    wiggle_handler:initial_state(Req).
 
 post_is_create(Req, State) ->
     {true, Req, State}.
@@ -67,12 +67,12 @@ service_available(Req, State) ->
     end.
 
 options(Req, State) ->
-    Methods = allowed_methods(Req, State, State#state.path),
-    {ok, Req1} = cowboy_http_req:set_resp_header(
-                   <<"Access-Control-Allow-Methods">>,
-                   string:join(
-                     lists:map(fun erlang:atom_to_list/1,
-                               ['HEAD', 'GET', 'OPTIONS' | Methods]), ", "), Req),
+    Methods = allowed_methods(State#state.version, State#state.token, State#state.path),
+    Req1 = cowboy_req:set_resp_header(
+             <<"access-control-allow-methods">>,
+             string:join(
+               lists:map(fun erlang:binary_to_list/1,
+                         ['HEAD', 'GET', 'OPTIONS' | Methods]), ", "), Req),
     {ok, Req1, State}.
 
 content_types_provided(Req, State) ->
@@ -110,7 +110,7 @@ allowed_methods(_Version, _Token, [_Login, <<"groups">>, _Group]) ->
 
 resource_exists(Req, State = #state{path = [User, <<"permissions">> | Permission]}) ->
     case {erlangify_permission(Permission), libsnarl:user_get(User)} of
-        {_, {ok, not_found}} ->
+        {_, not_found} ->
             {false, Req, State};
         {[], {ok, Obj}} ->
             {true, Req, State#state{obj = Obj}};
@@ -120,7 +120,7 @@ resource_exists(Req, State = #state{path = [User, <<"permissions">> | Permission
 
 resource_exists(Req, State = #state{method = 'DELETE', path = [User, <<"groups">>, Group]}) ->
     case libsnarl:user_get(User) of
-        {ok, not_found} ->
+        not_found ->
             {false, Req, State};
         {ok, Obj} ->
             {lists:member(Group, jsxd:get(<<"groups">>, [], Obj)), Req, State#state{obj = Obj}}
@@ -128,7 +128,7 @@ resource_exists(Req, State = #state{method = 'DELETE', path = [User, <<"groups">
 
 resource_exists(Req, State = #state{method = 'PUT', path = [User, <<"groups">>, Group]}) ->
     case libsnarl:user_get(User) of
-        {ok, not_found} ->
+        not_found ->
             {false, Req, State};
         {ok, Obj} ->
             case libsnarl:group_get(Group) of
@@ -158,7 +158,7 @@ is_authorized(Req, State = #state{method = 'OPTIONS'}) ->
     {true, Req, State};
 
 is_authorized(Req, State = #state{token = undefined}) ->
-    {{false, <<"X-Snarl-Token">>}, Req, State};
+    {{false, <<"x-snarl-token">>}, Req, State};
 
 is_authorized(Req, State) ->
     {true, Req, State}.
@@ -263,7 +263,7 @@ create_path(Req, State = #state{path = [], version = Version}) ->
     {<<"/api/", Version/binary, "/users/", UUID/binary>>, Req1, State#state{body = Decoded}}.
 
 from_json(Req, State) ->
-    {ok, Body, Req1} = cowboy_http_req:body(Req),
+    {ok, Body, Req1} = cowboy_req:body(Req),
     io:format("[PUT] ~p", [Body]),
     {Reply, Req2, State1} = case Body of
                                 <<>> ->
@@ -276,7 +276,7 @@ from_json(Req, State) ->
     {Reply, Req2, State1}.
 
 from_msgpack(Req, State) ->
-    {ok, Body, Req1} = cowboy_http_req:body(Req),
+    {ok, Body, Req1} = cowboy_req:body(Req),
     io:format("[PUT] ~p", [Body]),
     {Reply, Req2, State1} = case Body of
                                 <<>> ->
@@ -321,7 +321,7 @@ delete_resource(Req, State = #state{path = [User, <<"metadata">> | Path]}) ->
     {true, Req, State};
 
 delete_resource(Req, State = #state{path = [_User, <<"sessions">>]}) ->
-    {ok, Req1} = cowboy_http_req:set_resp_cookie(<<"X-Snarl-Token">>, <<"">>, [{max_age, 0}], Req),
+    Req1 = cowboy_req:set_resp_cookie(<<"x-snarl-token">>, <<"">>, [{max_age, 0}], Req),
     {true, Req1, State};
 
 delete_resource(Req, State = #state{path = [User, <<"permissions">> | Permission]}) ->

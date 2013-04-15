@@ -44,10 +44,10 @@
 -record(state, {path, method, version, token, content, reply, obj, body}).
 
 init(_Transport, _Req, []) ->
-    {upgrade, protocol, cowboy_http_rest}.
+    {upgrade, protocol, cowboy_rest}.
 
 rest_init(Req, _) ->
-    wiggle_handler:initial_state(Req, <<"ipranges">>).
+    wiggle_handler:initial_state(Req).
 
 post_is_create(Req, State) ->
     {true, Req, State}.
@@ -63,12 +63,12 @@ service_available(Req, State) ->
     end.
 
 options(Req, State) ->
-    Methods = allowed_methods(Req, State, State#state.path),
-    {ok, Req1} = cowboy_http_req:set_resp_header(
-                   <<"Access-Control-Allow-Methods">>,
-                   string:join(
-                     lists:map(fun erlang:atom_to_list/1,
-                               ['HEAD', 'OPTIONS' | Methods]), ", "), Req),
+    Methods = allowed_methods(State#state.version, State#state.token, State#state.path),
+    Req1 = cowboy_req:set_resp_header(
+             <<"access-control-allow-methods">>,
+             string:join(
+               lists:map(fun erlang:binary_to_list/1,
+                         [<<"HEAD">>, <<"OPTIONS">> | Methods]), ", "), Req),
     {ok, Req1, State}.
 
 content_types_provided(Req, State) ->
@@ -81,16 +81,16 @@ content_types_accepted(Req, State) ->
     {wiggle_handler:accepted(), Req, State}.
 
 allowed_methods(Req, State) ->
-    {['HEAD', 'OPTIONS' | allowed_methods(State#state.version, State#state.token, State#state.path)], Req, State}.
+    {[<<"HEAD">>, <<"OPTIONS">> | allowed_methods(State#state.version, State#state.token, State#state.path)], Req, State}.
 
 allowed_methods(_Version, _Token, [_Iprange, <<"metadata">>|_]) ->
-    ['PUT', 'DELETE'];
+    [<<"PUT">>, <<"DELETE">>];
 
 allowed_methods(_Version, _Token, []) ->
-    ['GET', 'POST'];
+    [<<"GET">>, <<"POST">>];
 
 allowed_methods(_Version, _Token, [_Iprange]) ->
-    ['GET', 'PUT', 'DELETE'].
+    [<<"GET">>, <<"PUT">>, <<"DELETE">>].
 
 resource_exists(Req, State = #state{path = []}) ->
     {true, Req, State};
@@ -103,40 +103,40 @@ resource_exists(Req, State = #state{path = [Iprange | _]}) ->
             {true, Req, State#state{obj = Obj}}
     end.
 
-is_authorized(Req, State = #state{method = 'OPTIONS'}) ->
+is_authorized(Req, State = #state{method = <<"OPTIONS">>}) ->
     {true, Req, State};
 
 is_authorized(Req, State = #state{token = undefined}) ->
-    {{false, <<"X-Snarl-Token">>}, Req, State};
+    {{false, <<"x-snarl-token">>}, Req, State};
 
 is_authorized(Req, State) ->
     {true, Req, State}.
 
-forbidden(Req, State = #state{method = 'OPTIONS'}) ->
+forbidden(Req, State = #state{method = <<"OPTIONS">>}) ->
     {false, Req, State};
 
 forbidden(Req, State = #state{token = undefined}) ->
     {true, Req, State};
 
-forbidden(Req, State = #state{method = 'GET', path = []}) ->
+forbidden(Req, State = #state{method = <<"GET">>, path = []}) ->
     {allowed(State#state.token, [<<"cloud">>, <<"ipranges">>, <<"list">>]), Req, State};
 
-forbidden(Req, State = #state{method = 'POST', path = []}) ->
+forbidden(Req, State = #state{method = <<"POST">>, path = []}) ->
     {allowed(State#state.token, [<<"cloud">>, <<"ipranges">>, <<"create">>]), Req, State};
 
-forbidden(Req, State = #state{method = 'GET', path = [Iprange]}) ->
+forbidden(Req, State = #state{method = <<"GET">>, path = [Iprange]}) ->
     {allowed(State#state.token, [<<"ipranges">>, Iprange, <<"get">>]), Req, State};
 
-forbidden(Req, State = #state{method = 'DELETE', path = [Iprange]}) ->
+forbidden(Req, State = #state{method = <<"DELETE">>, path = [Iprange]}) ->
     {allowed(State#state.token, [<<"ipranges">>, Iprange, <<"delete">>]), Req, State};
 
-forbidden(Req, State = #state{method = 'PUT', path = [_Iprange]}) ->
+forbidden(Req, State = #state{method = <<"PUT">>, path = [_Iprange]}) ->
     {allowed(State#state.token, [<<"cloud">>, <<"ipranges">>, <<"create">>]), Req, State};
 
-forbidden(Req, State = #state{method = 'PUT', path = [Iprange, <<"metadata">> | _]}) ->
+forbidden(Req, State = #state{method = <<"PUT">>, path = [Iprange, <<"metadata">> | _]}) ->
     {allowed(State#state.token, [<<"ipranges">>, Iprange, <<"edit">>]), Req, State};
 
-forbidden(Req, State = #state{method = 'DELETE', path = [Iprange, <<"metadata">> | _]}) ->
+forbidden(Req, State = #state{method = <<"DELETE">>, path = [Iprange, <<"metadata">> | _]}) ->
     {allowed(State#state.token, [<<"ipranges">>, Iprange, <<"edit">>]), Req, State};
 
 forbidden(Req, State) ->
@@ -189,13 +189,13 @@ create_path(Req, State = #state{path = [], version = Version}) ->
         {ok, UUID} ->
             {<<"/api/", Version/binary, "/ipranges/", UUID/binary>>, Req1, State#state{body = Data}};
         duplicate ->
-            {ok, Req2} = cowboy_http_req:reply(409, Req1),
+            {ok, Req2} = cowboy_req:reply(409, Req1),
             {halt, Req2, State}
     end.
 
 
 from_json(Req, State) ->
-    {ok, Body, Req1} = cowboy_http_req:body(Req),
+    {ok, Body, Req1} = cowboy_req:body(Req),
     {Reply, Req2, State1} = case Body of
                                 <<>> ->
                                     handle_write(Req1, State, []);
@@ -206,18 +206,19 @@ from_json(Req, State) ->
     {Reply, Req2, State1}.
 
 from_msgpack(Req, State) ->
-    {ok, Body, Req1} = cowboy_http_req:body(Req),
+    {ok, Body, Req1} = cowboy_req:body(Req),
     {Reply, Req2, State1} = case Body of
                                 <<>> ->
                                     handle_write(Req1, State, []);
                                 _ ->
-                                    Decoded = jsxd:from_list(msgpack:unpack(Body, [jsx])),
+                                    {ok, D} = msgpack:unpack(Body, [jsx]),
+                                    Decoded = jsxd:from_list(D),
                                     handle_write(Req1, State, Decoded)
                             end,
     {Reply, Req2, State1}.
 
 %% TODO : This is a icky case it is called after post.
-handle_write(Req, State = #state{method = 'POST', path = []}, _) ->
+handle_write(Req, State = #state{method = <<"POST">>, path = []}, _) ->
     {true, Req, State};
 
 handle_write(Req, State = #state{path = [Iprange, <<"metadata">> | Path]}, [{K, V}]) ->

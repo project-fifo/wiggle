@@ -49,6 +49,9 @@ docs:
 ## Developer targets
 ##
 
+xref: compile
+	@$(REBAR) xref skip_deps=true
+
 stage : rel
 	$(foreach dep,$(wildcard deps/* wildcard apps/*), rm -rf rel/wiggle/lib/$(shell basename $(dep))-* && ln -sf $(abspath $(dep)) rel/wiggle/lib;)
 
