@@ -72,7 +72,7 @@ options(Req, State) ->
              <<"access-control-allow-methods">>,
              string:join(
                lists:map(fun erlang:binary_to_list/1,
-                         ['HEAD', 'GET', 'OPTIONS' | Methods]), ", "), Req),
+                         [<<"HEAD">>, <<"GET">>, <<"OPTIONS">> | Methods]), ", "), Req),
     {ok, Req1, State}.
 
 content_types_provided(Req, State) ->
@@ -85,28 +85,28 @@ content_types_accepted(Req, State) ->
     {wiggle_handler:accepted(), Req, State}.
 
 allowed_methods(Req, State) ->
-    {['HEAD', 'OPTIONS' | allowed_methods(State#state.version, State#state.token, State#state.path)], Req, State}.
+    {[<<"HEAD">>, <<"OPTIONS">> | allowed_methods(State#state.version, State#state.token, State#state.path)], Req, State}.
 
 allowed_methods(_Version, _Token, []) ->
-    ['GET', 'POST'];
+    [<<"GET">>, <<"POST">>];
 
 allowed_methods(_Version, _Token, [_Login]) ->
-    ['GET', 'PUT', 'DELETE'];
+    [<<"GET">>, <<"PUT">>, <<"DELETE">>];
 
 allowed_methods(_Version, _Token, [_Login, <<"metadata">> | _]) ->
-    ['PUT', 'DELETE'];
+    [<<"PUT">>, <<"DELETE">>];
 
 allowed_methods(_Version, _Token, [_Login, <<"permissions">>]) ->
-    ['GET'];
+    [<<"GET">>];
 
 allowed_methods(_Version, _Token, [_Login, <<"permissions">> | _Permission]) ->
-    ['PUT', 'DELETE'];
+    [<<"PUT">>, <<"DELETE">>];
 
 allowed_methods(_Version, _Token, [_Login, <<"groups">>]) ->
-    ['GET'];
+    [<<"GET">>];
 
 allowed_methods(_Version, _Token, [_Login, <<"groups">>, _Group]) ->
-    ['PUT', 'DELETE'].
+    [<<"PUT">>, <<"DELETE">>].
 
 resource_exists(Req, State = #state{path = [User, <<"permissions">> | Permission]}) ->
     case {erlangify_permission(Permission), libsnarl:user_get(User)} of
@@ -118,7 +118,7 @@ resource_exists(Req, State = #state{path = [User, <<"permissions">> | Permission
             {lists:member(P, jsxd:get(<<"permissions">>, [], Obj)), Req, State#state{obj = Obj}}
     end;
 
-resource_exists(Req, State = #state{method = 'DELETE', path = [User, <<"groups">>, Group]}) ->
+resource_exists(Req, State = #state{method = <<"DELETE">>, path = [User, <<"groups">>, Group]}) ->
     case libsnarl:user_get(User) of
         not_found ->
             {false, Req, State};
@@ -126,7 +126,7 @@ resource_exists(Req, State = #state{method = 'DELETE', path = [User, <<"groups">
             {lists:member(Group, jsxd:get(<<"groups">>, [], Obj)), Req, State#state{obj = Obj}}
     end;
 
-resource_exists(Req, State = #state{method = 'PUT', path = [User, <<"groups">>, Group]}) ->
+resource_exists(Req, State = #state{method = <<"PUT">>, path = [User, <<"groups">>, Group]}) ->
     case libsnarl:user_get(User) of
         not_found ->
             {false, Req, State};
@@ -154,7 +154,7 @@ resource_exists(Req, State = #state{path = [User | _]}) ->
 is_authorized(Req, State = #state{path = [_, <<"sessions">>]}) ->
     {true, Req, State};
 
-is_authorized(Req, State = #state{method = 'OPTIONS'}) ->
+is_authorized(Req, State = #state{method = <<"OPTIONS">>}) ->
     {true, Req, State};
 
 is_authorized(Req, State = #state{token = undefined}) ->
@@ -166,55 +166,55 @@ is_authorized(Req, State) ->
 forbidden(Req, State = #state{path = [_, <<"sessions">>]}) ->
     {false, Req, State};
 
-forbidden(Req, State = #state{method = 'OPTIONS'}) ->
+forbidden(Req, State = #state{method = <<"OPTIONS">>}) ->
     {false, Req, State};
 
 forbidden(Req, State = #state{token = undefined}) ->
     {true, Req, State};
 
-forbidden(Req, State = #state{method = 'GET', path = []}) ->
+forbidden(Req, State = #state{method = <<"GET">>, path = []}) ->
     {allowed(State#state.token, [<<"cloud">>, <<"users">>, <<"list">>]), Req, State};
 
-forbidden(Req, State = #state{method = 'POST', path = []}) ->
+forbidden(Req, State = #state{method = <<"POST">>, path = []}) ->
     {allowed(State#state.token, [<<"cloud">>, <<"users">>, <<"create">>]), Req, State};
 
-forbidden(Req, State = #state{method = 'GET', path = [User]}) ->
+forbidden(Req, State = #state{method = <<"GET">>, path = [User]}) ->
     {allowed(State#state.token, [<<"users">>, User, <<"get">>]), Req, State};
 
-forbidden(Req, State = #state{method = 'PUT', path = [User]}) ->
+forbidden(Req, State = #state{method = <<"PUT">>, path = [User]}) ->
     {allowed(State#state.token, [<<"users">>, User, <<"passwd">>]), Req, State};
 
-forbidden(Req, State = #state{method = 'DELETE', path = [User]}) ->
+forbidden(Req, State = #state{method = <<"DELETE">>, path = [User]}) ->
     {allowed(State#state.token, [<<"users">>, User, <<"delete">>]), Req, State};
 
-forbidden(Req, State = #state{method = 'GET', path = [User, <<"permissions">>]}) ->
+forbidden(Req, State = #state{method = <<"GET">>, path = [User, <<"permissions">>]}) ->
     {allowed(State#state.token, [<<"users">>, User, <<"get">>]), Req, State};
 
-forbidden(Req, State = #state{method = 'PUT', path = [User, <<"permissions">> | Permission]}) ->
+forbidden(Req, State = #state{method = <<"PUT">>, path = [User, <<"permissions">> | Permission]}) ->
     P = erlangify_permission(Permission),
     {allowed(State#state.token, [<<"users">>, User, <<"grant">>])
      andalso allowed(State#state.token, [<<"permissions">>, P, <<"grant">>]), Req, State};
 
-forbidden(Req, State = #state{method = 'DELETE', path = [User, <<"permissions">> | Permission]}) ->
+forbidden(Req, State = #state{method = <<"DELETE">>, path = [User, <<"permissions">> | Permission]}) ->
     P = erlangify_permission(Permission),
     {allowed(State#state.token, [<<"users">>, User, <<"revoke">>])
      andalso allowed(State#state.token, [<<"permissions">>, P, <<"revoke">>]), Req, State};
 
-forbidden(Req, State = #state{method = 'GET', path = [User, <<"groups">>]}) ->
+forbidden(Req, State = #state{method = <<"GET">>, path = [User, <<"groups">>]}) ->
     {allowed(State#state.token, [<<"users">>, User, <<"get">>]), Req, State};
 
-forbidden(Req, State = #state{method = 'PUT', path = [User, <<"groups">>, Group]}) ->
+forbidden(Req, State = #state{method = <<"PUT">>, path = [User, <<"groups">>, Group]}) ->
     {allowed(State#state.token, [<<"users">>, User, <<"join">>])
      andalso allowed(State#state.token, [<<"groups">>, Group, <<"join">>]), Req, State};
 
-forbidden(Req, State = #state{method = 'DELETE', path = [User, <<"groups">>, Group]}) ->
+forbidden(Req, State = #state{method = <<"DELETE">>, path = [User, <<"groups">>, Group]}) ->
     {allowed(State#state.token, [<<"users">>, User, <<"leave">>])
      andalso allowed(State#state.token, [<<"groups">>, Group, <<"leave">>]), Req, State};
 
-forbidden(Req, State = #state{method = 'PUT', path = [User, <<"metadata">> | _]}) ->
+forbidden(Req, State = #state{method = <<"PUT">>, path = [User, <<"metadata">> | _]}) ->
     {allowed(State#state.token, [<<"users">>, User, <<"edit">>]), Req, State};
 
-forbidden(Req, State = #state{method = 'DELETE', path = [User, <<"metadata">> | _]}) ->
+forbidden(Req, State = #state{method = <<"DELETE">>, path = [User, <<"metadata">> | _]}) ->
     {allowed(State#state.token, [<<"users">>, User, <<"edit">>]), Req, State};
 
 forbidden(Req, State) ->
@@ -295,7 +295,7 @@ handle_write(Req, State = #state{path =  [User]}, [{<<"password">>, Password}]) 
     {true, Req, State};
 
 %% TODO : This is a icky case it is called after post.
-handle_write(Req, State = #state{method = 'POST', path = []}, _) ->
+handle_write(Req, State = #state{method = <<"POST">>, path = []}, _) ->
     {true, Req, State};
 
 handle_write(Req, State = #state{path = [User, <<"metadata">> | Path]}, [{K, V}]) ->
