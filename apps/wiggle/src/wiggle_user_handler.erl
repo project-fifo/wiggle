@@ -321,7 +321,7 @@ delete_resource(Req, State = #state{path = [User, <<"metadata">> | Path]}) ->
     {true, Req, State};
 
 delete_resource(Req, State = #state{path = [_User, <<"sessions">>]}) ->
-    Req1 = cowboy_req:set_resp_cookie(<<"X-Snarl-Token">>, <<"">>, [{max_age, 0}], Req),
+    Req1 = cowboy_req:set_resp_cookie(<<"x-snarl-token">>, <<"">>, [{max_age, 0}], Req),
     {true, Req1, State};
 
 delete_resource(Req, State = #state{path = [User, <<"permissions">> | Permission]}) ->

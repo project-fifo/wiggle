@@ -3,8 +3,12 @@
 -export([
          initial_state/1,
          accepted/0,
-         decode/1
+         decode/1,
+         get_token/1,
+         set_access_header/1
         ]).
+
+
 
 -record(state, {path, method, version, token, content, reply, obj, body}).
 
@@ -12,30 +16,35 @@ initial_state(Req) ->
     {Method, Req0} = cowboy_req:method(Req),
     {Version, Req1} = cowboy_req:binding(version, Req0),
     {Path, Req2} = cowboy_req:path_info(Req1),
-    Req3 = cowboy_req:set_resp_header(<<"access-control-allow-origin">>, <<"*">>, Req2),
-    {Token, Req4} = case cowboy_req:header(<<"x-snarl-token">>, Req3) of
-                        {undefined, ReqX} ->
-                            {TokenX, ReqX1} = cowboy_req:cookie(<<"X-Snarl-Token">>, ReqX),
-                            {TokenX, ReqX1};
-                        {TokenX, ReqX} ->
-                            ReqX1 = cowboy_req:set_resp_header(<<"x-snarl-token">>, TokenX, ReqX),
-                            {TokenX, ReqX1}
-                    end,
-    Req5 = cowboy_req:set_resp_header(
-             <<"access-control-allow-headers">>,
-             <<"content-type, x-snarl-token">>, Req4),
-    Req6 = cowboy_req:set_resp_header(
-             <<"access-control-expose-headers">>,
-             <<"x-snarl-token">>, Req5),
-    Req7 = cowboy_req:set_resp_header(
-             <<"allow-access-control-credentials">>,
-             <<"true">>, Req6),
+    {Token, Req3} = get_token(Req2),
+    io:format("[~p] - ~p~n", [Method, Path]),
     State =  #state{version = Version,
                     method = Method,
                     token = Token,
                     path = Path},
-    io:format("[~p] - ~p~n", [Method, Path]),
-    {ok, Req7, State}.
+    {ok, set_access_header(Req3), State}.
+
+set_access_header(Req) ->
+    Req1 = cowboy_req:set_resp_header(<<"access-control-allow-origin">>, <<"*">>, Req),
+    Req2 = cowboy_req:set_resp_header(
+             <<"access-control-allow-headers">>,
+             <<"content-type, x-snarl-token">>, Req1),
+    Req3 = cowboy_req:set_resp_header(
+             <<"access-control-expose-headers">>,
+             <<"x-snarl-token">>, Req2),
+    cowboy_req:set_resp_header(
+      <<"allow-access-control-credentials">>,
+      <<"true">>, Req3).
+
+get_token(Req) ->
+    case cowboy_req:header(<<"x-snarl-token">>, Req) of
+        {undefined, ReqX} ->
+            {TokenX, ReqX1} = cowboy_req:cookie(<<"x-snarl-token">>, ReqX),
+            {TokenX, ReqX1};
+        {TokenX, ReqX} ->
+            ReqX1 = cowboy_req:set_resp_header(<<"x-snarl-token">>, TokenX, ReqX),
+            {TokenX, ReqX1}
+    end.
 
 accepted() ->
     [
