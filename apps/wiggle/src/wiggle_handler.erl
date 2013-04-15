@@ -52,9 +52,8 @@ accepted() ->
     ].
 
 decode(Req) ->
-    {{G, C, _}, Req0} =
+    {ContentType, Req0} =
         cowboy_req:header(<<"content-type">>, Req, {<<"application">>, <<"json">>, []}),
-    ContentType = <<G/binary, "/", C/binary>>,
     {ok, Body, Req1} = cowboy_req:body(Req0),
     Decoded = case Body of
                   <<>> ->
