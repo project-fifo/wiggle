@@ -141,19 +141,19 @@ handle_request(Req, State = #state{path = []}) ->
     case libsniffle:cloud_status() of
         {ok, {Metrics, Warnings}} ->
             Vers0 = case libsnarl:version() of
-                        SrvVer when is_binary(SrvVer) ->
+                        {ok, SrvVer} when is_binary(SrvVer) ->
                             [{snarl, SrvVer}];
                         _ ->
                             [{snarl, <<"not connected">>}]
                     end,
             Vers1 = case libsniffle:version() of
-                       SrvVer1 when is_binary(SrvVer1) ->
+                        {ok, SrvVer1} when is_binary(SrvVer1) ->
                             [{sniffle, SrvVer1} | Vers0];
                         _ ->
                             [{sniffle, <<"not connected">>} | Vers0]
                     end,
             Vers2 = case libhowl:version() of
-                        SrvVer2 when is_binary(SrvVer2) ->
+                        {ok, SrvVer2} when is_binary(SrvVer2) ->
                             [{howl, SrvVer2} | Vers1];
                         _ ->
                             [{howl, <<"not connected">>} | Vers1]
