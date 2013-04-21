@@ -1,21 +1,21 @@
 {application, wiggle,
  [
   {description, ""},
-  {vsn, "0.4.6"},
+  {vsn, "0.4.7"},
   {registered, []},
   {applications, [
                   kernel,
                   stdlib,
-		  libsnarl,
-		  libsniffle,
-		  libhowl,
-		  libchunter,
-		  jsx,
-		  lager,
-		  mimetypes,
-		  cowboy
+                  libsnarl,
+                  libsniffle,
+                  libhowl,
+                  libchunter,
+                  jsx,
+                  lager,
+                  mimetypes,
+                  cowboy
                  ]},
   {mod, { wiggle_app, []}},
   {env, [{acceptors, 100},
-	 {port, 8080}]}
+         {port, 8080}]}
  ]}.

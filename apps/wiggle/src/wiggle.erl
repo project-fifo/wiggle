@@ -5,13 +5,18 @@
 -ignore_xref([start/0]).
 
 start() ->
+    lager:start(),
     application:start(mdns_client_lib),
     application:start(libsnarlmatch),
+    application:start(libchunter),
     application:start(libsnarl),
+    application:start(libhowl),
     application:start(libsniffle),
     application:start(jsx),
     application:start(lager),
     application:start(mimetypes),
+    application:start(crypto),
+    application:start(ranch),
     application:start(cowboy),
     application:start(wiggle).
 
