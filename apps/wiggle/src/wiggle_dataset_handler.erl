@@ -168,9 +168,16 @@ handle_request(Req, State = #state{path = [_Dataset], obj = Obj}) ->
 
 create_path(Req, State = #state{path = [], version = Version}) ->
     {ok, Decoded, Req1} = wiggle_handler:decode(Req),
-    {ok, URL} = jsxd:get(<<"url">>, Decoded),
-    {ok, UUID} = libsniffle:dataset_import(URL),
-    {<<"/api/", Version/binary, "/datasets/", UUID/binary>>, Req1, State#state{body = Decoded}}.
+    case jsxd:from_list(Decoded) of
+        [{<<"url">>, URL}] ->
+            {ok, UUID} = libsniffle:dataset_import(URL),
+            {<<"/api/", Version/binary, "/datasets/", UUID/binary>>, Req1, State#state{body = Decoded}};
+        [{<<"config">>, Config},
+         {<<"snapshot">>, Snap},
+         {<<"vm">>, Vm}] ->
+            {ok, UUID} = libsniffle:vm_promote_snapshot(Vm, Snap, Config),
+            {<<"/api/", Version/binary, "/datasets/", UUID/binary>>, Req1, State#state{body = Decoded}}
+    end.
 
 from_json(Req, State) ->
     {ok, Body, Req1} = cowboy_req:body(Req),

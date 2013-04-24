@@ -47,8 +47,6 @@
 
 -record(state, {path, method, version, token, content, reply, obj, body}).
 
-
-
 init(_Transport, _Req, []) ->
     {upgrade, protocol, cowboy_rest}.
 
