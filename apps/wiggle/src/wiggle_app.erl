@@ -32,7 +32,16 @@ start(_StartType, _StartArgs) ->
     {ok, _} = cowboy:start_http(http, Acceptors, [{port, Port}],
                                 [{env, [{dispatch, Dispatch}]}]),
 
-    wiggle_sup:start_link().
+    R = wiggle_sup:start_link(),
+    statman_server:add_subscriber(statman_aggregator),
+    case application:get_env(newrelic,license_key) of
+        undefined ->
+            ok;
+        _ ->
+            newrelic_poller:start_link(fun newrelic_statman:poll/0)
+    end,
+    R.
+
 
 stop(_State) ->
     ok.

@@ -4,6 +4,8 @@
 -module(wiggle_cloud_handler).
 
 -include("wiggle_version.hrl").
+-include("wiggle.hrl").
+
 
 -export([init/3,
          rest_init/2]).
@@ -36,8 +38,6 @@
               options/2,
               resource_exists/2,
               rest_init/2]).
-
--record(state, {path, method, version, token, content, reply, obj, body}).
 
 init(_Transport, _Req, []) ->
     {upgrade, protocol, cowboy_rest}.

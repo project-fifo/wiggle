@@ -2,7 +2,7 @@
 
 %% @doc Hello world handler.
 -module(wiggle_session_handler).
-
+-include("wiggle.hrl").
 
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
@@ -44,8 +44,6 @@
               options/2,
               resource_exists/2,
               rest_init/2]).
-
--record(state, {path, method, version, token, content, reply, obj, body}).
 
 init(_Transport, _Req, []) ->
     {upgrade, protocol, cowboy_rest}.
