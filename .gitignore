@@ -8,7 +8,6 @@ rel/pkg/build-info
 gproc_dist_*
 standalone.config
 ebin
-db
 deps
 *~
 .DS_Store
