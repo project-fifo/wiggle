@@ -2,10 +2,15 @@
 -include("wiggle_version.hrl").
 
 %% External exports
--export([start/0, name/1, nintynine/1, reload/0, version/1,
+-export([start/0, name/1, reload/0, version/1,
          p999/2, p99/2, p95/2, p75/2, p25/2,
          count/2, min/2, median/2, mean/2, max/2
         ]).
+
+-ignore_xref([name/1, nintynine/1, reload/0, version/1,
+              p999/2, p99/2, p95/2, p75/2, p25/2,
+              count/2, min/2, median/2, mean/2, max/2
+             ]).
 
 %% Internal exports
 
@@ -28,9 +33,6 @@ reload() ->
 
 start() ->
     snmpa:load_mibs([code:priv_dir(wiggle) ++ "/mibs/WIGGLE-MIB"]).
-
-nintynine(get) ->
-    {value, 100}.
 
 %%----------------------------------------------------------------
 %% Instrumentation function for variable myName.
