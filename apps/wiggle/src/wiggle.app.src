@@ -13,6 +13,8 @@
                   jsx,
                   lager,
                   mimetypes,
+                  newrelic,
+                  snmp,
                   cowboy
                  ]},
   {mod, { wiggle_app, []}},

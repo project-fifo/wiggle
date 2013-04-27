@@ -1,0 +1,1 @@
+-record(state, {path, method, version, token, content, reply, obj, body, start}).

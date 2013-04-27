@@ -18,5 +18,6 @@ start() ->
     application:start(crypto),
     application:start(ranch),
     application:start(cowboy),
+    application:start(newrelic),
     application:start(wiggle).
 

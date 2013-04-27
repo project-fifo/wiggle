@@ -1,5 +1,7 @@
 -module(wiggle_handler).
 
+-include("wiggle.hrl").
+
 -export([
          initial_state/1,
          accepted/0,
@@ -7,10 +9,6 @@
          get_token/1,
          set_access_header/1
         ]).
-
-
-
--record(state, {path, method, version, token, content, reply, obj, body}).
 
 initial_state(Req) ->
     {Method, Req0} = cowboy_req:method(Req),
@@ -21,7 +19,8 @@ initial_state(Req) ->
     State =  #state{version = Version,
                     method = Method,
                     token = Token,
-                    path = Path},
+                    path = Path,
+                    start = now()},
     {ok, set_access_header(Req3), State}.
 
 set_access_header(Req) ->

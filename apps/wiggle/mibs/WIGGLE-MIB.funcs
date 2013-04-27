@@ -1,0 +1,27 @@
+{name, {wiggle_snmp_handler, name, []}}.
+{version, {wiggle_snmp_handler, version, []}}.
+
+{usersP999, {wiggle_snmp_handler, p999, [<<"/api/0.1.0/users">>]}}.
+{usersP99, {wiggle_snmp_handler, p99, [<<"/api/0.1.0/users">>]}}.
+{usersP95, {wiggle_snmp_handler, p95, [<<"/api/0.1.0/users">>]}}.
+{usersP75, {wiggle_snmp_handler, p75, [<<"/api/0.1.0/users">>]}}.
+{usersP25, {wiggle_snmp_handler, p25, [<<"/api/0.1.0/users">>]}}.
+
+{usersCount, {wiggle_snmp_handler, count, [<<"/api/0.1.0/users">>]}}.
+{usersMin, {wiggle_snmp_handler, min, [<<"/api/0.1.0/users">>]}}.
+{usersMedian, {wiggle_snmp_handler, median, [<<"/api/0.1.0/users">>]}}.
+{usersMean, {wiggle_snmp_handler, mean, [<<"/api/0.1.0/users">>]}}.
+{usersMax, {wiggle_snmp_handler, max, [<<"/api/0.1.0/users">>]}}.
+
+
+{vmsP999, {wiggle_snmp_handler, p999, [<<"/api/0.1.0/vms">>]}}.
+{vmsP99, {wiggle_snmp_handler, p99, [<<"/api/0.1.0/vms">>]}}.
+{vmsP95, {wiggle_snmp_handler, p95, [<<"/api/0.1.0/vms">>]}}.
+{vmsP75, {wiggle_snmp_handler, p75, [<<"/api/0.1.0/vms">>]}}.
+{vmsP25, {wiggle_snmp_handler, p25, [<<"/api/0.1.0/vms">>]}}.
+
+{vmsCount, {wiggle_snmp_handler, count, [<<"/api/0.1.0/vms">>]}}.
+{vmsMin, {wiggle_snmp_handler, min, [<<"/api/0.1.0/vms">>]}}.
+{vmsMedian, {wiggle_snmp_handler, median, [<<"/api/0.1.0/vms">>]}}.
+{vmsMean, {wiggle_snmp_handler, mean, [<<"/api/0.1.0/vms">>]}}.
+{vmsMax, {wiggle_snmp_handler, max, [<<"/api/0.1.0/vms">>]}}.
