@@ -34,6 +34,7 @@ start(_StartType, _StartArgs) ->
 
     R = wiggle_sup:start_link(),
     statman_server:add_subscriber(statman_aggregator),
+    wiggle_snmp_handler:start(),
     case application:get_env(newrelic,license_key) of
         undefined ->
             ok;
