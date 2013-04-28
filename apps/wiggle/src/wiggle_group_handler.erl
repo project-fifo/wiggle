@@ -21,7 +21,8 @@
          options/2,
          create_path/2,
          post_is_create/2,
-         is_authorized/2]).
+         is_authorized/2,
+         rest_terminate/2]).
 
 -export([to_json/2,
          from_json/2,
@@ -44,7 +45,8 @@
               create_path/2,
               post_is_create/2,
               resource_exists/2,
-              rest_init/2]).
+              rest_init/2,
+              rest_terminate/2]).
 
 init(_Transport, _Req, []) ->
     {upgrade, protocol, cowboy_rest}.
@@ -52,32 +54,22 @@ init(_Transport, _Req, []) ->
 rest_init(Req, _) ->
     wiggle_handler:initial_state(Req).
 
+rest_terminate(_Req, State) ->
+    ?M(?P(State), State#state.start),
+    ok.
+
 post_is_create(Req, State) ->
     {true, Req, State}.
 
 service_available(Req, State) ->
-    case  libsnarl:servers() of
-        [] ->
-            {false, Req, State};
-        _ ->
-            {true, Req, State}
-    end.
+    {wiggle_handler:service_available(), Req, State}.
 
 options(Req, State) ->
     Methods = allowed_methods(State#state.version, State#state.token, State#state.path),
-    Req1 = cowboy_req:set_resp_header(
-             <<"access-control-allow-methods">>,
-             string:join(
-               lists:map(fun erlang:binary_to_list/1,
-                         [<<"HEAD">>, <<"OPTIONS">> | Methods]), ", "), Req),
-    {ok, Req1, State}.
-
+    wiggle_handler:options(Req, State,Methods).
 
 content_types_provided(Req, State) ->
-    {[
-      {<<"application/json">>, to_json},
-      {<<"application/x-msgpack">>, to_msgpack}
-     ], Req, State}.
+    {wiggle_handler:provided(), Req, State}.
 
 content_types_accepted(Req, State) ->
     {wiggle_handler:accepted(), Req, State}.
@@ -101,12 +93,16 @@ allowed_methods(_Version, _Token, [_Group, <<"permissions">> | _Permission]) ->
     [<<"PUT">>, <<"DELETE">>].
 
 resource_exists(Req, State = #state{path = [Group, <<"permissions">> | Permission]}) ->
+    Start = now(),
     case {erlangify_permission(Permission), libsnarl:group_get(Group)} of
         {_, not_found} ->
+            ?MSnarl(?P(State), Start),
             {false, Req, State};
         {[], {ok, Obj}} ->
+            ?MSnarl(?P(State), Start),
             {true, Req, State#state{obj=Obj}};
         {P, {ok, Obj}} ->
+            ?MSnarl(?P(State), Start),
             {lists:member(P, jsxd:get(<<"permissions">>, [], Obj)), Req, State#state{obj=Obj}}
     end;
 
@@ -114,10 +110,13 @@ resource_exists(Req, State = #state{path = []}) ->
     {true, Req, State};
 
 resource_exists(Req, State = #state{path = [Group | _]}) ->
+    Start = now(),
     case libsnarl:group_get(Group) of
         not_found ->
+            ?MSnarl(?P(State), Start),
             {false, Req, State};
         {ok, Obj} ->
+            ?MSnarl(?P(State), Start),
             {true, Req, State#state{obj=Obj}}
     end.
 
@@ -143,38 +142,38 @@ forbidden(Req, State = #state{token = undefined}) ->
     {true, Req, State};
 
 forbidden(Req, State = #state{method = <<"GET">>, path = []}) ->
-    {allowed(State#state.token, [<<"cloud">>, <<"groups">>, <<"list">>]), Req, State};
+    {wiggle_handler:allowed(State, [<<"cloud">>, <<"groups">>, <<"list">>]), Req, State};
 
 forbidden(Req, State = #state{method = <<"POST">>, path = []}) ->
-    {allowed(State#state.token, [<<"cloud">>, <<"groups">>, <<"create">>]), Req, State};
+    {wiggle_handler:allowed(State, [<<"cloud">>, <<"groups">>, <<"create">>]), Req, State};
 
 forbidden(Req, State = #state{method = <<"GET">>, path = [Group]}) ->
-    {allowed(State#state.token, [<<"groups">>, Group, <<"get">>]), Req, State};
+    {wiggle_handler:allowed(State, [<<"groups">>, Group, <<"get">>]), Req, State};
 
 forbidden(Req, State = #state{method = <<"PUT">>, path = [Group]}) ->
-    {allowed(State#state.token, [<<"groups">>, Group, <<"create">>]), Req, State};
+    {wiggle_handler:allowed(State, [<<"groups">>, Group, <<"create">>]), Req, State};
 
 forbidden(Req, State = #state{method = <<"DELETE">>, path = [Group]}) ->
-    {allowed(State#state.token, [<<"groups">>, Group, <<"delete">>]), Req, State};
+    {wiggle_handler:allowed(State, [<<"groups">>, Group, <<"delete">>]), Req, State};
 
 forbidden(Req, State = #state{method = <<"GET">>, path = [Group, <<"permissions">>]}) ->
-    {allowed(State#state.token, [<<"groups">>, Group, <<"get">>]), Req, State};
+    {wiggle_handler:allowed(State, [<<"groups">>, Group, <<"get">>]), Req, State};
 
 forbidden(Req, State = #state{method = <<"PUT">>, path = [Group, <<"permissions">> | Permission]}) ->
     P = erlangify_permission(Permission),
-    {allowed(State#state.token, [<<"groups">>, Group, <<"grant">>])
-     andalso allowed(State#state.token, [<<"permissions">>, P, <<"grant">>]), Req, State};
+    {wiggle_handler:allowed(State, [<<"groups">>, Group, <<"grant">>])
+     andalso wiggle_handler:allowed(State, [<<"permissions">>, P, <<"grant">>]), Req, State};
 
 forbidden(Req, State = #state{method = <<"DELETE">>, path = [Group, <<"permissions">> | Permission]}) ->
     P = erlangify_permission(Permission),
-    {allowed(State#state.token, [<<"groups">>, Group, <<"revoke">>])
-     andalso allowed(State#state.token, [<<"permissions">>, P, <<"revoke">>]), Req, State};
+    {wiggle_handler:allowed(State, [<<"groups">>, Group, <<"revoke">>])
+     andalso wiggle_handler:allowed(State, [<<"permissions">>, P, <<"revoke">>]), Req, State};
 
 forbidden(Req, State = #state{method = <<"PUT">>, path = [Group, <<"metadata">> | _]}) ->
-    {allowed(State#state.token, [<<"groups">>, Group, <<"edit">>]), Req, State};
+    {wiggle_handler:allowed(State, [<<"groups">>, Group, <<"edit">>]), Req, State};
 
 forbidden(Req, State = #state{method = <<"DELETE">>, path = [Group, <<"metadata">> | _]}) ->
-    {allowed(State#state.token, [<<"groups">>, Group, <<"edit">>]), Req, State};
+    {wiggle_handler:allowed(State, [<<"groups">>, Group, <<"edit">>]), Req, State};
 
 forbidden(Req, State) ->
     {true, Req, State}.
@@ -192,8 +191,10 @@ to_msgpack(Req, State) ->
     {msgpack:pack(Reply, [jsx]), Req1, State1}.
 
 handle_request(Req, State = #state{path = []}) ->
-                                                %    {ok, Permissions} = libsnarl:user_cache({token, Token}),
+    Start = now(),
+    %%    {ok, Permissions} = libsnarl:user_cache({token, Token}),
     {ok, Res} = libsnarl:group_list(), %{must, 'allowed', [<<"vm">>, {<<"res">>, <<"uuid">>}, <<"get">>], Permissions}),
+    ?MSnarl(?P(Path), Start),
     {Res, Req, State};
 
 handle_request(Req, State = #state{path = [_Group], obj = GroupObj}) ->
@@ -213,7 +214,9 @@ handle_request(Req, State = #state{path = [_Group, <<"permissions">>], obj = Gro
 create_path(Req, State = #state{path = [], version = Version}) ->
     {ok, Decoded, Req1} = wiggle_handler:decode(Req),
     {ok, Group} = jsxd:get(<<"name">>, Decoded),
+    Start = now()
     {ok, UUID} = libsnarl:group_add(Group),
+    ?MSnarl(?P(Path), Start),
     {<<"/api/", Version/binary, "/groups/", UUID/binary>>, Req1, State#state{body = Decoded}}.
 
 from_json(Req, State) ->
@@ -243,16 +246,22 @@ handle_write(Req, State = #state{method = <<"POST">>, path = []}, _) ->
     {true, Req, State};
 
 handle_write(Req, State = #state{path = [Group, <<"metadata">> | Path]}, [{K, V}]) ->
+    Start = now(),
     libsnarl:group_set(Group, [<<"metadata">> | Path] ++ [K], jsxd:from_list(V)),
+    ?MSnarl(?P(Path), Start),
     {true, Req, State};
 
 handle_write(Req, State = #state{path = [Group]}, _Body) ->
+    Start = now(),
     ok = libsnarl:group_add(Group),
+    ?MSnarl(?P(Path), Start),
     {true, Req, State};
 
 handle_write(Req, State = #state{path = [Group, <<"permissions">> | Permission]}, _Body) ->
     P = erlangify_permission(Permission),
+    Start = now(),
     ok = libsnarl:group_grant(Group, P),
+    ?MSnarl(?P(Path), Start),
     {true, Req, State}.
 
 
@@ -261,16 +270,22 @@ handle_write(Req, State = #state{path = [Group, <<"permissions">> | Permission]}
 %%--------------------------------------------------------------------
 
 delete_resource(Req, State = #state{path = [Group, <<"metadata">> | Path]}) ->
+    Start = now(),
     libsnarl:group_set(Group, [<<"metadata">> | Path], delete),
+    ?MSnarl(?P(Path), Start),
     {true, Req, State};
 
 delete_resource(Req, State = #state{path = [Group, <<"permissions">> | Permission]}) ->
     P = erlangify_permission(Permission),
+    Start = now(),
     ok = libsnarl:group_revoke(Group, P),
+    ?MSnarl(?P(Path), Start),
     {true, Req, State};
 
 delete_resource(Req, State = #state{path = [Group]}) ->
+    Start = now(),
     ok = libsnarl:group_delete(Group),
+    ?MSnarl(?P(Path), Start),
     {true, Req, State}.
 
 %% Internal Functions
@@ -288,16 +303,6 @@ jsonify_permissions(P) ->
                       E
               end, P).
 
-
-allowed(Token, Perm) ->
-    case libsnarl:allowed({token, Token}, Perm) of
-        not_found ->
-            true;
-        true ->
-            false;
-        false ->
-            true
-    end.
 
 -ifdef(TEST).
 
