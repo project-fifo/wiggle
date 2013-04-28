@@ -17,7 +17,8 @@
          forbidden/2,
          options/2,
          service_available/2,
-         is_authorized/2]).
+         is_authorized/2,
+         rest_terminate/2]).
 
 -export([to_json/2,
          from_json/2,
@@ -37,13 +38,18 @@
               service_available/2,
               options/2,
               resource_exists/2,
-              rest_init/2]).
+              rest_init/2,
+              rest_terminate/2]).
 
 init(_Transport, _Req, []) ->
     {upgrade, protocol, cowboy_rest}.
 
 rest_init(Req, _) ->
     wiggle_handler:initial_state(Req).
+
+rest_terminate(_Req, State) ->
+    ?M(?P(State), State#state.start),
+    ok.
 
 service_available(Req, State = #state{path = [<<"connection">>]}) ->
     {true, Req, State};
@@ -113,7 +119,7 @@ forbidden(Req, State = #state{token = undefined}) ->
     {true, Req, State};
 
 forbidden(Req, State = #state{path = []}) ->
-    {allowed(State#state.token, [<<"cloud">>, <<"cloud">>, <<"status">>]), Req, State};
+    {wiggle_handler:allowed(State, [<<"cloud">>, <<"cloud">>, <<"status">>]), Req, State};
 
 forbidden(Req, State) ->
     {true, Req, State}.
@@ -138,28 +144,40 @@ handle_request(Req, State = #state{path = [<<"connection">>]}) ->
     {Res, Req, State};
 
 handle_request(Req, State = #state{path = []}) ->
+    Start = now(),
     case libsniffle:cloud_status() of
         {ok, {Metrics, Warnings}} ->
+            ?MSniffle(?P(State), Start),
+            Start1 = now(),
             Vers0 = case libsnarl:version() of
                         {ok, SrvVer} when is_binary(SrvVer) ->
                             [{snarl, SrvVer}];
                         _ ->
                             [{snarl, <<"not connected">>}]
                     end,
+            ?MSnarl(?P(State), Start1),
+            Start2 = now(),
             Vers1 = case libsniffle:version() of
                         {ok, SrvVer1} when is_binary(SrvVer1) ->
                             [{sniffle, SrvVer1} | Vers0];
                         _ ->
                             [{sniffle, <<"not connected">>} | Vers0]
                     end,
+            ?MSniffle(?P(State), Start2),
+            Start3 = now(),
             Vers2 = case libhowl:version() of
                         {ok, SrvVer2} when is_binary(SrvVer2) ->
                             [{howl, SrvVer2} | Vers1];
                         _ ->
                             [{howl, <<"not connected">>} | Vers1]
                     end,
+            ?MHowl(?P(State), Start3),
+            Start4 = now(),
             {ok, Users} = libsnarl:user_list(),
+            ?MSnarl(?P(State), Start4),
+            Start5 = now(),
             {ok, Vms} = libsniffle:vm_list(),
+            ?MSniffle(?P(State), Start5),
             {[{versions, [{wiggle, ?VERSION} | Vers2]},
               {metrics, [{<<"users">>, length(Users)},
                          {<<"vms">>, length(Vms)} |
@@ -179,17 +197,3 @@ from_json(Req, State) ->
 
 from_msgpack(Req, State) ->
     {false, Req, State}.
-
-%%--------------------------------------------------------------------
-%% DEETE
-%%--------------------------------------------------------------------
-
-allowed(Token, Perm) ->
-    case libsnarl:allowed({token, Token}, Perm) of
-        not_found ->
-            true;
-        true ->
-            false;
-        false ->
-            true
-    end.

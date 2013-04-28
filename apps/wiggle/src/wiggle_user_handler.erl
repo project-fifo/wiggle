@@ -20,7 +20,8 @@
          options/2,
          create_path/2,
          post_is_create/2,
-         is_authorized/2]).
+         is_authorized/2,
+         rest_terminate/2]).
 
 -export([to_json/2,
          from_json/2,
@@ -43,13 +44,18 @@
               is_authorized/2,
               options/2,
               resource_exists/2,
-              rest_init/2]).
+              rest_init/2,
+              rest_terminate/2]).
 
 init(_Transport, _Req, []) ->
     {upgrade, protocol, cowboy_rest}.
 
 rest_init(Req, _) ->
     wiggle_handler:initial_state(Req).
+
+rest_terminate(_Req, State) ->
+    ?M(?P(State), State#state.start),
+    ok.
 
 post_is_create(Req, State) ->
     {true, Req, State}.
@@ -105,32 +111,45 @@ allowed_methods(_Version, _Token, [_Login, <<"groups">>, _Group]) ->
     [<<"PUT">>, <<"DELETE">>].
 
 resource_exists(Req, State = #state{path = [User, <<"permissions">> | Permission]}) ->
+    Start = now(),
     case {erlangify_permission(Permission), libsnarl:user_get(User)} of
         {_, not_found} ->
+            ?MSnarl(?P(State), Start),
             {false, Req, State};
         {[], {ok, Obj}} ->
+            ?MSnarl(?P(State), Start),
             {true, Req, State#state{obj = Obj}};
         {P, {ok, Obj}} ->
+            ?MSnarl(?P(State), Start),
             {lists:member(P, jsxd:get(<<"permissions">>, [], Obj)), Req, State#state{obj = Obj}}
     end;
 
 resource_exists(Req, State = #state{method = <<"DELETE">>, path = [User, <<"groups">>, Group]}) ->
+    Start = now(),
     case libsnarl:user_get(User) of
         not_found ->
+            ?MSnarl(?P(State), Start),
             {false, Req, State};
         {ok, Obj} ->
+            ?MSnarl(?P(State), Start),
             {lists:member(Group, jsxd:get(<<"groups">>, [], Obj)), Req, State#state{obj = Obj}}
     end;
 
 resource_exists(Req, State = #state{method = <<"PUT">>, path = [User, <<"groups">>, Group]}) ->
+    Start = now(),
     case libsnarl:user_get(User) of
         not_found ->
+            ?MSnarl(?P(State), Start),
             {false, Req, State};
         {ok, Obj} ->
+            ?MSnarl(?P(State), Start),
+            Start1 = now(),
             case libsnarl:group_get(Group) of
                 not_found ->
+                    ?MSnarl(?P(State), Start1),
                     {false, Req, State#state{obj = Obj}};
                 {ok, _} ->
+                    ?MSnarl(?P(State), Start1),
                     {true, Req, State#state{obj = Obj}}
             end
     end;
@@ -169,49 +188,49 @@ forbidden(Req, State = #state{token = undefined}) ->
     {true, Req, State};
 
 forbidden(Req, State = #state{method = <<"GET">>, path = []}) ->
-    {allowed(State#state.token, [<<"cloud">>, <<"users">>, <<"list">>]), Req, State};
+    {allowed(State, [<<"cloud">>, <<"users">>, <<"list">>]), Req, State};
 
 forbidden(Req, State = #state{method = <<"POST">>, path = []}) ->
-    {allowed(State#state.token, [<<"cloud">>, <<"users">>, <<"create">>]), Req, State};
+    {allowed(State, [<<"cloud">>, <<"users">>, <<"create">>]), Req, State};
 
 forbidden(Req, State = #state{method = <<"GET">>, path = [User]}) ->
-    {allowed(State#state.token, [<<"users">>, User, <<"get">>]), Req, State};
+    {allowed(State, [<<"users">>, User, <<"get">>]), Req, State};
 
 forbidden(Req, State = #state{method = <<"PUT">>, path = [User]}) ->
-    {allowed(State#state.token, [<<"users">>, User, <<"passwd">>]), Req, State};
+    {allowed(State, [<<"users">>, User, <<"passwd">>]), Req, State};
 
 forbidden(Req, State = #state{method = <<"DELETE">>, path = [User]}) ->
-    {allowed(State#state.token, [<<"users">>, User, <<"delete">>]), Req, State};
+    {allowed(State, [<<"users">>, User, <<"delete">>]), Req, State};
 
 forbidden(Req, State = #state{method = <<"GET">>, path = [User, <<"permissions">>]}) ->
-    {allowed(State#state.token, [<<"users">>, User, <<"get">>]), Req, State};
+    {allowed(State, [<<"users">>, User, <<"get">>]), Req, State};
 
 forbidden(Req, State = #state{method = <<"PUT">>, path = [User, <<"permissions">> | Permission]}) ->
     P = erlangify_permission(Permission),
-    {allowed(State#state.token, [<<"users">>, User, <<"grant">>])
-     andalso allowed(State#state.token, [<<"permissions">>, P, <<"grant">>]), Req, State};
+    {allowed(State, [<<"users">>, User, <<"grant">>])
+     andalso allowed(State, [<<"permissions">>, P, <<"grant">>]), Req, State};
 
 forbidden(Req, State = #state{method = <<"DELETE">>, path = [User, <<"permissions">> | Permission]}) ->
     P = erlangify_permission(Permission),
-    {allowed(State#state.token, [<<"users">>, User, <<"revoke">>])
-     andalso allowed(State#state.token, [<<"permissions">>, P, <<"revoke">>]), Req, State};
+    {allowed(State, [<<"users">>, User, <<"revoke">>])
+     andalso allowed(State, [<<"permissions">>, P, <<"revoke">>]), Req, State};
 
 forbidden(Req, State = #state{method = <<"GET">>, path = [User, <<"groups">>]}) ->
-    {allowed(State#state.token, [<<"users">>, User, <<"get">>]), Req, State};
+    {allowed(State, [<<"users">>, User, <<"get">>]), Req, State};
 
 forbidden(Req, State = #state{method = <<"PUT">>, path = [User, <<"groups">>, Group]}) ->
-    {allowed(State#state.token, [<<"users">>, User, <<"join">>])
-     andalso allowed(State#state.token, [<<"groups">>, Group, <<"join">>]), Req, State};
+    {allowed(State, [<<"users">>, User, <<"join">>])
+     andalso allowed(State, [<<"groups">>, Group, <<"join">>]), Req, State};
 
 forbidden(Req, State = #state{method = <<"DELETE">>, path = [User, <<"groups">>, Group]}) ->
-    {allowed(State#state.token, [<<"users">>, User, <<"leave">>])
-     andalso allowed(State#state.token, [<<"groups">>, Group, <<"leave">>]), Req, State};
+    {allowed(State, [<<"users">>, User, <<"leave">>])
+     andalso allowed(State, [<<"groups">>, Group, <<"leave">>]), Req, State};
 
 forbidden(Req, State = #state{method = <<"PUT">>, path = [User, <<"metadata">> | _]}) ->
-    {allowed(State#state.token, [<<"users">>, User, <<"edit">>]), Req, State};
+    {allowed(State, [<<"users">>, User, <<"edit">>]), Req, State};
 
 forbidden(Req, State = #state{method = <<"DELETE">>, path = [User, <<"metadata">> | _]}) ->
-    {allowed(State#state.token, [<<"users">>, User, <<"edit">>]), Req, State};
+    {allowed(State, [<<"users">>, User, <<"edit">>]), Req, State};
 
 forbidden(Req, State) ->
     {true, Req, State}.
@@ -229,7 +248,9 @@ to_msgpack(Req, State) ->
     {msgpack:pack(Reply, [jsx]), Req1, State1}.
 
 handle_request(Req, State = #state{path = []}) ->
+    Start = now(),
     {ok, Res} = libsnarl:user_list(),
+    ?MSnarl(?P(State), Start),
     {Res, Req, State};
 
 handle_request(Req, State = #state{path = [_User], obj = UserObj}) ->
@@ -254,8 +275,12 @@ create_path(Req, State = #state{path = [], version = Version}) ->
     {ok, Decoded, Req1} = wiggle_handler:decode(Req),
     {ok, User} = jsxd:get(<<"user">>, Decoded),
     {ok, Pass} = jsxd:get(<<"password">>, Decoded),
+    Start = now(),
     {ok, UUID} = libsnarl:user_add(User),
+    ?MSnarl(?P(State), Start),
+    Start1 = now(),
     ok = libsnarl:user_passwd(UUID, Pass),
+    ?MSnarl(?P(State), Start1),
     {<<"/api/", Version/binary, "/users/", UUID/binary>>, Req1, State#state{body = Decoded}}.
 
 from_json(Req, State) ->
@@ -268,7 +293,6 @@ from_json(Req, State) ->
                                     Decoded = jsx:decode(Body),
                                     handle_write(Req1, State, Decoded)
                             end,
-
     {Reply, Req2, State1}.
 
 from_msgpack(Req, State) ->
@@ -287,7 +311,9 @@ from_msgpack(Req, State) ->
 
 
 handle_write(Req, State = #state{path =  [User]}, [{<<"password">>, Password}]) ->
+    Start = now(),
     ok = libsnarl:user_passwd(User, Password),
+    ?MSnarl(?P(State), Start),
     {true, Req, State};
 
 %% TODO : This is a icky case it is called after post.
@@ -295,16 +321,22 @@ handle_write(Req, State = #state{method = <<"POST">>, path = []}, _) ->
     {true, Req, State};
 
 handle_write(Req, State = #state{path = [User, <<"metadata">> | Path]}, [{K, V}]) ->
+    Start = now(),
     libsnarl:user_set(User, [<<"metadata">> | Path] ++ [K], jsxd:from_list(V)),
+    ?MSnarl(?P(State), Start),
     {true, Req, State};
 
 handle_write(Req, State = #state{path = [User, <<"groups">>, Group]}, _) ->
+    Start = now(),
     ok = libsnarl:user_join(User, Group),
+    ?MSnarl(?P(State), Start),
     {true, Req, State};
 
 handle_write(Req, State = #state{path = [User, <<"permissions">> | Permission]}, _) ->
     P = erlangify_permission(Permission),
+    Start = now(),
     ok = libsnarl:user_grant(User, P),
+    ?MSnarl(?P(State), Start),
     {true, Req, State}.
 
 
@@ -313,7 +345,9 @@ handle_write(Req, State = #state{path = [User, <<"permissions">> | Permission]},
 %%--------------------------------------------------------------------
 
 delete_resource(Req, State = #state{path = [User, <<"metadata">> | Path]}) ->
+    Start = now(),
     libsnarl:user_set(User, [<<"metadata">> | Path], delete),
+    ?MSnarl(?P(State), Start),
     {true, Req, State};
 
 delete_resource(Req, State = #state{path = [_User, <<"sessions">>]}) ->
@@ -322,15 +356,21 @@ delete_resource(Req, State = #state{path = [_User, <<"sessions">>]}) ->
 
 delete_resource(Req, State = #state{path = [User, <<"permissions">> | Permission]}) ->
     P = erlangify_permission(Permission),
+    Start = now(),
     ok = libsnarl:user_revoke(User, P),
+    ?MSnarl(?P(State), Start),
     {true, Req, State};
 
 delete_resource(Req, State = #state{path = [User]}) ->
+    Start = now(),
     ok = libsnarl:user_delete(User),
+    ?MSnarl(?P(State), Start),
     {true, Req, State};
 
 delete_resource(Req, State = #state{path = [User, <<"groups">>, Group]}) ->
+    Start = now(),
     ok = libsnarl:user_leave(User, Group),
+    ?MSnarl(?P(State), Start),
     {true, Req, State}.
 
 %% Internal Functions
@@ -349,13 +389,18 @@ jsonify_permissions(P) ->
                       E
               end, P).
 
-allowed(Token, Perm) ->
+allowed(State, Perm) ->
+    Token = State#state.token,
+    Start = now(),
     case libsnarl:allowed({token, Token}, Perm) of
         not_found ->
+            ?MSnarl(?P(State), Start),
             true;
         true ->
+            ?MSnarl(?P(State), Start),
             false;
         false ->
+            ?MSnarl(?P(State), Start),
             true
     end.
 
