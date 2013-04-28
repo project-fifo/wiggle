@@ -75,26 +75,18 @@ permission_required(#state{method = <<"POST">>, path = [Vm, <<"snapshots">>]}) -
 permission_required(#state{method = <<"GET">>, path = [Vm, <<"snapshots">>, _Snap]}) ->
     {ok, [<<"vms">>, Vm, <<"get">>]};
 
-permission_required(#state{method = <<"PUT">>,
-                           body = undefiend}) ->
+permission_required(#state{method = <<"PUT">>, body = undefiend}) ->
     {error, needs_decode};
 
-permission_required(#state{method = <<"PUT">>,
-                           body = Decoded,
-                           path = [Vm]}) ->
+permission_required(#state{method = <<"PUT">>, body = Decoded, path = [Vm]}) ->
     case Decoded of
-        [{<<"action">>, <<"start">>}] ->
-            {ok, [<<"vms">>, Vm, <<"start">>]};
-        [{<<"action">>, <<"stop">>}|_] ->
-            {ok, [<<"vms">>, Vm, <<"stop">>]};
-        [{<<"action">>, <<"reboot">>}|_] ->
-            {ok, [<<"vms">>, Vm, <<"reboot">>]};
+        [{<<"action">>, Act}] ->
+            {ok, [<<"vms">>, Vm, Act]};
         _ ->
             {ok, [<<"vms">>, Vm, <<"edit">>]}
     end;
 
-permission_required(#state{method = <<"PUT">>,
-                           body = Decoded,
+permission_required(#state{method = <<"PUT">>, body = Decoded,
                            path = [Vm, <<"snapshots">>, _Snap]}) ->
     case Decoded of
         [{<<"action">>, <<"rollback">>}] ->
