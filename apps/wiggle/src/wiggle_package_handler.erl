@@ -29,9 +29,11 @@ allowed_methods(_Version, _Token, [_Package, <<"metadata">>|_]) ->
 allowed_methods(_Version, _Token, [_Package]) ->
     [<<"GET">>, <<"PUT">>, <<"DELETE">>].
 
-
 get(#state{path = [Package | _]}) ->
-    libsniffle:package_get(Package);
+    Start = now(),
+    R = libsniffle:package_get(Package)
+    ?MSniffle(?P(State), Start),
+    R;
 
 get(_) ->
     not_found.

@@ -98,6 +98,9 @@ forbidden(Req, State = #state{token = undefined}) ->
 
 forbidden(Req, State = #state{module = M}) ->
     case M:permission_required(State) of
+        {error, needs_decode} ->
+            {ok, Decoded, Req1} = wiggle_handler:decode(Req),
+            forbidden(Req1, State#state{body = Decoded});
         undefined ->
             {true, Req, State};
         {ok, Permission} ->
@@ -122,16 +125,25 @@ to_msgpack(Req, State = #state{module = M}) ->
 %% PUT
 %%--------------------------------------------------------------------
 
-create_path(Req, State = #state{module = M}) ->
+create_path(Req, State = #state{module = M, body = undefined}) ->
     {ok, Data, Req1} = wiggle_handler:decode(Req),
-    M:create_path(Req1, State, Data).
+    M:create_path(Req1, State#state{body = Data}, Data);
 
-from_json(Req, State = #state{module = M}) ->
+create_path(Req, State = #state{module = M, body = Data}) ->
+    M:create_path(Req, State, Data).
+
+from_json(Req, State = #state{module = M, body = undefined}) ->
     {ok, Data, Req1} = wiggle_handler:decode(Req),
+    M:handle_write(Req1, State#state{body = Data}, Data);
+
+from_json(Req, State = #state{module = M, body = Data}) ->
     M:handle_write(Req1, State, Data).
 
-from_msgpack(Req, State = #state{module = M}) ->
+from_msgpack(Req, State = #state{module = M, body = undefined}) ->
     {ok, Data, Req1} = wiggle_handler:decode(Req),
+    M:handle_write(Req1, State#state{body = Data}, Data).
+
+from_msgpack(Req, State = #state{module = M, body = Data}) ->
     M:handle_write(Req1, State, Data).
 
 %%--------------------------------------------------------------------
