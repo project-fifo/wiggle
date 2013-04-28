@@ -24,7 +24,7 @@ start(_StartType, _StartArgs) ->
                          {<<"/api/:version/dtrace/[...]">>, wiggle_dtrace_handler, []},
                          {<<"/api/:version/vms/:uuid/console">>, wiggle_console_handler, []},
                          {<<"/api/:version/vms/:uuid/vnc">>, wiggle_vnc_handler, []},
-                         {<<"/api/:version/vms/[...]">>, wiggle_vm_handler, []},
+                         {<<"/api/:version/vms/[...]">>, wiggle_rest_handler, [wiggle_vm_handler]},
                          {<<"/api/:version/ipranges/[...]">>, wiggle_iprange_handler, []},
                          {<<"/api/:version/datasets/[...]">>, wiggle_dataset_handler, []},
                          {<<"/api/:version/packages/[...]">>, wiggle_rest_handler, [wiggle_package_handler]}]}]

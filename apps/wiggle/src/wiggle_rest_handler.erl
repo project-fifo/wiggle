@@ -113,13 +113,17 @@ forbidden(Req, State = #state{module = M}) ->
 
 to_json(Req, State = #state{module = M}) ->
     {Reply, Req1, State1} = M:handle_request(Req, State),
-    {jsx:encode(Reply), Req1, State1}.
+    Start = now(),
+    D = jsx:encode(Reply),
+    ?MEx(?P(State), <<"jsx:encode">>, Start),
+    {D, Req1, State1}.
 
 to_msgpack(Req, State = #state{module = M}) ->
     {Reply, Req1, State1} = M:handle_request(Req, State),
-    {msgpack:pack(Reply, [jsx]), Req1, State1}.
-
-
+    Start = now(),
+    D = msgpack:pack(Reply, [jsx]),
+    ?MEx(?P(State), <<"msgpack:encode">>, Start),
+    {D, Req1, State1}.
 
 %%--------------------------------------------------------------------
 %% PUT
@@ -137,14 +141,14 @@ from_json(Req, State = #state{module = M, body = undefined}) ->
     M:handle_write(Req1, State#state{body = Data}, Data);
 
 from_json(Req, State = #state{module = M, body = Data}) ->
-    M:handle_write(Req1, State, Data).
+    M:handle_write(Req, State, Data).
 
 from_msgpack(Req, State = #state{module = M, body = undefined}) ->
     {ok, Data, Req1} = wiggle_handler:decode(Req),
-    M:handle_write(Req1, State#state{body = Data}, Data).
+    M:handle_write(Req1, State#state{body = Data}, Data);
 
 from_msgpack(Req, State = #state{module = M, body = Data}) ->
-    M:handle_write(Req1, State, Data).
+    M:handle_write(Req, State, Data).
 
 %%--------------------------------------------------------------------
 %% DEETE

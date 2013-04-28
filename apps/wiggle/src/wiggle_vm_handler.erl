@@ -37,47 +37,49 @@ allowed_methods(_Version, _Token, [_Vm, <<"snapshots">>, _ID]) ->
 allowed_methods(_Version, _Token, [_Vm, <<"snapshots">>]) ->
     [<<"GET">>, <<"POST">>].
 
-get(#state{path = [Vm, <<"snapshots">>, Snap]}) ->
-    case get(State#state{path=[Vm]}) of
+get(State = #state{path = [Vm, <<"snapshots">>, Snap]}) ->
+    case wiggle_vm_handler:get(State#state{path=[Vm]}) of
         {ok, Obj} ->
             case jsxd:get([<<"snapshots">>, Snap], Obj) of
                 undefined -> not_found;
                 {ok, _} -> Obj
             end;
+        E ->
+            E
     end;
 
-get(#state{path = [Vm | _]}) ->
+get(State = #state{path = [Vm | _]}) ->
     Start = now(),
     R = libsniffle:vm_get(Vm),
     ?MSniffle(?P(State), Start),
     R.
 
-permission_required(Req, State = #state{method = <<"GET">>, path = []}) ->
+permission_required(#state{method = <<"GET">>, path = []}) ->
     {ok, [<<"cloud">>, <<"vms">>, <<"list">>]};
 
-permission_requried(#state{method = <<"POST">>, path = []}) ->
+permission_required(#state{method = <<"POST">>, path = []}) ->
     {ok, [<<"cloud">>, <<"vms">>, <<"create">>]};
 
-permission_requried(#state{method = <<"GET">>, path = [Vm]}) ->
+permission_required(#state{method = <<"GET">>, path = [Vm]}) ->
     {ok, [<<"vms">>, Vm, <<"get">>]};
 
-permission_requried(#state{method = <<"DELETE">>, path = [Vm]}) ->
-    {ok, [<<"vms">>, Vm, <<"delete">>]), Req, State};
+permission_required(#state{method = <<"DELETE">>, path = [Vm]}) ->
+    {ok, [<<"vms">>, Vm, <<"delete">>]};
 
-permission_requried(#state{method = <<"GET">>, path = [Vm, <<"snapshots">>]}) ->
+permission_required(#state{method = <<"GET">>, path = [Vm, <<"snapshots">>]}) ->
     {ok, [<<"vms">>, Vm, <<"get">>]};
 
-permission_requried(#state{method = <<"POST">>, path = [Vm, <<"snapshots">>]}) ->
+permission_required(#state{method = <<"POST">>, path = [Vm, <<"snapshots">>]}) ->
     {ok, [<<"vms">>, Vm, <<"snapshot">>]};
 
-permission_requried(#state{method = <<"GET">>, path = [Vm, <<"snapshots">>, _Snap]}) ->
+permission_required(#state{method = <<"GET">>, path = [Vm, <<"snapshots">>, _Snap]}) ->
     {ok, [<<"vms">>, Vm, <<"get">>]};
 
-permission_requried(#state{method = <<"PUT">>,
+permission_required(#state{method = <<"PUT">>,
                            body = undefiend}) ->
     {error, needs_decode};
 
-permission_requried(#state{method = <<"PUT">>,
+permission_required(#state{method = <<"PUT">>,
                            body = Decoded,
                            path = [Vm]}) ->
     case Decoded of
@@ -91,7 +93,7 @@ permission_requried(#state{method = <<"PUT">>,
             {ok, [<<"vms">>, Vm, <<"edit">>]}
     end;
 
-permission_requried(#state{method = <<"PUT">>,
+permission_required(#state{method = <<"PUT">>,
                            body = Decoded,
                            path = [Vm, <<"snapshots">>, _Snap]}) ->
     case Decoded of
@@ -101,18 +103,17 @@ permission_requried(#state{method = <<"PUT">>,
             {ok, [<<"vms">>, Vm, <<"edit">>]}
     end;
 
-permission_requried(#state{method = <<"PUT">>,
-                           body = Decoded,
+permission_required(#state{method = <<"PUT">>,
                            path = [Vm, <<"metadata">> | _]}) ->
-    {ok, [<<"vms">>, Vm, <<"edit">>]), Req1, State#state{body=Decoded}};
-
-permission_requried(#state{method = <<"DELETE">>, path = [Vm, <<"snapshots">>, _Snap]}) ->
-    {ok, [<<"vms">>, Vm, <<"snapshot_delete">>]};
-
-permission_requried(#state{method = <<"DELETE">>, path = [Vm, <<"metadata">> | _]}) ->
     {ok, [<<"vms">>, Vm, <<"edit">>]};
 
-permission_requried(State) ->
+permission_required(#state{method = <<"DELETE">>, path = [Vm, <<"snapshots">>, _Snap]}) ->
+    {ok, [<<"vms">>, Vm, <<"snapshot_delete">>]};
+
+permission_required(#state{method = <<"DELETE">>, path = [Vm, <<"metadata">> | _]}) ->
+    {ok, [<<"vms">>, Vm, <<"edit">>]};
+
+permission_required(_State) ->
     undefined.
 
 %%--------------------------------------------------------------------
@@ -157,18 +158,18 @@ create_path(Req, State = #state{path = [], version = Version, token = Token}, De
             Start = now(),
             {ok, UUID} = libsniffle:create(Package, Dataset, jsxd:set(<<"owner">>, Owner, Config)),
             ?MSniffle(?P(State), Start),
-            {<<"/api/", Version/binary, "/vms/", UUID/binary>>, Req1, State#state{body = Decoded}}
+            {<<"/api/", Version/binary, "/vms/", UUID/binary>>, Req, State#state{body = Decoded}}
         catch
             G:E ->
                 lager:error("Error creating VM(~p): ~p / ~p", [Decoded, G, E]),
-                {ok, Req2} = cowboy_req:reply(500, Req1),
-                {halt, Req2, State}
+                {ok, Req1} = cowboy_req:reply(500, Req),
+                {halt, Req1, State}
         end
     catch
         G1:E1 ->
             lager:error("Error creating VM(~p): ~p / ~p", [Decoded, G1, E1]),
-            {ok, Req3} = cowboy_req:reply(400, Req1),
-            {halt, Req3, State}
+            {ok, Req2} = cowboy_req:reply(400, Req),
+            {halt, Req2, State}
     end;
 
 create_path(Req, State = #state{path = [Vm, <<"snapshots">>], version = Version}, Decoded) ->
@@ -176,7 +177,7 @@ create_path(Req, State = #state{path = [Vm, <<"snapshots">>], version = Version}
     Start = now(),
     {ok, UUID} = libsniffle:vm_snapshot(Vm, Comment),
     ?MSniffle(?P(State), Start),
-    {<<"/api/", Version/binary, "/vms/", Vm/binary, "/snapshots/", UUID/binary>>, Req1, State#state{body = Decoded}}.
+    {<<"/api/", Version/binary, "/vms/", Vm/binary, "/snapshots/", UUID/binary>>, Req, State#state{body = Decoded}}.
 
 handle_write(Req, State = #state{path = [Vm, <<"metadata">> | Path]}, [{K, V}]) ->
     Start = now(),
