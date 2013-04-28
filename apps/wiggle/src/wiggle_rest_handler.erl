@@ -3,7 +3,8 @@
 -include("wiggle.hrl").
 
 -export([init/3,
-         rest_init/2]).
+         rest_init/2,
+         rest_terminate/2]).
 
 -export([content_types_provided/2,
          content_types_accepted/2,
@@ -32,6 +33,7 @@
               delete_resource/2,
               forbidden/2,
               init/3,
+              rest_terminate/2,
               is_authorized/2,
               options/2,
               service_available/2,
@@ -46,6 +48,10 @@ init(_Transport, _Req, _) ->
 rest_init(Req, [Module]) ->
     {ok, Req1, State} = wiggle_handler:initial_state(Req),
     {ok, Req1, State#state{module = Module}}.
+
+rest_terminate(_Req, State) ->
+    statman_histogram:record_value({State#state.path_bin, total}, State#state.start),
+    ok.
 
 post_is_create(Req, State) ->
     {true, Req, State}.
