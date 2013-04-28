@@ -1,4 +1,4 @@
--record(state, {path, method, version, token, content, reply, obj, body, start, path_bin}).
+-record(state, {module, path, method, version, token, content, reply, obj, body, start, path_bin}).
 
 -define(P(State), State#state.path_bin).
 -define(MEx(Path, Service, Start), statman_histogram:record_value({Path, {ext, Service}}, Start)).

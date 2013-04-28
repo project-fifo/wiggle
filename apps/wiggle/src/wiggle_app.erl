@@ -27,7 +27,7 @@ start(_StartType, _StartArgs) ->
                          {<<"/api/:version/vms/[...]">>, wiggle_vm_handler, []},
                          {<<"/api/:version/ipranges/[...]">>, wiggle_iprange_handler, []},
                          {<<"/api/:version/datasets/[...]">>, wiggle_dataset_handler, []},
-                         {<<"/api/:version/packages/[...]">>, wiggle_package_handler, []}]}]
+                         {<<"/api/:version/packages/[...]">>, wiggle_rest_handler, [wiggle_package_handler]}]}]
                 ),
     {ok, _} = cowboy:start_http(http, Acceptors, [{port, Port}],
                                 [{env, [{dispatch, Dispatch}]}]),
@@ -36,7 +36,6 @@ start(_StartType, _StartArgs) ->
     statman_server:add_subscriber(statman_aggregator),
     wiggle_snmp_handler:start(),
     otp_mib:load(snmp_master_agent),
-    os_mon_mib:load(snmp_master_agent),
     case application:get_env(newrelic,license_key) of
         undefined ->
             ok;
