@@ -40,16 +40,20 @@ allowed_methods(_Version, _Token, [_Group, <<"permissions">> | _Permission]) ->
 get(State = #state{path = [Group, <<"permissions">> | Permission]}) ->
     case {erlangify_permission(Permission), wiggle_group_handler:get(State#state{path = [Group]})} of
         {_, not_found} ->
-            {false, Req, State};
+            not_found;
         {[], {ok, Obj}} ->
-            {true, Req, State#state{obj=Obj}};
+            {ok, Obj};
         {P, {ok, Obj}} ->
-            {lists:member(P, jsxd:get(<<"permissions">>, [], Obj)), Req, State#state{obj=Obj}}
+            case lists:member(P, jsxd:get(<<"permissions">>, [], Obj)) of
+                true ->
+                    {ok, Obj};
+                _ -> not_found
+            end
     end;
 
 get(State = #state{path = [Group | _]}) ->
     Start = now(),
-    R = libsniffle:vm_get(Vm),
+    R = libsnarl:group_get(Group),
     ?MSniffle(?P(State), Start),
     R.
 
@@ -72,10 +76,14 @@ permission_required(#state{method = <<"GET">>, path = [Group, <<"permissions">>]
     {ok, [<<"groups">>, Group, <<"get">>]};
 
 permission_required(#state{method = <<"PUT">>, path = [Group, <<"permissions">> | Permission]}) ->
-    {ok, [<<"groups">>, Group, <<"grant">>]};
+    P = erlangify_permission(Permission),
+    {multiple, [[<<"groups">>, Group, <<"grant">>],
+                [<<"permissions">>, P, <<"revoke">>]]};
 
 permission_required(#state{method = <<"DELETE">>, path = [Group, <<"permissions">> | Permission]}) ->
-    {ok, [<<"groups">>, Group, <<"revoke">>]};
+    P = erlangify_permission(Permission),
+    {multiple, [[<<"groups">>, Group, <<"revoke">>],
+                [<<"permissions">>, P, <<"revoke">>]]};
 
 permission_required(#state{method = <<"PUT">>, path = [Group, <<"metadata">> | _]}) ->
     {ok, [<<"groups">>, Group, <<"edit">>]};

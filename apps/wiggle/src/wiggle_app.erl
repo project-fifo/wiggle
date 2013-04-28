@@ -14,9 +14,9 @@ start(_StartType, _StartArgs) ->
     {ok, Acceptors} = application:get_env(wiggle, acceptors),
 
     Dispatch = cowboy_router:compile(
-                 [{'_', [{<<"/api/:version/users/[...]">>, wiggle_user_handler, []},
+                 [{'_', [{<<"/api/:version/users/[...]">>, wiggle_rest_handler, [wiggle_user_handler]},
                          {<<"/api/:version/sessions/[...]">>, wiggle_session_handler, []},
-                         {<<"/api/:version/groups/[...]">>, wiggle_group_handler, []},
+                         {<<"/api/:version/groups/[...]">>, wiggle_rest_handler, [wiggle_group_handler]},
                          {<<"/api/:version/cloud/[...]">>, wiggle_rest_handler, [wiggle_cloud_handler]},
                          {<<"/api/:version/hypervisors/[...]">>, wiggle_rest_handler, [wiggle_hypervisor_handler]},
                          {<<"/api/:version/dtrace/:uuid/stream">>, wiggle_dtrace_stream, []},
