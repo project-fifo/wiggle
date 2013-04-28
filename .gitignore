@@ -1,3 +1,5 @@
+apps/wiggle/include/WIGGLE-MIB.hrl
+crash.log
 *.bin
 *.version
 apps/wiggle/src/wiggle_version.hrl

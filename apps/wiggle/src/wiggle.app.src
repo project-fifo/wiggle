@@ -15,6 +15,7 @@
                   mimetypes,
                   newrelic,
                   snmp,
+                  mnesia,
                   cowboy
                  ]},
   {mod, { wiggle_app, []}},

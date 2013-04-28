@@ -6,22 +6,107 @@
 {usersP95, {wiggle_snmp_handler, p95, [<<"/api/0.1.0/users">>]}}.
 {usersP75, {wiggle_snmp_handler, p75, [<<"/api/0.1.0/users">>]}}.
 {usersP25, {wiggle_snmp_handler, p25, [<<"/api/0.1.0/users">>]}}.
-
 {usersCount, {wiggle_snmp_handler, count, [<<"/api/0.1.0/users">>]}}.
 {usersMin, {wiggle_snmp_handler, min, [<<"/api/0.1.0/users">>]}}.
 {usersMedian, {wiggle_snmp_handler, median, [<<"/api/0.1.0/users">>]}}.
 {usersMean, {wiggle_snmp_handler, mean, [<<"/api/0.1.0/users">>]}}.
 {usersMax, {wiggle_snmp_handler, max, [<<"/api/0.1.0/users">>]}}.
 
+{sessionsP999, {wiggle_snmp_handler, p999, [<<"/api/0.1.0/sessions">>]}}.
+{sessionsP99, {wiggle_snmp_handler, p99, [<<"/api/0.1.0/sessions">>]}}.
+{sessionsP95, {wiggle_snmp_handler, p95, [<<"/api/0.1.0/sessions">>]}}.
+{sessionsP75, {wiggle_snmp_handler, p75, [<<"/api/0.1.0/sessions">>]}}.
+{sessionsP25, {wiggle_snmp_handler, p25, [<<"/api/0.1.0/sessions">>]}}.
+{sessionsCount, {wiggle_snmp_handler, count, [<<"/api/0.1.0/sessions">>]}}.
+{sessionsMin, {wiggle_snmp_handler, min, [<<"/api/0.1.0/sessions">>]}}.
+{sessionsMedian, {wiggle_snmp_handler, median, [<<"/api/0.1.0/sessions">>]}}.
+{sessionsMean, {wiggle_snmp_handler, mean, [<<"/api/0.1.0/sessions">>]}}.
+{sessionsMax, {wiggle_snmp_handler, max, [<<"/api/0.1.0/sessions">>]}}.
+
+{groupsP999, {wiggle_snmp_handler, p999, [<<"/api/0.1.0/groups">>]}}.
+{groupsP99, {wiggle_snmp_handler, p99, [<<"/api/0.1.0/groups">>]}}.
+{groupsP95, {wiggle_snmp_handler, p95, [<<"/api/0.1.0/groups">>]}}.
+{groupsP75, {wiggle_snmp_handler, p75, [<<"/api/0.1.0/groups">>]}}.
+{groupsP25, {wiggle_snmp_handler, p25, [<<"/api/0.1.0/groups">>]}}.
+{groupsCount, {wiggle_snmp_handler, count, [<<"/api/0.1.0/groups">>]}}.
+{groupsMin, {wiggle_snmp_handler, min, [<<"/api/0.1.0/groups">>]}}.
+{groupsMedian, {wiggle_snmp_handler, median, [<<"/api/0.1.0/groups">>]}}.
+{groupsMean, {wiggle_snmp_handler, mean, [<<"/api/0.1.0/groups">>]}}.
+{groupsMax, {wiggle_snmp_handler, max, [<<"/api/0.1.0/groups">>]}}.
+
+{cloudP999, {wiggle_snmp_handler, p999, [<<"/api/0.1.0/cloud">>]}}.
+{cloudP99, {wiggle_snmp_handler, p99, [<<"/api/0.1.0/cloud">>]}}.
+{cloudP95, {wiggle_snmp_handler, p95, [<<"/api/0.1.0/cloud">>]}}.
+{cloudP75, {wiggle_snmp_handler, p75, [<<"/api/0.1.0/cloud">>]}}.
+{cloudP25, {wiggle_snmp_handler, p25, [<<"/api/0.1.0/cloud">>]}}.
+{cloudCount, {wiggle_snmp_handler, count, [<<"/api/0.1.0/cloud">>]}}.
+{cloudMin, {wiggle_snmp_handler, min, [<<"/api/0.1.0/cloud">>]}}.
+{cloudMedian, {wiggle_snmp_handler, median, [<<"/api/0.1.0/cloud">>]}}.
+{cloudMean, {wiggle_snmp_handler, mean, [<<"/api/0.1.0/cloud">>]}}.
+{cloudMax, {wiggle_snmp_handler, max, [<<"/api/0.1.0/cloud">>]}}.
+
+{hypervisorsP999, {wiggle_snmp_handler, p999, [<<"/api/0.1.0/hypervisors">>]}}.
+{hypervisorsP99, {wiggle_snmp_handler, p99, [<<"/api/0.1.0/hypervisors">>]}}.
+{hypervisorsP95, {wiggle_snmp_handler, p95, [<<"/api/0.1.0/hypervisors">>]}}.
+{hypervisorsP75, {wiggle_snmp_handler, p75, [<<"/api/0.1.0/hypervisors">>]}}.
+{hypervisorsP25, {wiggle_snmp_handler, p25, [<<"/api/0.1.0/hypervisors">>]}}.
+{hypervisorsCount, {wiggle_snmp_handler, count, [<<"/api/0.1.0/hypervisors">>]}}.
+{hypervisorsMin, {wiggle_snmp_handler, min, [<<"/api/0.1.0/hypervisors">>]}}.
+{hypervisorsMedian, {wiggle_snmp_handler, median, [<<"/api/0.1.0/hypervisors">>]}}.
+{hypervisorsMean, {wiggle_snmp_handler, mean, [<<"/api/0.1.0/hypervisors">>]}}.
+{hypervisorsMax, {wiggle_snmp_handler, max, [<<"/api/0.1.0/hypervisors">>]}}.
+
+{dtraceP999, {wiggle_snmp_handler, p999, [<<"/api/0.1.0/dtrace">>]}}.
+{dtraceP99, {wiggle_snmp_handler, p99, [<<"/api/0.1.0/dtrace">>]}}.
+{dtraceP95, {wiggle_snmp_handler, p95, [<<"/api/0.1.0/dtrace">>]}}.
+{dtraceP75, {wiggle_snmp_handler, p75, [<<"/api/0.1.0/dtrace">>]}}.
+{dtraceP25, {wiggle_snmp_handler, p25, [<<"/api/0.1.0/dtrace">>]}}.
+{dtraceCount, {wiggle_snmp_handler, count, [<<"/api/0.1.0/dtrace">>]}}.
+{dtraceMin, {wiggle_snmp_handler, min, [<<"/api/0.1.0/dtrace">>]}}.
+{dtraceMedian, {wiggle_snmp_handler, median, [<<"/api/0.1.0/dtrace">>]}}.
+{dtraceMean, {wiggle_snmp_handler, mean, [<<"/api/0.1.0/dtrace">>]}}.
+{dtraceMax, {wiggle_snmp_handler, max, [<<"/api/0.1.0/dtrace">>]}}.
 
 {vmsP999, {wiggle_snmp_handler, p999, [<<"/api/0.1.0/vms">>]}}.
 {vmsP99, {wiggle_snmp_handler, p99, [<<"/api/0.1.0/vms">>]}}.
 {vmsP95, {wiggle_snmp_handler, p95, [<<"/api/0.1.0/vms">>]}}.
 {vmsP75, {wiggle_snmp_handler, p75, [<<"/api/0.1.0/vms">>]}}.
 {vmsP25, {wiggle_snmp_handler, p25, [<<"/api/0.1.0/vms">>]}}.
-
 {vmsCount, {wiggle_snmp_handler, count, [<<"/api/0.1.0/vms">>]}}.
 {vmsMin, {wiggle_snmp_handler, min, [<<"/api/0.1.0/vms">>]}}.
 {vmsMedian, {wiggle_snmp_handler, median, [<<"/api/0.1.0/vms">>]}}.
 {vmsMean, {wiggle_snmp_handler, mean, [<<"/api/0.1.0/vms">>]}}.
 {vmsMax, {wiggle_snmp_handler, max, [<<"/api/0.1.0/vms">>]}}.
+
+{iprangesP999, {wiggle_snmp_handler, p999, [<<"/api/0.1.0/ipranges">>]}}.
+{iprangesP99, {wiggle_snmp_handler, p99, [<<"/api/0.1.0/ipranges">>]}}.
+{iprangesP95, {wiggle_snmp_handler, p95, [<<"/api/0.1.0/ipranges">>]}}.
+{iprangesP75, {wiggle_snmp_handler, p75, [<<"/api/0.1.0/ipranges">>]}}.
+{iprangesP25, {wiggle_snmp_handler, p25, [<<"/api/0.1.0/ipranges">>]}}.
+{iprangesCount, {wiggle_snmp_handler, count, [<<"/api/0.1.0/ipranges">>]}}.
+{iprangesMin, {wiggle_snmp_handler, min, [<<"/api/0.1.0/ipranges">>]}}.
+{iprangesMedian, {wiggle_snmp_handler, median, [<<"/api/0.1.0/ipranges">>]}}.
+{iprangesMean, {wiggle_snmp_handler, mean, [<<"/api/0.1.0/ipranges">>]}}.
+{iprangesMax, {wiggle_snmp_handler, max, [<<"/api/0.1.0/ipranges">>]}}.
+
+{datasetsP999, {wiggle_snmp_handler, p999, [<<"/api/0.1.0/datasets">>]}}.
+{datasetsP99, {wiggle_snmp_handler, p99, [<<"/api/0.1.0/datasets">>]}}.
+{datasetsP95, {wiggle_snmp_handler, p95, [<<"/api/0.1.0/datasets">>]}}.
+{datasetsP75, {wiggle_snmp_handler, p75, [<<"/api/0.1.0/datasets">>]}}.
+{datasetsP25, {wiggle_snmp_handler, p25, [<<"/api/0.1.0/datasets">>]}}.
+{datasetsCount, {wiggle_snmp_handler, count, [<<"/api/0.1.0/datasets">>]}}.
+{datasetsMin, {wiggle_snmp_handler, min, [<<"/api/0.1.0/datasets">>]}}.
+{datasetsMedian, {wiggle_snmp_handler, median, [<<"/api/0.1.0/datasets">>]}}.
+{datasetsMean, {wiggle_snmp_handler, mean, [<<"/api/0.1.0/datasets">>]}}.
+{datasetsMax, {wiggle_snmp_handler, max, [<<"/api/0.1.0/datasets">>]}}.
+
+{packagesP999, {wiggle_snmp_handler, p999, [<<"/api/0.1.0/packages">>]}}.
+{packagesP99, {wiggle_snmp_handler, p99, [<<"/api/0.1.0/packages">>]}}.
+{packagesP95, {wiggle_snmp_handler, p95, [<<"/api/0.1.0/packages">>]}}.
+{packagesP75, {wiggle_snmp_handler, p75, [<<"/api/0.1.0/packages">>]}}.
+{packagesP25, {wiggle_snmp_handler, p25, [<<"/api/0.1.0/packages">>]}}.
+{packagesCount, {wiggle_snmp_handler, count, [<<"/api/0.1.0/packages">>]}}.
+{packagesMin, {wiggle_snmp_handler, min, [<<"/api/0.1.0/packages">>]}}.
+{packagesMedian, {wiggle_snmp_handler, median, [<<"/api/0.1.0/packages">>]}}.
+{packagesMean, {wiggle_snmp_handler, mean, [<<"/api/0.1.0/packages">>]}}.
+{packagesMax, {wiggle_snmp_handler, max, [<<"/api/0.1.0/packages">>]}}.

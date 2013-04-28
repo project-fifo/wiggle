@@ -4,10 +4,14 @@
 
 -export([
          initial_state/1,
+         provided/0,
          accepted/0,
          decode/1,
          get_token/1,
-         set_access_header/1
+         set_access_header/1,
+         allowed/2,
+         options/3,
+         service_available/0
         ]).
 
 initial_state(Req) ->
@@ -15,13 +19,18 @@ initial_state(Req) ->
     {Version, Req1} = cowboy_req:binding(version, Req0),
     {Path, Req2} = cowboy_req:path_info(Req1),
     {Token, Req3} = get_token(Req2),
+    {PathB, Req4} = cowboy_req:path(Req3),
+
     io:format("[~p] - ~p~n", [Method, Path]),
-    State =  #state{version = Version,
-                    method = Method,
-                    token = Token,
-                    path = Path,
-                    start = now()},
-    {ok, set_access_header(Req3), State}.
+    State =  #state{
+      version = Version,
+      method = Method,
+      token = Token,
+      path = Path,
+      start = now(),
+      path_bin = PathB
+     },
+    {ok, set_access_header(Req4), State}.
 
 set_access_header(Req) ->
     Req1 = cowboy_req:set_resp_header(<<"access-control-allow-origin">>, <<"*">>, Req),
@@ -44,6 +53,13 @@ get_token(Req) ->
             ReqX1 = cowboy_req:set_resp_header(<<"x-snarl-token">>, TokenX, ReqX),
             {TokenX, ReqX1}
     end.
+
+
+provided() ->
+    [
+     {<<"application/json">>, to_json},
+     {<<"application/x-msgpack">>, to_msgpack}
+    ].
 
 accepted() ->
     [
@@ -76,3 +92,36 @@ decode(Req) ->
                       end
               end,
     {ok, Decoded, Req1}.
+
+
+options(Req, State, Methods) ->
+    Req1 = cowboy_req:set_resp_header(
+             <<"access-control-allow-methods">>,
+             string:join(
+               lists:map(fun erlang:binary_to_list/1,
+                         [<<"HEAD">>, <<"OPTIONS">> | Methods]), ", "), Req),
+    {ok, Req1, State}.
+
+allowed(State, Perm) ->
+    Token = State#state.token,
+    Start = now(),
+    R = case libsnarl:allowed({token, Token}, Perm) of
+            not_found ->
+                true;
+            true ->
+                false;
+            false ->
+                true
+        end,
+    ?MSnarl(?P(State), Start),
+    R.
+
+service_available() ->
+    case {libsniffle:servers(), libsnarl:servers()} of
+        {[], _} ->
+            false;
+        {_, []} ->
+            false;
+        _ ->
+            true
+    end.
