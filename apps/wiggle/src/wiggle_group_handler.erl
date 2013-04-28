@@ -1,7 +1,6 @@
 -module(wiggle_group_handler).
 -include("wiggle.hrl").
 
-
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
 -endif.
@@ -54,7 +53,7 @@ get(State = #state{path = [Group, <<"permissions">> | Permission]}) ->
 get(State = #state{path = [Group | _]}) ->
     Start = now(),
     R = libsnarl:group_get(Group),
-    ?MSniffle(?P(State), Start),
+    ?MSnarl(?P(State), Start),
     R.
 
 permission_required(#state{method = <<"GET">>, path = []}) ->

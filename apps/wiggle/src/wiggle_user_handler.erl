@@ -91,7 +91,7 @@ get(State = #state{method = <<"PUT">>, path = [User, <<"groups">>, Group]}) ->
 get(State = #state{path = [User | _]}) ->
     Start = now(),
     R = libsnarl:user_get(User),
-    ?MSniffle(?P(State), Start),
+    ?MSnarl(?P(State), Start),
     R.
 
 permission_required(#state{method = <<"GET">>, path = []}) ->
