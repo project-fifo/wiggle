@@ -5,10 +5,12 @@
 
 -export([allowed_methods/3,
          permission_required/1,
+         get/1,
          handle_request/2]).
 
 -ignore_xref([allowed_methods/3,
               permission_required/1,
+              get/1,
               handle_request/2]).
 
 allowed_methods(_Version, _Token, [<<"connection">>]) ->
@@ -16,6 +18,10 @@ allowed_methods(_Version, _Token, [<<"connection">>]) ->
 
 allowed_methods(_Version, _Token, []) ->
     [<<"GET">>].
+
+
+get(_) ->
+    {ok, undefined}.
 
 permission_required(#state{path = [<<"connection">>]}) ->
     {ok, always};
