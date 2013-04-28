@@ -1,7 +1,3 @@
-%% Feel free to use, reuse and abuse the code in this file.
-
-%% @doc Hello world handler.
-
 -module(wiggle_vm_handler).
 
 -include("wiggle.hrl").
@@ -112,7 +108,6 @@ permission_required(_State) ->
 %% GET
 %%--------------------------------------------------------------------
 
-
 handle_request(Req, State = #state{token = Token, path = []}) ->
     Start = now(),
     {ok, Permissions} = libsnarl:user_cache({token, Token}),
@@ -133,7 +128,6 @@ handle_request(Req, State = #state{path = [_Vm, <<"snapshots">>, Snap], obj = Ob
 
 handle_request(Req, State = #state{path = [_Vm], obj = Obj}) ->
     {Obj, Req, State}.
-
 
 %%--------------------------------------------------------------------
 %% PUT
