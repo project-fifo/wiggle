@@ -2,7 +2,6 @@
 
 -include("wiggle.hrl").
 
-
 -export([init/3,
          rest_init/2]).
 
@@ -100,6 +99,8 @@ forbidden(Req, State = #state{module = M}) ->
             forbidden(Req1, State#state{body = Decoded});
         undefined ->
             {true, Req, State};
+        {ok, always} ->
+            {false, Req, State};
         {ok, Permission} ->
             {wiggle_handler:allowed(State, Permission), Req, State}
     end.

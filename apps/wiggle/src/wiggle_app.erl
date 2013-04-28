@@ -9,7 +9,6 @@
 %% Application callbacks
 %% ===================================================================
 
-
 start(_StartType, _StartArgs) ->
     {ok, Port} = application:get_env(wiggle, port),
     {ok, Acceptors} = application:get_env(wiggle, acceptors),
@@ -18,7 +17,7 @@ start(_StartType, _StartArgs) ->
                  [{'_', [{<<"/api/:version/users/[...]">>, wiggle_user_handler, []},
                          {<<"/api/:version/sessions/[...]">>, wiggle_session_handler, []},
                          {<<"/api/:version/groups/[...]">>, wiggle_group_handler, []},
-                         {<<"/api/:version/cloud/[...]">>, wiggle_cloud_handler, []},
+                         {<<"/api/:version/cloud/[...]">>, wiggle_rest_handler, [wiggle_cloud_handler]},
                          {<<"/api/:version/hypervisors/[...]">>, wiggle_rest_handler, [wiggle_hypervisor_handler]},
                          {<<"/api/:version/dtrace/:uuid/stream">>, wiggle_dtrace_stream, []},
                          {<<"/api/:version/dtrace/[...]">>, wiggle_rest_handler, [wiggle_dtrace_handler]},
