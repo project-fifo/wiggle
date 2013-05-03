@@ -38,7 +38,7 @@ get(State = #state{path = [Vm, <<"snapshots">>, Snap]}) ->
         {ok, Obj} ->
             case jsxd:get([<<"snapshots">>, Snap], Obj) of
                 undefined -> not_found;
-                {ok, _} -> Obj
+                {ok, _} -> {ok, Obj}
             end;
         E ->
             E
