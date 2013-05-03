@@ -32,25 +32,24 @@ websocket_init(_Any, Req, []) ->
                 true ->
                     case libsniffle:vm_get(ID) of
                         {ok, VM} ->
-                            case jsxd:get([<<"info">>, <<"vnc">>], VM) of
-                                {ok, VNC} ->
-                                    Host = proplists:get_value(<<"host">>, VNC),
-                                    Port = proplists:get_value(<<"port">>, VNC),
+                            case {jsxd:get([<<"info">>, <<"vnc">>, <<"host">>], VM),
+                                  jsxd:get([<<"info">>, <<"vnc">>, <<"port">>], VM)} of
+                                {{ok, Host}, {ok, Port}} when is_binary(Host),
+                                                              is_integer(Port)->
                                     case gen_tcp:connect(binary_to_list(Host), Port,
                                                          [binary,{nodelay, true}, {packet, 0}]) of
                                         {ok, Socket} ->
                                             gen_tcp:controlling_process(Socket, self()),
                                             Req4 = cowboy_req:compact(Req3),
                                             {ok, Req4, {Socket}, hibernate};
-                                        _ ->
-                                            Req4 = cowboy_req:compact(Req3),
-                                            {ok, Req4, undefined, hibernate}
+                                        E ->
+                                            list_to_binary(io_lib:format("~p", [E]))
                                     end;
                                 _ ->
-                                    e(505, <<"could not find vnc">>, Req3)
+                                    e(404, <<"could not find vnc">>, Req3)
                             end;
                         E ->
-                            e(505, list_to_binary(io_lib:format("~p", [E])), Req3)
+                            e(404, list_to_binary(io_lib:format("~p", [E])), Req3)
                     end;
                 false ->
                     e(401, Req3)
