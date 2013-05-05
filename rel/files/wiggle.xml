@@ -51,6 +51,7 @@
 	<method_environment>
 	  <envvar name='PATH' value='/opt/local/gnu/bin:/opt/local/bin:/opt/local/sbin:/usr/bin:/usr/sbin'/>
 	  <envvar name='HOME' value='/var/db/wiggle'/>
+	  <envvar name='ERL_CRASH_DUMP' value='/var/db/wiggle'/>
 	</method_environment>
       </method_context>
     </exec_method>
