@@ -20,8 +20,6 @@ initial_state(Req) ->
     {Path, Req2} = cowboy_req:path_info(Req1),
     {Token, Req3} = get_token(Req2),
     {PathB, Req4} = cowboy_req:path(Req3),
-
-    io:format("[~p] - ~p~n", [Method, Path]),
     State =  #state{
       version = Version,
       method = Method,

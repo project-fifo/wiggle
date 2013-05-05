@@ -123,7 +123,6 @@ handle(Config, Req, State  = #state{encoder = Enc, type = Type}) ->
     Config2 = jsxd:update([<<"servers">>], fun(S) ->
                                                    S
                                            end, Servers, Config1),
-    io:format("Now we got a config: ~p~n", [Config2]),
     case libsniffle:dtrace_run(State#state.id, Config2) of
         {ok, S} ->
             {reply, {Type, Enc(jsxd:merge(Config1, State#state.config))},
