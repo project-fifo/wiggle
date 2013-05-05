@@ -59,7 +59,7 @@
     <exec_method
 	name='restart'
 	type='method'
-        exec='/opt/local/wiggle/bin/wiggle %m'
+        exec='/opt/local/wiggle/bin/wiggle smf-stop'
 	timeout_seconds='60'>
       <method_context>
 	<method_credential user='wiggle' group='www' />
