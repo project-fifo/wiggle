@@ -94,7 +94,7 @@ is_authorized(Req, State = #state{method = <<"GET">>,
 is_authorized(Req, State = #state{method = <<"POST">>,
                               module = wiggle_session_handler,
                               path = []}) ->
-    {false, Req, State};
+    {true, Req, State};
 
 is_authorized(Req, State = #state{token = undefined}) ->
     {{false, <<"x-snarl-token">>}, Req, State};
