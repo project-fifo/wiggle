@@ -86,7 +86,9 @@ resource_exists(Req, State = #state{module = M}) ->
 is_authorized(Req, State = #state{method = <<"OPTIONS">>}) ->
     {true, Req, State};
 
-is_authorized(Req, State = #state{method = <<"GET">>, path = [<<"cloud">>]}) ->
+is_authorized(Req, State = #state{method = <<"GET">>,
+                                  module = wiggle_cloud_handler,
+                                  path = [<<"connection">>]}) ->
     {true, Req, State};
 
 is_authorized(Req, State = #state{token = undefined}) ->
