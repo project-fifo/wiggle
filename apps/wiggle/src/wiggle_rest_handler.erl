@@ -86,6 +86,9 @@ resource_exists(Req, State = #state{module = M}) ->
 is_authorized(Req, State = #state{method = <<"OPTIONS">>}) ->
     {true, Req, State};
 
+is_authorized(Req, State = #state{method = <<"GET">>, path = [<<"cloud">>]}) ->
+    {true, Req, State};
+
 is_authorized(Req, State = #state{token = undefined}) ->
     {{false, <<"x-snarl-token">>}, Req, State};
 
