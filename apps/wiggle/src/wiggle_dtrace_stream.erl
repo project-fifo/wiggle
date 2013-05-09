@@ -47,7 +47,7 @@ websocket_init(_Any, Req, []) ->
                                end,
     case wiggle_handler:get_token(Req2) of
         {undefined, Req3} ->
-            e(401, Req3);
+            e(401, <<".">>, Req3);
         {Token, Req3} ->
             case libsnarl:allowed({token, Token}, [<<"dtrace">>, ID, <<"stream">>]) of
                 true ->
@@ -59,7 +59,7 @@ websocket_init(_Any, Req, []) ->
                             e(404, Req3)
                     end;
                 false ->
-                    e(401, Req3)
+                    e(403, <<"forbidden">>, Req3)
             end
     end.
 
