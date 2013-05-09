@@ -28,7 +28,7 @@ websocket_init(_Any, Req, []) ->
     {ID, Req1} = cowboy_req:binding(uuid, Req0),
     Req2 = wiggle_handler:set_access_header(Req1),
     {Encoder, Decoder, Type} = case C of
-                                   <<"msgpack">> ->
+                                   [<<"msgpack">> | _] ->
                                        {fun(O) ->
                                                 msgpack:pack(O, [jsx])
                                         end,
@@ -37,7 +37,7 @@ websocket_init(_Any, Req, []) ->
                                                 jsxd:from_list(O)
                                         end,
                                         binary};
-                                   <<"json">> ->
+                                   [<<"json">> | _ ] ->
                                        {fun(O) ->
                                                 jsx:encode(O)
                                         end,
@@ -47,7 +47,7 @@ websocket_init(_Any, Req, []) ->
                                end,
     case wiggle_handler:get_token(Req2) of
         {undefined, Req3} ->
-            e(401, Req3);
+            e(401, <<".">>, Req3);
         {Token, Req3} ->
             case libsnarl:allowed({token, Token}, [<<"dtrace">>, ID, <<"stream">>]) of
                 true ->
@@ -59,7 +59,7 @@ websocket_init(_Any, Req, []) ->
                             e(404, Req3)
                     end;
                 false ->
-                    e(401, Req3)
+                    e(403, <<"forbidden">>, Req3)
             end
     end.
 

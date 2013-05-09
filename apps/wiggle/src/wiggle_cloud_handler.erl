@@ -19,7 +19,6 @@ allowed_methods(_Version, _Token, [<<"connection">>]) ->
 allowed_methods(_Version, _Token, []) ->
     [<<"GET">>].
 
-
 get(_) ->
     {ok, undefined}.
 

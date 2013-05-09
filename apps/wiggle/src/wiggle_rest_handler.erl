@@ -86,6 +86,16 @@ resource_exists(Req, State = #state{module = M}) ->
 is_authorized(Req, State = #state{method = <<"OPTIONS">>}) ->
     {true, Req, State};
 
+is_authorized(Req, State = #state{method = <<"GET">>,
+                                  module = wiggle_cloud_handler,
+                                  path = [<<"connection">>]}) ->
+    {true, Req, State};
+
+is_authorized(Req, State = #state{method = <<"POST">>,
+                              module = wiggle_session_handler,
+                              path = []}) ->
+    {true, Req, State};
+
 is_authorized(Req, State = #state{token = undefined}) ->
     {{false, <<"x-snarl-token">>}, Req, State};
 
@@ -93,6 +103,16 @@ is_authorized(Req, State) ->
     {true, Req, State}.
 
 forbidden(Req, State = #state{method = <<"OPTIONS">>}) ->
+    {false, Req, State};
+
+forbidden(Req, State = #state{method = <<"GET">>,
+                              module = wiggle_cloud_handler,
+                              path = [<<"connection">>]}) ->
+    {false, Req, State};
+
+forbidden(Req, State = #state{method = <<"POST">>,
+                              module = wiggle_session_handler,
+                              path = []}) ->
     {false, Req, State};
 
 forbidden(Req, State = #state{token = undefined}) ->
