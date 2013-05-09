@@ -28,7 +28,7 @@ websocket_init(_Any, Req, []) ->
     {ID, Req1} = cowboy_req:binding(uuid, Req0),
     Req2 = wiggle_handler:set_access_header(Req1),
     {Encoder, Decoder, Type} = case C of
-                                   <<"msgpack">> ->
+                                   [<<"msgpack">> | _] ->
                                        {fun(O) ->
                                                 msgpack:pack(O, [jsx])
                                         end,
@@ -37,7 +37,7 @@ websocket_init(_Any, Req, []) ->
                                                 jsxd:from_list(O)
                                         end,
                                         binary};
-                                   <<"json">> ->
+                                   [<<"json">> | _ ] ->
                                        {fun(O) ->
                                                 jsx:encode(O)
                                         end,
