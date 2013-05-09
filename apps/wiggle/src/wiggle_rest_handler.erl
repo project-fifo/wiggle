@@ -100,6 +100,11 @@ is_authorized(Req, State) ->
 forbidden(Req, State = #state{method = <<"OPTIONS">>}) ->
     {false, Req, State};
 
+forbidden(Req, State = #state{method = <<"GET">>,
+                                  module = wiggle_cloud_handler,
+                                  path = [<<"connection">>]}) ->
+    {false, Req, State};
+
 forbidden(Req, State = #state{token = undefined}) ->
     {true, Req, State};
 
