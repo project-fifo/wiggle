@@ -91,6 +91,11 @@ is_authorized(Req, State = #state{method = <<"GET">>,
                                   path = [<<"connection">>]}) ->
     {true, Req, State};
 
+is_authorized(Req, State = #state{method = <<"POST">>,
+                              module = wiggle_session_handler,
+                              path = []}) ->
+    {false, Req, State};
+
 is_authorized(Req, State = #state{token = undefined}) ->
     {{false, <<"x-snarl-token">>}, Req, State};
 
@@ -101,8 +106,13 @@ forbidden(Req, State = #state{method = <<"OPTIONS">>}) ->
     {false, Req, State};
 
 forbidden(Req, State = #state{method = <<"GET">>,
-                                  module = wiggle_cloud_handler,
-                                  path = [<<"connection">>]}) ->
+                              module = wiggle_cloud_handler,
+                              path = [<<"connection">>]}) ->
+    {false, Req, State};
+
+forbidden(Req, State = #state{method = <<"POST">>,
+                              module = wiggle_session_handler,
+                              path = []}) ->
     {false, Req, State};
 
 forbidden(Req, State = #state{token = undefined}) ->
