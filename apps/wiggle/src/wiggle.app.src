@@ -16,6 +16,7 @@
                   newrelic,
                   snmp,
                   mnesia,
+                  eplugin,
                   cowboy
                  ]},
   {mod, { wiggle_app, []}},
