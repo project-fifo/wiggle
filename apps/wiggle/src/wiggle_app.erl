@@ -13,6 +13,7 @@ start(_StartType, _StartArgs) ->
     {ok, Port} = application:get_env(wiggle, port),
     {ok, Acceptors} = application:get_env(wiggle, acceptors),
 
+    PluginDispatchs = eplugin:fold('wiggle:dispatchs', []),
     Dispatch = cowboy_router:compile(
                  [{'_', [{<<"/api/:version/users/[...]">>, wiggle_rest_handler, [wiggle_user_handler]},
                          {<<"/api/:version/sessions/[...]">>, wiggle_rest_handler, [wiggle_session_handler]},
@@ -27,7 +28,9 @@ start(_StartType, _StartArgs) ->
                          {<<"/api/:version/vms/[...]">>, wiggle_rest_handler, [wiggle_vm_handler]},
                          {<<"/api/:version/ipranges/[...]">>, wiggle_rest_handler, [wiggle_iprange_handler]},
                          {<<"/api/:version/datasets/[...]">>, wiggle_rest_handler, [wiggle_dataset_handler]},
-                         {<<"/api/:version/packages/[...]">>, wiggle_rest_handler, [wiggle_package_handler]}]}]
+                         {<<"/api/:version/packages/[...]">>, wiggle_rest_handler, [wiggle_package_handler]}] ++
+                       PluginDispatchs
+                  }]
                 ),
     {ok, _} = cowboy:start_http(http, Acceptors, [{port, Port}],
                                 [{env, [{dispatch, Dispatch}]}]),
