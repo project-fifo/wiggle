@@ -28,7 +28,10 @@ allowed_methods(_Version, _Token, [_Vm, <<"metadata">>|_]) ->
     [<<"PUT">>, <<"DELETE">>];
 
 allowed_methods(_Version, _Token, [_Vm, <<"nics">>, _Mac]) ->
-    [<<"PUT">>, <<"DELETE">>, <<"POST">>];
+    [<<"PUT">>, <<"DELETE">>];
+
+allowed_methods(_Version, _Token, [_Vm, <<"nics">>]) ->
+    [<<"POST">>];
 
 allowed_methods(_Version, _Token, [_Vm, <<"snapshots">>, _ID]) ->
     [<<"GET">>, <<"PUT">>, <<"DELETE">>];
