@@ -78,7 +78,10 @@ permission_required(#state{method = <<"GET">>, path = [Vm]}) ->
 permission_required(#state{method = <<"DELETE">>, path = [Vm]}) ->
     {ok, [<<"vms">>, Vm, <<"delete">>]};
 
-permission_required(#state{method = <<"GET">>, path = [Vm, <<"nics">> | _]}) ->
+permission_required(#state{method = <<"POST">>, path = [Vm, <<"nics">>]}) ->
+    {ok, [<<"vms">>, Vm, <<"edit">>]};
+
+permission_required(#state{method = <<"PUT">>, path = [Vm, <<"nics">>, _]}) ->
     {ok, [<<"vms">>, Vm, <<"edit">>]};
 
 permission_required(#state{method = <<"GET">>, path = [Vm, <<"snapshots">>]}) ->
