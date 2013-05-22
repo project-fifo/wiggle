@@ -27,6 +27,12 @@ allowed_methods(_Version, _Token, [_Vm]) ->
 allowed_methods(_Version, _Token, [_Vm, <<"metadata">>|_]) ->
     [<<"PUT">>, <<"DELETE">>];
 
+allowed_methods(_Version, _Token, [_Vm, <<"nics">>, _Mac]) ->
+    [<<"PUT">>, <<"DELETE">>];
+
+allowed_methods(_Version, _Token, [_Vm, <<"nics">>]) ->
+    [<<"POST">>];
+
 allowed_methods(_Version, _Token, [_Vm, <<"snapshots">>, _ID]) ->
     [<<"GET">>, <<"PUT">>, <<"DELETE">>];
 
@@ -39,6 +45,19 @@ get(State = #state{path = [Vm, <<"snapshots">>, Snap]}) ->
             case jsxd:get([<<"snapshots">>, Snap], Obj) of
                 undefined -> not_found;
                 {ok, _} -> {ok, Obj}
+            end;
+        E ->
+            E
+    end;
+
+get(State = #state{path = [Vm, <<"nics">>, Mac]}) ->
+    case wiggle_vm_handler:get(State#state{path=[Vm]}) of
+        {ok, Obj} ->
+            Macs = [jsxd:get([<<"mac">>], undefined, N) ||
+                       N <- jsxd:get([<<"config">>, <<"networks">>], [], Obj)],
+            case lists:member(Mac, Macs) of
+                false -> not_found;
+                true -> {ok, Obj}
             end;
         E ->
             E
@@ -61,6 +80,15 @@ permission_required(#state{method = <<"GET">>, path = [Vm]}) ->
 
 permission_required(#state{method = <<"DELETE">>, path = [Vm]}) ->
     {ok, [<<"vms">>, Vm, <<"delete">>]};
+
+permission_required(#state{method = <<"POST">>, path = [Vm, <<"nics">>]}) ->
+    {ok, [<<"vms">>, Vm, <<"edit">>]};
+
+permission_required(#state{method = <<"PUT">>, path = [Vm, <<"nics">>, _]}) ->
+    {ok, [<<"vms">>, Vm, <<"edit">>]};
+
+permission_required(#state{method = <<"DELETE">>, path = [Vm, <<"nics">>, _]}) ->
+    {ok, [<<"vms">>, Vm, <<"edit">>]};
 
 permission_required(#state{method = <<"GET">>, path = [Vm, <<"snapshots">>]}) ->
     {ok, [<<"vms">>, Vm, <<"get">>]};
@@ -163,7 +191,23 @@ create_path(Req, State = #state{path = [Vm, <<"snapshots">>], version = Version}
     Start = now(),
     {ok, UUID} = libsniffle:vm_snapshot(Vm, Comment),
     ?MSniffle(?P(State), Start),
-    {<<"/api/", Version/binary, "/vms/", Vm/binary, "/snapshots/", UUID/binary>>, Req, State#state{body = Decoded}}.
+    {<<"/api/", Version/binary, "/vms/", Vm/binary, "/snapshots/", UUID/binary>>, Req, State#state{body = Decoded}};
+create_path(Req, State = #state{path = [Vm, <<"nics">>], version = Version}, Decoded) ->
+    {ok, Network} = jsxd:get(<<"network">>, Decoded),
+    Start = now(),
+    ok = libsniffle:vm_add_nic(Vm, Network),
+    ?MSniffle(?P(State), Start),
+    {<<"/api/", Version/binary, "/vms/", Vm/binary>>, Req, State#state{body = Decoded}}.
+
+
+handle_write(Req, State = #state{path = [_, <<"nics">>]}, _Body) ->
+    {true, Req, State};
+
+handle_write(Req, State = #state{path = [Vm, <<"nics">>, Mac]}, [{<<"primary">>, true}]) ->
+    Start = now(),
+    ok = libsniffle:vm_primary_nic(Vm, Mac),
+    ?MSniffle(?P(State), Start),
+    {true, Req, State};
 
 handle_write(Req, State = #state{path = [Vm, <<"metadata">> | Path]}, [{K, V}]) ->
     Start = now(),
@@ -243,6 +287,12 @@ handle_write(Req, State, _Body) ->
 delete_resource(Req, State = #state{path = [Vm, <<"snapshots">>, UUID]}) ->
     Start = now(),
     ok = libsniffle:vm_delete_snapshot(Vm, UUID),
+    ?MSniffle(?P(State), Start),
+    {true, Req, State};
+
+delete_resource(Req, State = #state{path = [Vm, <<"nics">>, Mac]}) ->
+    Start = now(),
+    ok = libsniffle:vm_remove_nic(Vm, Mac),
     ?MSniffle(?P(State), Start),
     {true, Req, State};
 
