@@ -16,6 +16,7 @@
          options/2,
          create_path/2,
          post_is_create/2,
+         generate_etag/2,
          is_authorized/2]).
 
 -export([to_json/2,
@@ -31,6 +32,7 @@
               content_types_accepted/2,
               content_types_provided/2,
               delete_resource/2,
+              generate_etag/2,
               forbidden/2,
               init/3,
               rest_terminate/2,
@@ -50,7 +52,8 @@ rest_init(Req, [Module]) ->
     {ok, Req1, State#state{module = Module}}.
 
 rest_terminate(_Req, State) ->
-    statman_histogram:record_value({State#state.path_bin, total}, State#state.start),
+    statman_histogram:record_value({State#state.path_bin, total},
+                                   State#state.start),
     ok.
 
 post_is_create(Req, State) ->
@@ -60,7 +63,9 @@ service_available(Req, State) ->
     {wiggle_handler:service_available(), Req, State}.
 
 options(Req, State = #state{module = M}) ->
-    Methods = M:allowed_methods(State#state.version, State#state.token, State#state.path),
+    Methods = M:allowed_methods(State#state.version,
+                                State#state.token,
+                                State#state.path),
     wiggle_handler:options(Req, State,Methods).
 
 content_types_provided(Req, State) ->
@@ -70,7 +75,10 @@ content_types_accepted(Req, State) ->
     {wiggle_handler:accepted(), Req, State}.
 
 allowed_methods(Req, State = #state{module = M}) ->
-    {[<<"HEAD">>, <<"OPTIONS">> | M:allowed_methods(State#state.version, State#state.token, State#state.path)], Req, State}.
+    {[<<"HEAD">>, <<"OPTIONS">> |
+      M:allowed_methods(State#state.version,
+                        State#state.token,
+                        State#state.path)], Req, State}.
 
 resource_exists(Req, State = #state{path = []}) ->
     {true, Req, State};
@@ -82,6 +90,12 @@ resource_exists(Req, State = #state{module = M}) ->
         {ok, Obj} ->
             {true, Req, State#state{obj = Obj}}
     end.
+
+generate_etag(Req, State = #state{obj = undefined}) ->
+    {undefined, Req, State};
+
+generate_etag(Req, State = #state{obj = Obj}) ->
+    {{strong, base64:encode(crypto:md5(term_to_binary(Obj)))}, Req, State}.
 
 is_authorized(Req, State = #state{method = <<"OPTIONS">>}) ->
     {true, Req, State};
