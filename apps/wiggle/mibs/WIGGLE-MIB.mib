@@ -6,10 +6,12 @@ WIGGLE-MIB DEFINITIONS ::= BEGIN
         RowStatus      FROM STANDARD-MIB
         DisplayString  FROM RFC1213-MIB
         OBJECT-TYPE    FROM RFC-1212
+        enterprises    FROM SNMPv2-SMI
         ;
 
+    fifo         OBJECT IDENTIFIER ::= { enterprises 41822 }
 -- Group section
-    wiggle       OBJECT IDENTIFIER ::= { experimental 7 }
+    wiggle       OBJECT IDENTIFIER ::= { fifo 1 }
 
     users        OBJECT IDENTIFIER ::= { wiggle  3 }
     sessions     OBJECT IDENTIFIER ::= { wiggle  4 }
