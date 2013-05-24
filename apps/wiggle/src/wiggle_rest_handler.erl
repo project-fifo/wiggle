@@ -89,7 +89,7 @@ generate_etag(Req, State = #state{obj = undefined}) ->
     {undefined, Req, State};
 
 generate_etag(Req, State = #state{obj = Obj}) ->
-    {base64:encode(crypto:md5(term_to_binary(Obj))), Req, State}.
+    {{string, base64:encode(crypto:md5(term_to_binary(Obj)))}, Req, State}.
 
 is_authorized(Req, State = #state{method = <<"OPTIONS">>}) ->
     {true, Req, State};
