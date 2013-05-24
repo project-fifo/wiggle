@@ -16,6 +16,7 @@
          options/2,
          create_path/2,
          post_is_create/2,
+         generate_etag/2,
          is_authorized/2]).
 
 -export([to_json/2,
@@ -31,6 +32,7 @@
               content_types_accepted/2,
               content_types_provided/2,
               delete_resource/2,
+              generate_etag/2,
               forbidden/2,
               init/3,
               rest_terminate/2,
@@ -82,6 +84,12 @@ resource_exists(Req, State = #state{module = M}) ->
         {ok, Obj} ->
             {true, Req, State#state{obj = Obj}}
     end.
+
+generate_etag(Req, State = #state{obj = undefined}) ->
+    {undefined, Req, State};
+
+generate_etag(Req, State = #state{obj = Obj}) ->
+    {base64:encode(crypto:md5(term_to_binary(Obj))), Req, State}.
 
 is_authorized(Req, State = #state{method = <<"OPTIONS">>}) ->
     {true, Req, State};
