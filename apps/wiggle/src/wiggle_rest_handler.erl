@@ -52,7 +52,8 @@ rest_init(Req, [Module]) ->
     {ok, Req1, State#state{module = Module}}.
 
 rest_terminate(_Req, State) ->
-    statman_histogram:record_value({State#state.path_bin, total}, State#state.start),
+    statman_histogram:record_value({State#state.path_bin, total},
+                                   State#state.start),
     ok.
 
 post_is_create(Req, State) ->
@@ -62,7 +63,9 @@ service_available(Req, State) ->
     {wiggle_handler:service_available(), Req, State}.
 
 options(Req, State = #state{module = M}) ->
-    Methods = M:allowed_methods(State#state.version, State#state.token, State#state.path),
+    Methods = M:allowed_methods(State#state.version,
+                                State#state.token,
+                                State#state.path),
     wiggle_handler:options(Req, State,Methods).
 
 content_types_provided(Req, State) ->
@@ -72,7 +75,10 @@ content_types_accepted(Req, State) ->
     {wiggle_handler:accepted(), Req, State}.
 
 allowed_methods(Req, State = #state{module = M}) ->
-    {[<<"HEAD">>, <<"OPTIONS">> | M:allowed_methods(State#state.version, State#state.token, State#state.path)], Req, State}.
+    {[<<"HEAD">>, <<"OPTIONS">> |
+      M:allowed_methods(State#state.version,
+                        State#state.token,
+                        State#state.path)], Req, State}.
 
 resource_exists(Req, State = #state{path = []}) ->
     {true, Req, State};
