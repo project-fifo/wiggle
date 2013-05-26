@@ -27,7 +27,7 @@ test: all
 	$(REBAR) skip_deps=true xref
 	$(REBAR) skip_deps=true eunit
 
-rel: all
+rel: all zabbix
 	$(REBAR) generate
 
 relclean:
@@ -38,6 +38,9 @@ package: rel
 
 console: all
 	erl -pa deps/*/ebin apps/*/ebin -s wiggle -config standalone.config
+
+zabbix:
+	sh generate_zabbix_template.sh
 
 ###
 ### Docs
