@@ -1,3 +1,7 @@
+wiggle_template.xml
+apps/wiggle/include/WIGGLE-MIB.hrl
+crash.log
+*.bin
 *.version
 apps/wiggle/src/wiggle_version.hrl
 apps/wiggle/.eunit/
@@ -7,7 +11,6 @@ rel/pkg/build-info
 gproc_dist_*
 standalone.config
 ebin
-db
 deps
 *~
 .DS_Store

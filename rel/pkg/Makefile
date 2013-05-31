@@ -1,4 +1,4 @@
-VERSION=0.4.7p1
+VERSION=0.4.8
 COMPONENT=wiggle
 
 .PHONY: build_info package package_list
