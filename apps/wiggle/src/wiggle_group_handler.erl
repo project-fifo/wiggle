@@ -129,7 +129,7 @@ create_path(Req, State = #state{path = [], version = Version}, Decoded) ->
 handle_write(Req, State = #state{method = <<"POST">>, path = []}, _) ->
     {true, Req, State};
 
-handle_write(Req, State = #state{path = [Group, <<"metadata">> | Path]}, [{K, V}]) ->
+handle_write(Req, State = #state{path = [Group, <<"metadata">> | Path]}, [{K, V}]) when is_binary(Group) ->
     Start = now(),
     libsnarl:group_set(Group, [<<"metadata">> | Path] ++ [K], jsxd:from_list(V)),
     ?MSnarl(?P(State), Start),
