@@ -53,11 +53,13 @@ get(State = #state{path = [Vm, <<"snapshots">>, Snap]}) ->
 get(State = #state{path = [Vm, <<"nics">>, Mac]}) ->
     case wiggle_vm_handler:get(State#state{path=[Vm]}) of
         {ok, Obj} ->
-            Macs = [jsxd:get([<<"mac">>], undefined, N) ||
+            Macs = [jsxd:get([<<"mac">>], <<>>, N) ||
                        N <- jsxd:get([<<"config">>, <<"networks">>], [], Obj)],
             case lists:member(Mac, Macs) of
-                false -> not_found;
-                true -> {ok, Obj}
+                true ->
+                    {ok, Obj};
+                _ ->
+                    not_found
             end;
         E ->
             E
