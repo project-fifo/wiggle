@@ -106,11 +106,10 @@ encode(Body, Req) ->
     {ContentType, Req1} = media_type(Req),
     case ContentType of
         json ->
-            {jsx:decode(Body), Req1};
+            {jsx:encode(Body), Req1};
         msgpack ->
-            {jsx:decode(Body), Req1}
+            {msgpack:pack(Body), Req1}
     end.
-
 
 options(Req, State, Methods) ->
     Req1 = cowboy_req:set_resp_header(
