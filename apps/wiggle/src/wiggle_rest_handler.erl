@@ -15,7 +15,6 @@
          forbidden/2,
          options/2,
          create_path/2,
-         post_is_create/2,
          generate_etag/2,
          is_authorized/2]).
 
@@ -41,7 +40,6 @@
               service_available/2,
               resource_exists/2,
               create_path/2,
-              post_is_create/2,
               rest_init/2]).
 
 init(_Transport, _Req, _) ->
@@ -55,9 +53,6 @@ rest_terminate(_Req, State) ->
     statman_histogram:record_value({State#state.path_bin, total},
                                    State#state.start),
     ok.
-
-post_is_create(Req, State) ->
-    {true, Req, State}.
 
 service_available(Req, State) ->
     {wiggle_handler:service_available(), Req, State}.

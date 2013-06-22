@@ -55,23 +55,26 @@ get_token(Req) ->
 
 provided() ->
     [
-     {<<"application/json">>, to_json},
-     {<<"application/x-msgpack">>, to_msgpack}
+     {{<<"application">>, <<"x-msgpack">>, []}, to_msgpack},
+     {{<<"application">>, <<"json">>, []}, to_json}
     ].
 
 accepted() ->
     [
-     {<<"application/x-msgpack; charset=UTF-8">>, from_msgpack},
-     {<<"application/x-msgpack; charset=utf-8">>, from_msgpack},
-     {<<"application/x-msgpack;charset=utf-8">>, from_msgpack},
-     {<<"application/x-msgpack; charset=UTF-8">>, from_msgpack},
-     {<<"application/x-msgpack">>, from_msgpack},
-     {<<"application/json; charset=UTF-8">>, from_json},
-     {<<"application/json; charset=utf-8">>, from_json},
-     {<<"application/json;charset=UTF-8">>, from_json},
-     {<<"application/json;charset=utf-8">>, from_json},
-     {<<"application/json">>, from_json}
+     {{<<"application">>, <<"x-msgpack">>, []}, from_msgpack},
+     {{<<"application">>, <<"json">>, []}, from_json}
     ].
+    %%  {<<"application/x-msgpack; charset=UTF-8">>, },
+    %%  {<<"application/x-msgpack; charset=utf-8">>, from_msgpack},
+    %%  {<<"application/x-msgpack;charset=utf-8">>, from_msgpack},
+    %%  {<<"application/x-msgpack; charset=UTF-8">>, from_msgpack},
+    %%  {<<"application/x-msgpack">>, from_msgpack},
+    %%  {<<"application/json; charset=UTF-8">>, from_json},
+    %%  {<<"application/json; charset=utf-8">>, from_json},
+    %%  {<<"application/json;charset=UTF-8">>, from_json},
+    %%  {<<"application/json;charset=utf-8">>, from_json},
+    %%  {<<"application/json">>, from_json}
+    %% ].
 
 decode(Req) ->
     {ContentType, Req0} =
