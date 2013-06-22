@@ -100,7 +100,7 @@ decode(Req) ->
                               jsxd:from_list(D)
                       end
               end,
-    {Decoded, Req1}.
+    {ok, Decoded, Req1}.
 
 encode(Body, Req) ->
     {ContentType, Req1} = media_type(Req),
