@@ -11,7 +11,8 @@
          set_access_header/1,
          allowed/2,
          options/3,
-         service_available/0
+         service_available/0,
+         encode/2
         ]).
 
 initial_state(Req) ->
@@ -55,14 +56,14 @@ get_token(Req) ->
 
 provided() ->
     [
-     {{<<"application">>, <<"x-msgpack">>, []}, to_msgpack},
-     {{<<"application">>, <<"json">>, []}, to_json}
+     {{<<"application">>, <<"x-msgpack">>, [{<<"charset">>,<<"utf-8">>}]}, read},
+     {{<<"application">>, <<"json">>, [{<<"charset">>,<<"utf-8">>}]}, read}
     ].
 
 accepted() ->
     [
-     {{<<"application">>, <<"x-msgpack">>, []}, from_msgpack},
-     {{<<"application">>, <<"json">>, []}, from_json}
+     {{<<"application">>, <<"x-msgpack">>, '*'}, write},
+     {{<<"application">>, <<"json">>, '*'}, write}
     ].
     %%  {<<"application/x-msgpack; charset=UTF-8">>, },
     %%  {<<"application/x-msgpack; charset=utf-8">>, from_msgpack},
@@ -76,23 +77,39 @@ accepted() ->
     %%  {<<"application/json">>, from_json}
     %% ].
 
+media_type(Req) ->
+        case cowboy_req:meta(media_type, Req) of
+            {{<<"application">>, <<"x-msgpack">>, _}, Req1} ->
+                {msgpack, Req1};
+            {{<<"application">>, <<"json">>, _}, Req1} ->
+                {json, Req1}
+        end.
+
 decode(Req) ->
-    {ContentType, Req0} =
-        cowboy_req:header(<<"content-type">>, Req, {<<"application">>, <<"json">>, []}),
+    {ContentType, Req0} = media_type(Req),
     {ok, Body, Req1} = cowboy_req:body(Req0),
     Decoded = case Body of
                   <<>> ->
                       [];
                   _ ->
-                      case lists:keyfind(ContentType, 1, accepted()) of
-                          {_, from_json} ->
+                      case ContentType of
+                          json ->
                               jsxd:from_list(jsx:decode(Body));
-                          {_, from_msgpack} ->
+                          msgpack ->
                               {ok, D} = msgpack:unpack(Body, [jsx]),
                               jsxd:from_list(D)
                       end
               end,
-    {ok, Decoded, Req1}.
+    {Decoded, Req1}.
+
+encode(Body, Req) ->
+    {ContentType, Req1} = media_type(Req),
+    case ContentType of
+        json ->
+            {jsx:decode(Body), Req1};
+        msgpack ->
+            {jsx:decode(Body), Req1}
+    end.
 
 
 options(Req, State, Methods) ->
