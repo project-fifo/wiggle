@@ -56,8 +56,8 @@ get_token(Req) ->
 
 provided() ->
     [
-     {{<<"application">>, <<"x-msgpack">>, [{<<"charset">>,<<"utf-8">>}]}, read},
-     {{<<"application">>, <<"json">>, [{<<"charset">>,<<"utf-8">>}]}, read}
+     {{<<"application">>, <<"x-msgpack">>, []}, read},
+     {{<<"application">>, <<"json">>, []}, read}
     ].
 
 accepted() ->
