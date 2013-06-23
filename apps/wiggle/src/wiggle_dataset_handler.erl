@@ -8,18 +8,18 @@
 -export([allowed_methods/3,
          get/1,
          permission_required/1,
-         handle_request/2,
-         create_path/3,
-         handle_write/3,
-         delete_resource/2]).
+         read/2,
+         create/3,
+         write/3,
+         delete/2]).
 
 -ignore_xref([allowed_methods/3,
               get/1,
               permission_required/1,
-              handle_request/2,
-              create_path/3,
-              handle_write/3,
-              delete_resource/2]).
+              read/2,
+              create/3,
+              write/3,
+              delete/2]).
 
 
 allowed_methods(_Version, _Token, []) ->
@@ -65,7 +65,7 @@ permission_required(_State) ->
 %% GET
 %%--------------------------------------------------------------------
 
-handle_request(Req, State = #state{token = Token, path = []}) ->
+read(Req, State = #state{token = Token, path = []}) ->
     Start = now(),
     {ok, Permissions} = libsnarl:user_cache({token, Token}),
     ?MSnarl(?P(State), Start),
@@ -74,58 +74,58 @@ handle_request(Req, State = #state{token = Token, path = []}) ->
     ?MSniffle(?P(State), Start1),
     {lists:map(fun ({E, _}) -> E end,  Res), Req, State};
 
-handle_request(Req, State = #state{path = [_Dataset], obj = Obj}) ->
+read(Req, State = #state{path = [_Dataset], obj = Obj}) ->
     {Obj, Req, State}.
 
 %%--------------------------------------------------------------------
 %% PUT
 %%--------------------------------------------------------------------
 
-create_path(Req, State = #state{path = [], version = Version}, Decoded) ->
+create(Req, State = #state{path = [], version = Version}, Decoded) ->
     case jsxd:from_list(Decoded) of
         [{<<"url">>, URL}] ->
             Start = now(),
             {ok, UUID} = libsniffle:dataset_import(URL),
             ?MSniffle(?P(State), Start),
-            {<<"/api/", Version/binary, "/datasets/", UUID/binary>>, Req, State#state{body = Decoded}};
+            {{true, <<"/api/", Version/binary, "/datasets/", UUID/binary>>}, Req, State#state{body = Decoded}};
         [{<<"config">>, Config},
          {<<"snapshot">>, Snap},
          {<<"vm">>, Vm}] ->
             Start1 = now(),
             {ok, UUID} = libsniffle:vm_promote_snapshot(Vm, Snap, Config),
             ?MSniffle(?P(State), Start1),
-            {<<"/api/", Version/binary, "/datasets/", UUID/binary>>, Req, State#state{body = Decoded}}
+            {{true, <<"/api/", Version/binary, "/datasets/", UUID/binary>>}, Req, State#state{body = Decoded}}
     end.
 
-handle_write(Req, State = #state{path = [Dataset, <<"metadata">> | Path]}, [{K, V}]) ->
+write(Req, State = #state{path = [Dataset, <<"metadata">> | Path]}, [{K, V}]) ->
     Start = now(),
     libsniffle:dataset_set(Dataset, [<<"metadata">> | Path] ++ [K], jsxd:from_list(V)),
     ?MSniffle(?P(State), Start),
     {true, Req, State};
 
-handle_write(Req, State = #state{path = [Dataset]}, [{K, V}]) ->
+write(Req, State = #state{path = [Dataset]}, [{K, V}]) ->
     Start = now(),
     libsniffle:dataset_set(Dataset, [K], jsxd:from_list(V)),
     ?MSniffle(?P(State), Start),
     {true, Req, State};
 
-handle_write(Req, State = #state{path = []}, _Body) ->
+write(Req, State = #state{path = []}, _Body) ->
     {true, Req, State};
 
-handle_write(Req, State, _Body) ->
+write(Req, State, _Body) ->
     {false, Req, State}.
 
 %%--------------------------------------------------------------------
 %% DELETE
 %%--------------------------------------------------------------------
 
-delete_resource(Req, State = #state{path = [Dataset, <<"metadata">> | Path]}) ->
+delete(Req, State = #state{path = [Dataset, <<"metadata">> | Path]}) ->
     Start = now(),
     libsniffle:dataset_set(Dataset, [<<"metadata">> | Path], delete),
     ?MSniffle(?P(State), Start),
     {true, Req, State};
 
-delete_resource(Req, State = #state{path = [Dataset]}) ->
+delete(Req, State = #state{path = [Dataset]}) ->
     Start = now(),
     ok = libsniffle:dataset_delete(Dataset),
     ?MSniffle(?P(State), Start),

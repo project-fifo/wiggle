@@ -14,20 +14,14 @@
          delete_resource/2,
          forbidden/2,
          options/2,
-         create_path/2,
-         post_is_create/2,
          generate_etag/2,
          is_authorized/2]).
 
--export([to_json/2,
-         from_json/2,
-         to_msgpack/2,
-         from_msgpack/2]).
+-export([read/2,
+         write/2]).
 
--ignore_xref([to_json/2,
-              from_json/2,
-              from_msgpack/2,
-              to_msgpack/2,
+-ignore_xref([read/2,
+              write/2,
               allowed_methods/2,
               content_types_accepted/2,
               content_types_provided/2,
@@ -40,8 +34,6 @@
               options/2,
               service_available/2,
               resource_exists/2,
-              create_path/2,
-              post_is_create/2,
               rest_init/2]).
 
 init(_Transport, _Req, _) ->
@@ -55,9 +47,6 @@ rest_terminate(_Req, State) ->
     statman_histogram:record_value({State#state.path_bin, total},
                                    State#state.start),
     ok.
-
-post_is_create(Req, State) ->
-    {true, Req, State}.
 
 service_available(Req, State) ->
     {wiggle_handler:service_available(), Req, State}.
@@ -154,48 +143,32 @@ forbidden(Req, State = #state{module = M}) ->
 %% GET
 %%--------------------------------------------------------------------
 
-to_json(Req, State = #state{module = M}) ->
-    {Reply, Req1, State1} = M:handle_request(Req, State),
+read(Req, State = #state{module = M}) ->
+    {Reply, Req1, State1} = M:read(Req, State),
     Start = now(),
-    D = jsx:encode(Reply),
-    ?MEx(?P(State), <<"jsx:encode">>, Start),
-    {D, Req1, State1}.
-
-to_msgpack(Req, State = #state{module = M}) ->
-    {Reply, Req1, State1} = M:handle_request(Req, State),
-    Start = now(),
-    D = msgpack:pack(Reply, [jsx]),
-    ?MEx(?P(State), <<"msgpack:encode">>, Start),
-    {D, Req1, State1}.
+    {Data, Req2} = wiggle_handler:encode(Reply, Req1),
+    ?MEx(?P(State), <<"encode">>, Start),
+    {Data, Req2, State1}.
 
 %%--------------------------------------------------------------------
-%% PUT
+%% write
 %%--------------------------------------------------------------------
 
-create_path(Req, State = #state{module = M, body = undefined}) ->
+write(Req, State = #state{body = undefined}) ->
     {ok, Data, Req1} = wiggle_handler:decode(Req),
-    M:create_path(Req1, State#state{body = Data}, Data);
+    write(Req1, State#state{body = Data});
 
-create_path(Req, State = #state{module = M, body = Data}) ->
-    M:create_path(Req, State, Data).
-
-from_json(Req, State = #state{module = M, body = undefined}) ->
-    {ok, Data, Req1} = wiggle_handler:decode(Req),
-    M:handle_write(Req1, State#state{body = Data}, Data);
-
-from_json(Req, State = #state{module = M, body = Data}) ->
-    M:handle_write(Req, State, Data).
-
-from_msgpack(Req, State = #state{module = M, body = undefined}) ->
-    {ok, Data, Req1} = wiggle_handler:decode(Req),
-    M:handle_write(Req1, State#state{body = Data}, Data);
-
-from_msgpack(Req, State = #state{module = M, body = Data}) ->
-    M:handle_write(Req, State, Data).
+write(Req, State = #state{module = M, body = Data}) ->
+    case cowboy_req:method(Req) of
+        {<<"POST">>, Req1} ->
+            M:create(Req1, State, Data);
+        {<<"PUT">>, Req1} ->
+            M:write(Req1, State, Data)
+    end.
 
 %%--------------------------------------------------------------------
 %% DEETE
 %%--------------------------------------------------------------------
 
 delete_resource(Req, State = #state{module = M}) ->
-    M:delete_resource(Req, State).
+    M:delete(Req, State).
