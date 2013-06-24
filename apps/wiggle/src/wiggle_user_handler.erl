@@ -193,7 +193,7 @@ write(Req, State = #state{method = <<"POST">>, path = []}, _) ->
 
 write(Req, State = #state{path = [User, <<"metadata">> | Path]}, [{K, V}]) ->
     Start = now(),
-    libsnarl:user_set(User, [<<"metadata">> | Path] ++ [K], jsxd:from_list(V)),
+    libsnarl:user_set(User, Path ++ [K], jsxd:from_list(V)),
     ?MSnarl(?P(State), Start),
     {true, Req, State};
 
@@ -217,7 +217,7 @@ write(Req, State = #state{path = [User, <<"permissions">> | Permission]}, _) ->
 
 delete(Req, State = #state{path = [User, <<"metadata">> | Path]}) ->
     Start = now(),
-    libsnarl:user_set(User, [<<"metadata">> | Path], delete),
+    libsnarl:user_set(User, Path, delete),
     ?MSnarl(?P(State), Start),
     {true, Req, State};
 

@@ -131,7 +131,7 @@ write(Req, State = #state{method = <<"POST">>, path = []}, _) ->
 
 write(Req, State = #state{path = [Group, <<"metadata">> | Path]}, [{K, V}]) when is_binary(Group) ->
     Start = now(),
-    libsnarl:group_set(Group, [<<"metadata">> | Path] ++ [K], jsxd:from_list(V)),
+    libsnarl:group_set(Group, Path ++ [K], jsxd:from_list(V)),
     ?MSnarl(?P(State), Start),
     {true, Req, State};
 
@@ -154,7 +154,7 @@ write(Req, State = #state{path = [Group, <<"permissions">> | Permission]}, _Body
 
 delete(Req, State = #state{path = [Group, <<"metadata">> | Path]}) ->
     Start = now(),
-    libsnarl:group_set(Group, [<<"metadata">> | Path], delete),
+    libsnarl:group_set(Group, Path, delete),
     ?MSnarl(?P(State), Start),
     {true, Req, State};
 
