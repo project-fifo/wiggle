@@ -6,12 +6,12 @@
 -export([allowed_methods/3,
          permission_required/1,
          get/1,
-         handle_request/2]).
+         read/2]).
 
 -ignore_xref([allowed_methods/3,
               permission_required/1,
               get/1,
-              handle_request/2]).
+              read/2]).
 
 allowed_methods(_Version, _Token, [<<"connection">>]) ->
     [<<"GET">>];
@@ -34,15 +34,14 @@ permission_required(_State) ->
 %%--------------------------------------------------------------------
 %% GET
 %%--------------------------------------------------------------------
-
-handle_request(Req, State = #state{path = [<<"connection">>]}) ->
+read(Req, State = #state{path = [<<"connection">>]}) ->
     Res = jsxd:thread([{set, <<"sniffle">>, length(libsniffle:servers())},
                        {set, <<"snarl">>, length(libsnarl:servers())},
                        {set, <<"howl">>, length(libhowl:servers())}],
                       []),
     {Res, Req, State};
 
-handle_request(Req, State = #state{path = []}) ->
+read(Req, State = #state{path = []}) ->
     Start = now(),
     case libsniffle:cloud_status() of
         {ok, {Metrics, Warnings}} ->

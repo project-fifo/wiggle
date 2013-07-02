@@ -11,18 +11,18 @@
 -export([allowed_methods/3,
          get/1,
          permission_required/1,
-         handle_request/2,
-         create_path/3,
-         handle_write/3,
-         delete_resource/2]).
+         read/2,
+         create/3,
+         write/3,
+         delete/2]).
 
 -ignore_xref([allowed_methods/3,
               get/1,
               permission_required/1,
-              handle_request/2,
-              create_path/3,
-              handle_write/3,
-              delete_resource/2]).
+              read/2,
+              create/3,
+              write/3,
+              delete/2]).
 
 allowed_methods(_Version, _Token, []) ->
     [<<"GET">>, <<"POST">>];
@@ -146,13 +146,13 @@ permission_required(_State) ->
 %% GET
 %%--------------------------------------------------------------------
 
-handle_request(Req, State = #state{path = []}) ->
+read(Req, State = #state{path = []}) ->
     Start = now(),
     {ok, Res} = libsnarl:user_list(),
     ?MSnarl(?P(State), Start),
     {Res, Req, State};
 
-handle_request(Req, State = #state{path = [_User], obj = UserObj}) ->
+read(Req, State = #state{path = [_User], obj = UserObj}) ->
     UserObj1 = jsxd:update(<<"permissions">>,
                            fun (Permissions) ->
                                    lists:map(fun jsonify_permissions/1, Permissions)
@@ -160,17 +160,17 @@ handle_request(Req, State = #state{path = [_User], obj = UserObj}) ->
     UserObj2 = jsxd:delete(<<"password">>, UserObj1),
     {UserObj2, Req, State};
 
-handle_request(Req, State = #state{path = [_User, <<"permissions">>], obj = UserObj}) ->
+read(Req, State = #state{path = [_User, <<"permissions">>], obj = UserObj}) ->
     {lists:map(fun jsonify_permissions/1, jsxd:get(<<"permissions">>, [], UserObj)), Req, State};
 
-handle_request(Req, State = #state{path = [_User, <<"groups">>], obj = UserObj}) ->
+read(Req, State = #state{path = [_User, <<"groups">>], obj = UserObj}) ->
     {jsxd:get(<<"groups">>, [], UserObj), Req, State}.
 
 %%--------------------------------------------------------------------
 %% PUT
 %%--------------------------------------------------------------------
 
-create_path(Req, State = #state{path = [], version = Version}, Decoded) ->
+create(Req, State = #state{path = [], version = Version}, Decoded) ->
     {ok, User} = jsxd:get(<<"user">>, Decoded),
     {ok, Pass} = jsxd:get(<<"password">>, Decoded),
     Start = now(),
@@ -179,31 +179,31 @@ create_path(Req, State = #state{path = [], version = Version}, Decoded) ->
     Start1 = now(),
     ok = libsnarl:user_passwd(UUID, Pass),
     ?MSnarl(?P(State), Start1),
-    {<<"/api/", Version/binary, "/users/", UUID/binary>>, Req, State#state{body = Decoded}}.
+    {{true, <<"/api/", Version/binary, "/users/", UUID/binary>>}, Req, State#state{body = Decoded}}.
 
-handle_write(Req, State = #state{path =  [User]}, [{<<"password">>, Password}]) ->
+write(Req, State = #state{path =  [User]}, [{<<"password">>, Password}]) ->
     Start = now(),
     ok = libsnarl:user_passwd(User, Password),
     ?MSnarl(?P(State), Start),
     {true, Req, State};
 
 %% TODO : This is a icky case it is called after post.
-handle_write(Req, State = #state{method = <<"POST">>, path = []}, _) ->
+write(Req, State = #state{method = <<"POST">>, path = []}, _) ->
     {true, Req, State};
 
-handle_write(Req, State = #state{path = [User, <<"metadata">> | Path]}, [{K, V}]) ->
+write(Req, State = #state{path = [User, <<"metadata">> | Path]}, [{K, V}]) ->
     Start = now(),
-    libsnarl:user_set(User, [<<"metadata">> | Path] ++ [K], jsxd:from_list(V)),
+    libsnarl:user_set(User, Path ++ [K], jsxd:from_list(V)),
     ?MSnarl(?P(State), Start),
     {true, Req, State};
 
-handle_write(Req, State = #state{path = [User, <<"groups">>, Group]}, _) ->
+write(Req, State = #state{path = [User, <<"groups">>, Group]}, _) ->
     Start = now(),
     ok = libsnarl:user_join(User, Group),
     ?MSnarl(?P(State), Start),
     {true, Req, State};
 
-handle_write(Req, State = #state{path = [User, <<"permissions">> | Permission]}, _) ->
+write(Req, State = #state{path = [User, <<"permissions">> | Permission]}, _) ->
     P = erlangify_permission(Permission),
     Start = now(),
     ok = libsnarl:user_grant(User, P),
@@ -215,30 +215,30 @@ handle_write(Req, State = #state{path = [User, <<"permissions">> | Permission]},
 %% DEETE
 %%--------------------------------------------------------------------
 
-delete_resource(Req, State = #state{path = [User, <<"metadata">> | Path]}) ->
+delete(Req, State = #state{path = [User, <<"metadata">> | Path]}) ->
     Start = now(),
-    libsnarl:user_set(User, [<<"metadata">> | Path], delete),
+    libsnarl:user_set(User, Path, delete),
     ?MSnarl(?P(State), Start),
     {true, Req, State};
 
-delete_resource(Req, State = #state{path = [_User, <<"sessions">>]}) ->
+delete(Req, State = #state{path = [_User, <<"sessions">>]}) ->
     Req1 = cowboy_req:set_resp_cookie(<<"x-snarl-token">>, <<"">>, [{max_age, 0}], Req),
     {true, Req1, State};
 
-delete_resource(Req, State = #state{path = [User, <<"permissions">> | Permission]}) ->
+delete(Req, State = #state{path = [User, <<"permissions">> | Permission]}) ->
     P = erlangify_permission(Permission),
     Start = now(),
     ok = libsnarl:user_revoke(User, P),
     ?MSnarl(?P(State), Start),
     {true, Req, State};
 
-delete_resource(Req, State = #state{path = [User]}) ->
+delete(Req, State = #state{path = [User]}) ->
     Start = now(),
     ok = libsnarl:user_delete(User),
     ?MSnarl(?P(State), Start),
     {true, Req, State};
 
-delete_resource(Req, State = #state{path = [User, <<"groups">>, Group]}) ->
+delete(Req, State = #state{path = [User, <<"groups">>, Group]}) ->
     Start = now(),
     ok = libsnarl:user_leave(User, Group),
     ?MSnarl(?P(State), Start),

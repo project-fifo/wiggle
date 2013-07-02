@@ -7,18 +7,18 @@
 -export([allowed_methods/3,
          get/1,
          permission_required/1,
-         handle_request/2,
-         create_path/3,
-         handle_write/3,
-         delete_resource/2]).
+         read/2,
+         create/3,
+         write/3,
+         delete/2]).
 
 -ignore_xref([allowed_methods/3,
               get/1,
               permission_required/1,
-              handle_request/2,
-              create_path/3,
-              handle_write/3,
-              delete_resource/2]).
+              read/2,
+              create/3,
+              write/3,
+              delete/2]).
 
 allowed_methods(_Version, _Token, [_Iprange, <<"metadata">>|_]) ->
     [<<"PUT">>, <<"DELETE">>];
@@ -63,7 +63,7 @@ permission_required(_State) ->
 %% GET
 %%--------------------------------------------------------------------
 
-handle_request(Req, State = #state{token = Token, path = []}) ->
+read(Req, State = #state{token = Token, path = []}) ->
     Start = now(),
     {ok, Permissions} = libsnarl:user_cache({token, Token}),
     ?MSnarl(?P(State), Start),
@@ -72,7 +72,7 @@ handle_request(Req, State = #state{token = Token, path = []}) ->
     ?MSniffle(?P(State), Start1),
     {lists:map(fun ({E, _}) -> E end,  Res), Req, State};
 
-handle_request(Req, State = #state{path = [_Iprange], obj = Obj}) ->
+read(Req, State = #state{path = [_Iprange], obj = Obj}) ->
     {jsxd:thread([{update, <<"network">>, fun ip_to_str/1},
                   {update, <<"gateway">>, fun ip_to_str/1},
                   {update, <<"netmask">>, fun ip_to_str/1},
@@ -88,7 +88,7 @@ handle_request(Req, State = #state{path = [_Iprange], obj = Obj}) ->
 %% PUT
 %%--------------------------------------------------------------------
 
-create_path(Req, State = #state{path = [], version = Version}, Data) ->
+create(Req, State = #state{path = [], version = Version}, Data) ->
     {ok, Iprange} = jsxd:get(<<"name">>, Data),
     {ok, Network} = jsxd:get(<<"network">>, Data),
     {ok, Gateway} = jsxd:get(<<"gateway">>, Data),
@@ -101,7 +101,7 @@ create_path(Req, State = #state{path = [], version = Version}, Data) ->
     case libsniffle:iprange_create(Iprange, Network, Gateway, Netmask, First, Last, Tag, Vlan) of
         {ok, UUID} ->
             ?MSniffle(?P(State), Start),
-            {<<"/api/", Version/binary, "/ipranges/", UUID/binary>>, Req, State#state{body = Data}};
+            {{true, <<"/api/", Version/binary, "/ipranges/", UUID/binary>>}, Req, State#state{body = Data}};
         duplicate ->
             ?MSniffle(?P(State), Start),
             {ok, Req1} = cowboy_req:reply(409, Req),
@@ -109,29 +109,29 @@ create_path(Req, State = #state{path = [], version = Version}, Data) ->
     end.
 
 %% TODO : This is a icky case it is called after post.
-handle_write(Req, State = #state{method = <<"POST">>, path = []}, _) ->
+write(Req, State = #state{method = <<"POST">>, path = []}, _) ->
     {true, Req, State};
 
-handle_write(Req, State = #state{path = [Iprange, <<"metadata">> | Path]}, [{K, V}]) ->
+write(Req, State = #state{path = [Iprange, <<"metadata">> | Path]}, [{K, V}]) ->
     Start = now(),
     libsniffle:iprange_set(Iprange, [<<"metadata">> | Path] ++ [K], jsxd:from_list(V)),
     ?MSniffle(?P(State), Start),
     {true, Req, State};
 
-handle_write(Req, State, _Body) ->
+write(Req, State, _Body) ->
     {false, Req, State}.
 
 %%--------------------------------------------------------------------
 %% DEETE
 %%--------------------------------------------------------------------
 
-delete_resource(Req, State = #state{path = [Iprange, <<"metadata">> | Path]}) ->
+delete(Req, State = #state{path = [Iprange, <<"metadata">> | Path]}) ->
     Start = now(),
     libsniffle:iprange_set(Iprange, [<<"metadata">> | Path], delete),
     ?MSniffle(?P(State), Start),
     {true, Req, State};
 
-delete_resource(Req, State = #state{path = [Iprange]}) ->
+delete(Req, State = #state{path = [Iprange]}) ->
     Start = now(),
     ok = libsniffle:iprange_delete(Iprange),
     ?MSniffle(?P(State), Start),

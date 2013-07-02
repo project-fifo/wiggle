@@ -7,18 +7,18 @@
 -export([allowed_methods/3,
          get/1,
          permission_required/1,
-         handle_request/2,
-         create_path/3,
-         handle_write/3,
-         delete_resource/2]).
+         read/2,
+         create/3,
+         write/3,
+         delete/2]).
 
 -ignore_xref([allowed_methods/3,
               get/1,
               permission_required/1,
-              handle_request/2,
-              create_path/3,
-              handle_write/3,
-              delete_resource/2]).
+              read/2,
+              create/3,
+              write/3,
+              delete/2]).
 
 allowed_methods(_Version, _Token, []) ->
     [<<"GET">>, <<"POST">>];
@@ -66,12 +66,12 @@ permission_required(_State) ->
 %% GET
 %%--------------------------------------------------------------------
 
-handle_request(Req, State = #state{token = Token, path = []}) ->
+read(Req, State = #state{token = Token, path = []}) ->
     {ok, Permissions} = libsnarl:user_cache({token, Token}),
     {ok, Res} = libsniffle:package_list([{must, 'allowed', [<<"packages">>, {<<"res">>, <<"uuid">>}, <<"get">>], Permissions}]),
     {lists:map(fun ({E, _}) -> E end,  Res), Req, State};
 
-handle_request(Req, State = #state{path = [_Package], obj = Obj}) ->
+read(Req, State = #state{path = [_Package], obj = Obj}) ->
     {Obj, Req, State}.
 
 
@@ -79,13 +79,13 @@ handle_request(Req, State = #state{path = [_Package], obj = Obj}) ->
 %% PUT
 %%--------------------------------------------------------------------
 
-create_path(Req, State = #state{path = [], version = Version}, Data) ->
+create(Req, State = #state{path = [], version = Version}, Data) ->
     Data1 = jsxd:select([<<"cpu_cap">>,<<"quota">>, <<"ram">>, <<"requirements">>], Data),
     {ok, Package} = jsxd:get(<<"name">>, Data),
     case libsniffle:package_create(Package) of
         {ok, UUID} ->
             ok = libsniffle:package_set(UUID, Data1),
-            {<<"/api/", Version/binary, "/packages/", UUID/binary>>, Req, State#state{body = Data1}};
+            {{true, <<"/api/", Version/binary, "/packages/", UUID/binary>>}, Req, State#state{body = Data1}};
         duplicate ->
             {ok, Req1} = cowboy_req:reply(409, Req),
             {halt, Req1, State}
@@ -93,24 +93,24 @@ create_path(Req, State = #state{path = [], version = Version}, Data) ->
 
 %% TODO : This is a icky case it is called after post.
 
-handle_write(Req, State = #state{method = <<"POST">>, path = []}, _) ->
+write(Req, State = #state{method = <<"POST">>, path = []}, _) ->
     {true, Req, State};
 
-handle_write(Req, State = #state{path = [Package, <<"metadata">> | Path]}, [{K, V}]) ->
+write(Req, State = #state{path = [Package, <<"metadata">> | Path]}, [{K, V}]) ->
     libsniffle:package_set(Package, [<<"metadata">> | Path] ++ [K], jsxd:from_list(V)),
     {true, Req, State};
 
-handle_write(Req, State, _Body) ->
+write(Req, State, _Body) ->
     {false, Req, State}.
 
 %%--------------------------------------------------------------------
 %% DEETE
 %%--------------------------------------------------------------------
 
-delete_resource(Req, State = #state{path = [Package, <<"metadata">> | Path]}) ->
+delete(Req, State = #state{path = [Package, <<"metadata">> | Path]}) ->
     libsniffle:package_set(Package, [<<"metadata">> | Path], delete),
     {true, Req, State};
 
-delete_resource(Req, State = #state{path = [Package]}) ->
+delete(Req, State = #state{path = [Package]}) ->
     ok = libsniffle:package_delete(Package),
     {true, Req, State}.

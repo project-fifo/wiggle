@@ -4,3 +4,5 @@
 ^jsx_parser.erl:65:
 ^lager_
 ^mimetypes
+^lhttpc
+^newrelic.erl

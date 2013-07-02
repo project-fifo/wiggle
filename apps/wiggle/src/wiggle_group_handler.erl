@@ -8,18 +8,18 @@
 -export([allowed_methods/3,
          get/1,
          permission_required/1,
-         handle_request/2,
-         create_path/3,
-         handle_write/3,
-         delete_resource/2]).
+         read/2,
+         create/3,
+         write/3,
+         delete/2]).
 
 -ignore_xref([allowed_methods/3,
               get/1,
               permission_required/1,
-              handle_request/2,
-              create_path/3,
-              handle_write/3,
-              delete_resource/2]).
+              read/2,
+              create/3,
+              write/3,
+              delete/2]).
 
 allowed_methods(_Version, _Token, []) ->
     [<<"GET">>, <<"POST">>];
@@ -97,51 +97,51 @@ permission_required(_State) ->
 %% GET
 %%--------------------------------------------------------------------
 
-handle_request(Req, State = #state{path = []}) ->
+read(Req, State = #state{path = []}) ->
     Start = now(),
     %%    {ok, Permissions} = libsnarl:user_cache({token, Token}),
     {ok, Res} = libsnarl:group_list(), %{must, 'allowed', [<<"vm">>, {<<"res">>, <<"uuid">>}, <<"get">>], Permissions}),
     ?MSnarl(?P(State), Start),
     {Res, Req, State};
 
-handle_request(Req, State = #state{path = [_Group], obj = GroupObj}) ->
+read(Req, State = #state{path = [_Group], obj = GroupObj}) ->
     GroupObj1 = jsxd:update(<<"permissions">>,
                             fun (Permissions) ->
                                     lists:map(fun jsonify_permissions/1, Permissions)
                             end, [], GroupObj),
     {GroupObj1, Req, State};
 
-handle_request(Req, State = #state{path = [_Group, <<"permissions">>], obj = GroupObj}) ->
+read(Req, State = #state{path = [_Group, <<"permissions">>], obj = GroupObj}) ->
     {lists:map(fun jsonify_permissions/1, jsxd:get(<<"permissions">>, [], GroupObj)), Req, State}.
 
 %%--------------------------------------------------------------------
 %% PUT
 %%--------------------------------------------------------------------
 
-create_path(Req, State = #state{path = [], version = Version}, Decoded) ->
+create(Req, State = #state{path = [], version = Version}, Decoded) ->
     {ok, Group} = jsxd:get(<<"name">>, Decoded),
     Start = now(),
     {ok, UUID} = libsnarl:group_add(Group),
     ?MSnarl(?P(State), Start),
-    {<<"/api/", Version/binary, "/groups/", UUID/binary>>, Req, State#state{body = Decoded}}.
+    {{true, <<"/api/", Version/binary, "/groups/", UUID/binary>>}, Req, State#state{body = Decoded}}.
 
 %% TODO : This is a icky case it is called after post.
-handle_write(Req, State = #state{method = <<"POST">>, path = []}, _) ->
+write(Req, State = #state{method = <<"POST">>, path = []}, _) ->
     {true, Req, State};
 
-handle_write(Req, State = #state{path = [Group, <<"metadata">> | Path]}, [{K, V}]) ->
+write(Req, State = #state{path = [Group, <<"metadata">> | Path]}, [{K, V}]) when is_binary(Group) ->
     Start = now(),
-    libsnarl:group_set(Group, [<<"metadata">> | Path] ++ [K], jsxd:from_list(V)),
+    libsnarl:group_set(Group, Path ++ [K], jsxd:from_list(V)),
     ?MSnarl(?P(State), Start),
     {true, Req, State};
 
-handle_write(Req, State = #state{path = [Group]}, _Body) ->
+write(Req, State = #state{path = [Group]}, _Body) ->
     Start = now(),
     ok = libsnarl:group_add(Group),
     ?MSnarl(?P(State), Start),
     {true, Req, State};
 
-handle_write(Req, State = #state{path = [Group, <<"permissions">> | Permission]}, _Body) ->
+write(Req, State = #state{path = [Group, <<"permissions">> | Permission]}, _Body) ->
     P = erlangify_permission(Permission),
     Start = now(),
     ok = libsnarl:group_grant(Group, P),
@@ -152,20 +152,20 @@ handle_write(Req, State = #state{path = [Group, <<"permissions">> | Permission]}
 %% DEETE
 %%--------------------------------------------------------------------
 
-delete_resource(Req, State = #state{path = [Group, <<"metadata">> | Path]}) ->
+delete(Req, State = #state{path = [Group, <<"metadata">> | Path]}) ->
     Start = now(),
-    libsnarl:group_set(Group, [<<"metadata">> | Path], delete),
+    libsnarl:group_set(Group, Path, delete),
     ?MSnarl(?P(State), Start),
     {true, Req, State};
 
-delete_resource(Req, State = #state{path = [Group, <<"permissions">> | Permission]}) ->
+delete(Req, State = #state{path = [Group, <<"permissions">> | Permission]}) ->
     P = erlangify_permission(Permission),
     Start = now(),
     ok = libsnarl:group_revoke(Group, P),
     ?MSnarl(?P(State), Start),
     {true, Req, State};
 
-delete_resource(Req, State = #state{path = [Group]}) ->
+delete(Req, State = #state{path = [Group]}) ->
     Start = now(),
     ok = libsnarl:group_delete(Group),
     ?MSnarl(?P(State), Start),
