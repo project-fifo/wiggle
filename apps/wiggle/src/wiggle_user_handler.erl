@@ -145,10 +145,14 @@ permission_required(#state{method = <<"PUT">>, path = [User, <<"metadata">> | _]
 permission_required(#state{method = <<"DELETE">>, path = [User, <<"metadata">> | _]}) ->
     {ok, [<<"users">>, User, <<"edit">>]};
 
-permission_required(#state{method = <<"PUT">>, path = [User, <<"keys">> | _]}) ->
+permission_required(#state{method = <<"GET">>, path = [User, <<"keys">>]}) ->
     {ok, [<<"users">>, User, <<"edit">>]};
 
-permission_required(#state{method = <<"DELETE">>, path = [User, <<"keys">> | _]}) ->
+permission_required(#state{method = <<"PUT">>, path = [User, <<"keys">>]}) ->
+    {ok, [<<"users">>, User, <<"edit">>]};
+
+permission_required(#state{method = <<"DELETE">>,
+                           path = [User, <<"keys">>, _KeyID]}) ->
     {ok, [<<"users">>, User, <<"edit">>]};
 
 permission_required(_State) ->
