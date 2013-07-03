@@ -33,8 +33,11 @@ allowed_methods(_Version, _Token, [_Login]) ->
 allowed_methods(_Version, _Token, [_Login, <<"metadata">> | _]) ->
     [<<"PUT">>, <<"DELETE">>];
 
-allowed_methods(_Version, _Token, [_Login, <<"keys">> | _]) ->
-    [<<"PUT">>, <<"DELETE">>];
+allowed_methods(_Version, _Token, [_Login, <<"keys">>]) ->
+    [<<"GET">>, <<"PUT">>];
+
+allowed_methods(_Version, _Token, [_Login, <<"keys">>, _]) ->
+    [<<"DELETE">>];
 
 allowed_methods(_Version, _Token, [_Login, <<"permissions">>]) ->
     [<<"GET">>];
