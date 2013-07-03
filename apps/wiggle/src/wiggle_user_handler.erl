@@ -33,6 +33,9 @@ allowed_methods(_Version, _Token, [_Login]) ->
 allowed_methods(_Version, _Token, [_Login, <<"metadata">> | _]) ->
     [<<"PUT">>, <<"DELETE">>];
 
+allowed_methods(_Version, _Token, [_Login, <<"keys">> | _]) ->
+    [<<"PUT">>, <<"DELETE">>];
+
 allowed_methods(_Version, _Token, [_Login, <<"permissions">>]) ->
     [<<"GET">>];
 
@@ -139,6 +142,12 @@ permission_required(#state{method = <<"PUT">>, path = [User, <<"metadata">> | _]
 permission_required(#state{method = <<"DELETE">>, path = [User, <<"metadata">> | _]}) ->
     {ok, [<<"users">>, User, <<"edit">>]};
 
+permission_required(#state{method = <<"PUT">>, path = [User, <<"keys">> | _]}) ->
+    {ok, [<<"users">>, User, <<"edit">>]};
+
+permission_required(#state{method = <<"DELETE">>, path = [User, <<"keys">> | _]}) ->
+    {ok, [<<"users">>, User, <<"edit">>]};
+
 permission_required(_State) ->
     undefined.
 
@@ -164,7 +173,10 @@ read(Req, State = #state{path = [_User, <<"permissions">>], obj = UserObj}) ->
     {lists:map(fun jsonify_permissions/1, jsxd:get(<<"permissions">>, [], UserObj)), Req, State};
 
 read(Req, State = #state{path = [_User, <<"groups">>], obj = UserObj}) ->
-    {jsxd:get(<<"groups">>, [], UserObj), Req, State}.
+    {jsxd:get(<<"groups">>, [], UserObj), Req, State};
+
+read(Req, State = #state{path = [_User, <<"keys">>], obj = UserObj}) ->
+    {jsxd:get(<<"keys">>, [], UserObj), Req, State}.
 
 %%--------------------------------------------------------------------
 %% PUT
@@ -197,6 +209,12 @@ write(Req, State = #state{path = [User, <<"metadata">> | Path]}, [{K, V}]) ->
     ?MSnarl(?P(State), Start),
     {true, Req, State};
 
+write(Req, State = #state{path = [User, <<"keys">>]}, [{<<"id">>, KeyID}, {<<"key">>, Key}]) ->
+    Start = now(),
+    libsnarl:user_key_add(User, KeyID, Key),
+    ?MSnarl(?P(State), Start),
+    {true, Req, State};
+
 write(Req, State = #state{path = [User, <<"groups">>, Group]}, _) ->
     Start = now(),
     ok = libsnarl:user_join(User, Group),
@@ -218,6 +236,12 @@ write(Req, State = #state{path = [User, <<"permissions">> | Permission]}, _) ->
 delete(Req, State = #state{path = [User, <<"metadata">> | Path]}) ->
     Start = now(),
     libsnarl:user_set(User, Path, delete),
+    ?MSnarl(?P(State), Start),
+    {true, Req, State};
+
+delete(Req, State = #state{path = [User, <<"keys">>, KeyID]}) ->
+    Start = now(),
+    libsnarl:user_key_revoke(User, KeyID),
     ?MSnarl(?P(State), Start),
     {true, Req, State};
 
