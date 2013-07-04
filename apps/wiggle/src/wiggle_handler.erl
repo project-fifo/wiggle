@@ -22,13 +22,13 @@ initial_state(Req) ->
     {Token, Req3} = get_token(Req2),
     {PathB, Req4} = cowboy_req:path(Req3),
     State =  #state{
-      version = Version,
-      method = Method,
-      token = Token,
-      path = Path,
-      start = now(),
-      path_bin = PathB
-     },
+                version = Version,
+                method = Method,
+                token = Token,
+                path = Path,
+                start = now(),
+                path_bin = PathBall
+               },
     {ok, set_access_header(Req4), State}.
 
 set_access_header(Req) ->
@@ -65,25 +65,25 @@ accepted() ->
      {{<<"application">>, <<"x-msgpack">>, '*'}, write},
      {{<<"application">>, <<"json">>, '*'}, write}
     ].
-    %%  {<<"application/x-msgpack; charset=UTF-8">>, },
-    %%  {<<"application/x-msgpack; charset=utf-8">>, from_msgpack},
-    %%  {<<"application/x-msgpack;charset=utf-8">>, from_msgpack},
-    %%  {<<"application/x-msgpack; charset=UTF-8">>, from_msgpack},
-    %%  {<<"application/x-msgpack">>, from_msgpack},
-    %%  {<<"application/json; charset=UTF-8">>, from_json},
-    %%  {<<"application/json; charset=utf-8">>, from_json},
-    %%  {<<"application/json;charset=UTF-8">>, from_json},
-    %%  {<<"application/json;charset=utf-8">>, from_json},
-    %%  {<<"application/json">>, from_json}
-    %% ].
+%%  {<<"application/x-msgpack; charset=UTF-8">>, },
+%%  {<<"application/x-msgpack; charset=utf-8">>, from_msgpack},
+%%  {<<"application/x-msgpack;charset=utf-8">>, from_msgpack},
+%%  {<<"application/x-msgpack; charset=UTF-8">>, from_msgpack},
+%%  {<<"application/x-msgpack">>, from_msgpack},
+%%  {<<"application/json; charset=UTF-8">>, from_json},
+%%  {<<"application/json; charset=utf-8">>, from_json},
+%%  {<<"application/json;charset=UTF-8">>, from_json},
+%%  {<<"application/json;charset=utf-8">>, from_json},
+%%  {<<"application/json">>, from_json}
+%% ].
 
 media_type(Req) ->
-        case cowboy_req:meta(media_type, Req) of
-            {{<<"application">>, <<"x-msgpack">>, _}, Req1} ->
-                {msgpack, Req1};
-            {{<<"application">>, <<"json">>, _}, Req1} ->
-                {json, Req1}
-        end.
+    case cowboy_req:meta(media_type, Req) of
+        {{<<"application">>, <<"x-msgpack">>, _}, Req1} ->
+            {msgpack, Req1};
+        {{<<"application">>, <<"json">>, _}, Req1} ->
+            {json, Req1}
+    end.
 
 decode(Req) ->
     {ContentType, Req0} = media_type(Req),
