@@ -134,7 +134,7 @@ forbidden(Req, State = #state{module = M}) ->
             R = lists:foldl(fun(Permission, Acc) ->
                                     Acc andalso wiggle_handler:allowed(State, Permission)
                             end, true, Permissions),
-            {R, Req, State};
+            {not R, Req, State};
         {ok, Permission} ->
             {wiggle_handler:allowed(State, Permission), Req, State}
     end.
