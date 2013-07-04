@@ -146,7 +146,7 @@ permission_required(#state{method = <<"DELETE">>, path = [User, <<"metadata">> |
     {ok, [<<"users">>, User, <<"edit">>]};
 
 permission_required(#state{method = <<"GET">>, path = [User, <<"keys">>]}) ->
-    {ok, [<<"users">>, User, <<"edit">>]};
+    {ok, [<<"users">>, User, <<"get">>]};
 
 permission_required(#state{method = <<"PUT">>, path = [User, <<"keys">>]}) ->
     {ok, [<<"users">>, User, <<"edit">>]};
@@ -216,7 +216,7 @@ write(Req, State = #state{path = [User, <<"metadata">> | Path]}, [{K, V}]) ->
     ?MSnarl(?P(State), Start),
     {true, Req, State};
 
-write(Req, State = #state{path = [User, <<"keys">>]}, [{<<"id">>, KeyID}, {<<"key">>, Key}]) ->
+write(Req, State = #state{path = [User, <<"keys">>]}, [{KeyID, Key}]) ->
     Start = now(),
     libsnarl:user_key_add(User, KeyID, Key),
     ?MSnarl(?P(State), Start),
