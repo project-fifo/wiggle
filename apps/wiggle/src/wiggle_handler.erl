@@ -27,7 +27,7 @@ initial_state(Req) ->
                 token = Token,
                 path = Path,
                 start = now(),
-                path_bin = PathBall
+                path_bin = PathB
                },
     {ok, set_access_header(Req4), State}.
 
