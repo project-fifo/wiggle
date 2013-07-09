@@ -115,12 +115,10 @@ write(Req, State = #state{
     case libsniffle:network_add_iprange(Network, IPrange) of
         ok ->
             ?MSniffle(?P(State), Start),
-            {{true, <<"/api/", Version/binary, "/networks/", Network/binary>>},
-             Req, State#state{body = Data}};
+            {true, Req, State};
         _ ->
             ?MSniffle(?P(State), Start),
-            {ok, Req1} = cowboy_req:reply(409, Req),
-            {halt, Req1, State}
+            {false, Req, State}
     end;
 
 write(Req, State = #state{method = <<"POST">>, path = []}, _) ->
