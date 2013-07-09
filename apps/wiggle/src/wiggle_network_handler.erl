@@ -109,8 +109,7 @@ create(Req, State = #state{path = [], version = Version}, Data) ->
 
 %% TODO : This is a icky case it is called after post.
 write(Req, State = #state{
-                      path = [Network, <<"ipranges">>, IPrange],
-                      version = Version}, Data) ->
+                      path = [Network, <<"ipranges">>, IPrange]}, _Data) ->
     Start = now(),
     case libsniffle:network_add_iprange(Network, IPrange) of
         ok ->
