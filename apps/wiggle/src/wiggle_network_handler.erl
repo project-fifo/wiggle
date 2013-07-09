@@ -81,7 +81,9 @@ read(Req, State = #state{token = Token, path = []}) ->
     {ok, Permissions} = libsnarl:user_cache({token, Token}),
     ?MSnarl(?P(State), Start),
     Start1 = now(),
-    {ok, Res} = libsniffle:network_list([{must, 'allowed', [<<"networks">>, {<<"res">>, <<"uuid">>}, <<"get">>], Permissions}]),
+    {ok, Res} =
+        libsniffle:network_list(
+          [{must, 'allowed', [<<"networks">>, {<<"res">>, <<"uuid">>}, <<"get">>], Permissions}]),
     ?MSniffle(?P(State), Start1),
     {lists:map(fun ({E, _}) -> E end,  Res), Req, State};
 
@@ -103,11 +105,12 @@ create(Req, State = #state{path = [], version = Version}, Data) ->
             ?MSniffle(?P(State), Start),
             {ok, Req1} = cowboy_req:reply(409, Req),
             {halt, Req1, State}
-    end;
+    end.
 
-create(Req, State = #state{
-                       path = [Network, <<"ipranges">>, IPrange],
-                       version = Version}, Data) ->
+%% TODO : This is a icky case it is called after post.
+write(Req, State = #state{
+                      path = [Network, <<"ipranges">>, IPrange],
+                      version = Version}, Data) ->
     Start = now(),
     case libsniffle:network_add_iprange(Network, IPrange) of
         ok ->
@@ -118,9 +121,8 @@ create(Req, State = #state{
             ?MSniffle(?P(State), Start),
             {ok, Req1} = cowboy_req:reply(409, Req),
             {halt, Req1, State}
-    end.
+    end;
 
-%% TODO : This is a icky case it is called after post.
 write(Req, State = #state{method = <<"POST">>, path = []}, _) ->
     {true, Req, State};
 
