@@ -23,6 +23,9 @@
 allowed_methods(_Version, _Token, [_Network, <<"metadata">>|_]) ->
     [<<"PUT">>, <<"DELETE">>];
 
+allowed_methods(_Version, _Token, [_Network, <<"ipranges">>, _]) ->
+    [<<"PUT">>, <<"DELETE">>];
+
 allowed_methods(_Version, _Token, []) ->
     [<<"GET">>, <<"POST">>];
 
