@@ -37,6 +37,8 @@ start(_StartType, _StartArgs) ->
                           wiggle_rest_handler, [wiggle_vm_handler]},
                          {<<"/api/:version/ipranges/[...]">>,
                           wiggle_rest_handler, [wiggle_iprange_handler]},
+                         {<<"/api/:version/networks/[...]">>,
+                          wiggle_rest_handler, [wiggle_networks_handler]},
                          {<<"/api/:version/datasets/[...]">>,
                           wiggle_rest_handler, [wiggle_dataset_handler]},
                          {<<"/api/:version/packages/[...]">>,
