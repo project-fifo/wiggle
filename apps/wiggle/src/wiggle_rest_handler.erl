@@ -95,8 +95,8 @@ is_authorized(Req, State = #state{method = <<"GET">>,
     {true, Req, State};
 
 is_authorized(Req, State = #state{method = <<"POST">>,
-                              module = wiggle_session_handler,
-                              path = []}) ->
+                                  module = wiggle_session_handler,
+                                  path = []}) ->
     {true, Req, State};
 
 is_authorized(Req, State = #state{token = undefined}) ->
