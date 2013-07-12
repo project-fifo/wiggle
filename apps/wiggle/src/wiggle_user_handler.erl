@@ -319,7 +319,7 @@ delete(Req, State = #state{path = [User, <<"orgs">>, Org]}) ->
     Start = now(),
     ok = libsnarl:user_leave_org(User, Org),
     ?MSnarl(?P(State), Start),
-    {true, Req, State}.
+    {true, Req, State};
 
 delete(Req, State = #state{path = [User, <<"groups">>, Group]}) ->
     Start = now(),
