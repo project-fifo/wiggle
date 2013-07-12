@@ -67,7 +67,7 @@ permission_required(#state{method = <<"PUT">>,
 
 permission_required(#state{method = <<"DELETE">>,
                            path = [Org, <<"triggers">> | _]}) ->
-    {multiple, [<<"orgs">>, Org, <<"edit">>]};
+    {ok, [<<"orgs">>, Org, <<"edit">>]};
 
 permission_required(#state{method = <<"PUT">>,
                            path = [Org, <<"metadata">> | _]}) ->
