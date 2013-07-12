@@ -151,7 +151,8 @@ permission_required(#state{method = <<"DELETE">>,
     {multiple, [[<<"users">>, User, <<"leave">>],
                 [<<"groups">>, Group, <<"leave">>]]};
 
-permission_required(#state{method = <<"GET">>, path = [User, <<"orgs">>]}) ->
+permission_required(#state{method = <<"GET">>,
+                           path = [User, <<"orgs">>]}) ->
     {ok, [<<"users">>, User, <<"get">>]};
 
 permission_required(#state{method = <<"PUT">>,
