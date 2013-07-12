@@ -7,7 +7,7 @@
 
 -export([allowed_methods/3,
          get/1,
-         trigger_required/1,
+         permission_required/1,
          read/2,
          create/3,
          write/3,
@@ -15,7 +15,7 @@
 
 -ignore_xref([allowed_methods/3,
               get/1,
-              trigger_required/1,
+              permission_required/1,
               read/2,
               create/3,
               write/3,
