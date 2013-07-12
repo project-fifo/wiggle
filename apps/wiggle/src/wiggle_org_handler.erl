@@ -92,14 +92,10 @@ read(Req, State = #state{path = []}) ->
     {Res, Req, State};
 
 read(Req, State = #state{path = [_Org], obj = OrgObj}) ->
-    OrgObj1 = jsxd:update(<<"triggers">>,
-                            fun (Triggers) ->
-                                    lists:map(fun jsonify_trigger/1, Triggers)
-                            end, [], OrgObj),
-    {OrgObj1, Req, State};
+    {OrgObj, Req, State};
 
 read(Req, State = #state{path = [_Org, <<"triggers">>], obj = OrgObj}) ->
-    {[jsonify_trigger(T) || T <- jsxd:get(<<"triggers">>, [], OrgObj)], Req, State}.
+    {jsxd:get(<<"triggers">>, [], OrgObj), Req, State}.
 
 %%--------------------------------------------------------------------
 %% PUT
@@ -160,12 +156,6 @@ erlangify_trigger([Group | Permission]) ->
     {vm_create,
      {grant, group, Group,
       [<<"vms">>, placeholder | Permission]}}.
-
-jsonify_trigger({vm_create,
-                  {grant, group, Group,
-                   [<<"vms">>, placeholder | Permission]}}) ->
-    [{<<"group">>, Group},
-     {<<"permission">>, Permission}].
 
 -ifdef(TEST).
 
