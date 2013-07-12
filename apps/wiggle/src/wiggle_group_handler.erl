@@ -77,7 +77,7 @@ permission_required(#state{method = <<"GET">>, path = [Group, <<"permissions">>]
 permission_required(#state{method = <<"PUT">>, path = [Group, <<"permissions">> | Permission]}) ->
     P = erlangify_permission(Permission),
     {multiple, [[<<"groups">>, Group, <<"grant">>],
-                [<<"permissions">>, P, <<"revoke">>]]};
+                [<<"permissions">>, P, <<"grant">>]]};
 
 permission_required(#state{method = <<"DELETE">>, path = [Group, <<"permissions">> | Permission]}) ->
     P = erlangify_permission(Permission),

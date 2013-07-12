@@ -36,20 +36,6 @@ allowed_methods(_Version, _Token, [_Org, <<"metadata">> | _]) ->
 allowed_methods(_Version, _Token, [_Org, <<"triggers">> | _Trigger]) ->
     [<<"PUT">>, <<"DELETE">>].
 
-get(State = #state{path = [Org, <<"triggers">> | Trigger]}) ->
-    case {erlangify_trigger(Trigger), wiggle_org_handler:get(State#state{path = [Org]})} of
-        {_, not_found} ->
-            not_found;
-        {[], {ok, Obj}} ->
-            {ok, Obj};
-        {P, {ok, Obj}} ->
-            case lists:member(P, jsxd:get(<<"triggers">>, [], Obj)) of
-                true ->
-                    {ok, Obj};
-                _ -> not_found
-            end
-    end;
-
 get(State = #state{path = [Org | _]}) ->
     Start = now(),
     R = libsnarl:org_get(Org),
@@ -74,20 +60,21 @@ permission_required(#state{method = <<"DELETE">>, path = [Org]}) ->
 permission_required(#state{method = <<"GET">>, path = [Org, <<"triggers">>]}) ->
     {ok, [<<"orgs">>, Org, <<"get">>]};
 
-permission_required(#state{method = <<"PUT">>, path = [Org, <<"triggers">> | Trigger]}) ->
-    P = erlangify_trigger(Trigger),
-    {multiple, [[<<"orgs">>, Org, <<"grant">>],
-                [<<"triggers">>, P, <<"revoke">>]]};
+permission_required(#state{method = <<"PUT">>,
+                           path = [Org, <<"triggers">>, Group | _]}) ->
+    {multiple, [[<<"orgs">>, Org, <<"edit">>],
+                [<<"groups">>, Group, <<"grant">>]]};
 
-permission_required(#state{method = <<"DELETE">>, path = [Org, <<"triggers">> | Trigger]}) ->
-    P = erlangify_trigger(Trigger),
-    {multiple, [[<<"orgs">>, Org, <<"revoke">>],
-                [<<"triggers">>, P, <<"revoke">>]]};
+permission_required(#state{method = <<"DELETE">>,
+                           path = [Org, <<"triggers">> | _]}) ->
+    {multiple, [<<"orgs">>, Org, <<"edit">>]};
 
-permission_required(#state{method = <<"PUT">>, path = [Org, <<"metadata">> | _]}) ->
+permission_required(#state{method = <<"PUT">>,
+                           path = [Org, <<"metadata">> | _]}) ->
     {ok, [<<"orgs">>, Org, <<"edit">>]};
 
-permission_required(#state{method = <<"DELETE">>, path = [Org, <<"metadata">> | _]}) ->
+permission_required(#state{method = <<"DELETE">>,
+                           path = [Org, <<"metadata">> | _]}) ->
     {ok, [<<"orgs">>, Org, <<"edit">>]};
 
 permission_required(_State) ->
@@ -112,7 +99,7 @@ read(Req, State = #state{path = [_Org], obj = OrgObj}) ->
     {OrgObj1, Req, State};
 
 read(Req, State = #state{path = [_Org, <<"triggers">>], obj = OrgObj}) ->
-    {lists:map(fun jsonify_trigger/1, jsxd:get(<<"triggers">>, [], OrgObj)), Req, State}.
+    {[jsonify_trigger(T) || T <- jsxd:get(<<"triggers">>, [], OrgObj)], Req, State}.
 
 %%--------------------------------------------------------------------
 %% PUT
