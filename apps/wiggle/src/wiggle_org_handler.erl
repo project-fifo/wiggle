@@ -56,41 +56,41 @@ get(State = #state{path = [Org | _]}) ->
     ?MSnarl(?P(State), Start),
     R.
 
-trigger_required(#state{method = <<"GET">>, path = []}) ->
+permission_required(#state{method = <<"GET">>, path = []}) ->
     {ok, [<<"cloud">>, <<"orgs">>, <<"list">>]};
 
-trigger_required(#state{method = <<"POST">>, path = []}) ->
+permission_required(#state{method = <<"POST">>, path = []}) ->
     {ok, [<<"cloud">>, <<"orgs">>, <<"create">>]};
 
-trigger_required(#state{method = <<"GET">>, path = [Org]}) ->
+permission_required(#state{method = <<"GET">>, path = [Org]}) ->
     {ok, [<<"orgs">>, Org, <<"get">>]};
 
-trigger_required(#state{method = <<"PUT">>, path = [Org]}) ->
+permission_required(#state{method = <<"PUT">>, path = [Org]}) ->
     {ok, [<<"orgs">>, Org, <<"create">>]};
 
-trigger_required(#state{method = <<"DELETE">>, path = [Org]}) ->
+permission_required(#state{method = <<"DELETE">>, path = [Org]}) ->
     {ok, [<<"orgs">>, Org, <<"delete">>]};
 
-trigger_required(#state{method = <<"GET">>, path = [Org, <<"triggers">>]}) ->
+permission_required(#state{method = <<"GET">>, path = [Org, <<"triggers">>]}) ->
     {ok, [<<"orgs">>, Org, <<"get">>]};
 
-trigger_required(#state{method = <<"PUT">>, path = [Org, <<"triggers">> | Trigger]}) ->
+permission_required(#state{method = <<"PUT">>, path = [Org, <<"triggers">> | Trigger]}) ->
     P = erlangify_trigger(Trigger),
     {multiple, [[<<"orgs">>, Org, <<"grant">>],
                 [<<"triggers">>, P, <<"revoke">>]]};
 
-trigger_required(#state{method = <<"DELETE">>, path = [Org, <<"triggers">> | Trigger]}) ->
+permission_required(#state{method = <<"DELETE">>, path = [Org, <<"triggers">> | Trigger]}) ->
     P = erlangify_trigger(Trigger),
     {multiple, [[<<"orgs">>, Org, <<"revoke">>],
                 [<<"triggers">>, P, <<"revoke">>]]};
 
-trigger_required(#state{method = <<"PUT">>, path = [Org, <<"metadata">> | _]}) ->
+permission_required(#state{method = <<"PUT">>, path = [Org, <<"metadata">> | _]}) ->
     {ok, [<<"orgs">>, Org, <<"edit">>]};
 
-trigger_required(#state{method = <<"DELETE">>, path = [Org, <<"metadata">> | _]}) ->
+permission_required(#state{method = <<"DELETE">>, path = [Org, <<"metadata">> | _]}) ->
     {ok, [<<"orgs">>, Org, <<"edit">>]};
 
-trigger_required(_State) ->
+permission_required(_State) ->
     undefined.
 
 %%--------------------------------------------------------------------
