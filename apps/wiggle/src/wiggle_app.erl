@@ -21,6 +21,8 @@ start(_StartType, _StartArgs) ->
                           wiggle_rest_handler, [wiggle_session_handler]},
                          {<<"/api/:version/groups/[...]">>,
                           wiggle_rest_handler, [wiggle_group_handler]},
+                         {<<"/api/:version/orgs/[...]">>,
+                          wiggle_rest_handler, [wiggle_org_handler]},
                          {<<"/api/:version/cloud/[...]">>,
                           wiggle_rest_handler, [wiggle_cloud_handler]},
                          {<<"/api/:version/hypervisors/[...]">>,
