@@ -267,8 +267,14 @@ write(Req, State = #state{path = [User, <<"orgs">>, Org]}, []) ->
     ?MSnarl(?P(State), Start),
     {true, Req, State};
 
+write(Req, State = #state{path = [User, <<"orgs">>, Org]}, [{}]) ->
+    Start = now(),
+    ok = libsnarl:user_join_org(User, Org),
+    ?MSnarl(?P(State), Start),
+    {true, Req, State};
+
 write(Req, State = #state{path = [User, <<"orgs">>, Org]},
-      [{<<"active">>, <<"true">>}]) ->
+      [{<<"active">>, true}]) ->
     Start = now(),
     ok = libsnarl:user_join_org(User, Org),
     ok = libsnarl:user_select_org(User, Org),
