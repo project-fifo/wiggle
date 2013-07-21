@@ -65,7 +65,7 @@ read(Req, State = #state{token = Token, path = []}) ->
     Start1 = now(),
     {ok, Res} = libsniffle:hypervisor_list([{must, 'allowed', [<<"hypervisors">>, {<<"res">>, <<"name">>}, <<"get">>], Permissions}]),
     ?MSniffle(?P(State), Start1),
-    {lists:map(fun ({E, _}) -> E end,  Res), Req, State};
+    {[ID || {_, ID} <- Res], Req, State};
 
 read(Req, State = #state{path = [_Hypervisor], obj = Obj}) ->
     {Obj, Req, State}.

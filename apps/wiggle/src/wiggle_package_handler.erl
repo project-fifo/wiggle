@@ -69,7 +69,7 @@ permission_required(_State) ->
 read(Req, State = #state{token = Token, path = []}) ->
     {ok, Permissions} = libsnarl:user_cache({token, Token}),
     {ok, Res} = libsniffle:package_list([{must, 'allowed', [<<"packages">>, {<<"res">>, <<"uuid">>}, <<"get">>], Permissions}]),
-    {lists:map(fun ({E, _}) -> E end,  Res), Req, State};
+    {[ID || {_, ID} <- Res], Req, State};
 
 read(Req, State = #state{path = [_Package], obj = Obj}) ->
     {Obj, Req, State}.

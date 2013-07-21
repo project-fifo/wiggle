@@ -72,7 +72,7 @@ read(Req, State = #state{token = Token, path = []}) ->
     Start1 = now(),
     {ok, Res} = libsniffle:dataset_list([{must, 'allowed', [<<"datasets">>, {<<"res">>, <<"dataset">>}, <<"get">>], Permissions}]),
     ?MSniffle(?P(State), Start1),
-    {lists:map(fun ({E, _}) -> E end,  Res), Req, State};
+    {[ID || {_, ID} <- Res], Req, State};
 
 read(Req, State = #state{path = [_Dataset], obj = Obj}) ->
     {Obj, Req, State}.
