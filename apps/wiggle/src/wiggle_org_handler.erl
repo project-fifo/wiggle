@@ -112,7 +112,19 @@ create(Req, State = #state{path = [], version = Version}, Decoded) ->
     {ok, UUID} = libsnarl:org_add(Org),
     ?MSnarl(?P(State), Start),
     {{true, <<"/api/", Version/binary, "/orgs/", UUID/binary>>},
-     Req, State#state{body = Decoded}}.
+     Req, State#state{body = Decoded}};
+
+create(Req, State =
+           #state{
+              path = [Org, <<"triggers">>, Trigger],
+              version = Version
+             }, Event) ->
+    P = erlangify_trigger(Trigger, Event),
+    Start = now(),
+    ok = libsnarl:org_add_trigger(Org, P),
+    ?MSnarl(?P(State), Start),
+    {{true, <<"/api/", Version/binary, "/orgs/", Org/binary>>},
+     Req, State}.
 
 write(Req, State = #state{path = [Org, <<"metadata">> | Path]}, [{K, V}])
   when is_binary(Org) ->
@@ -124,13 +136,6 @@ write(Req, State = #state{path = [Org, <<"metadata">> | Path]}, [{K, V}])
 write(Req, State = #state{path = [Org]}, _Body) ->
     Start = now(),
     ok = libsnarl:org_add(Org),
-    ?MSnarl(?P(State), Start),
-    {true, Req, State};
-
-write(Req, State = #state{path = [Org, <<"triggers">>, Trigger]}, Event) ->
-    P = erlangify_trigger(Trigger, Event),
-    Start = now(),
-    ok = libsnarl:org_add_trigger(Org, P),
     ?MSnarl(?P(State), Start),
     {true, Req, State}.
 
