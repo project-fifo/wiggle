@@ -196,7 +196,7 @@ erlangify_trigger([{<<"action">>, <<"user_grant">>},
                    {<<"base">>, Base},
                    {<<"permission">>, Permission},
                    {<<"target">>, Target}]) ->
-    {user, group, Target,
+    {grant, user, Target,
      [Base, placeholder | Permission]}.
 
 -ifdef(TEST).
