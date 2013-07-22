@@ -69,8 +69,8 @@ permission_required(#state{method = <<"POST">>,
 permission_required(#state{method = <<"POST">>,
                            path = [Org, <<"triggers">> | _],
                            body = [{<<"action">>, <<"group_grant">>},
-                                   {<<"base">>, _Base},
-                                   {<<"permission">>, _Permission},
+                                   {<<"base">>, _},
+                                   {<<"permission">>, _},
                                    {<<"target">>, Group}]}) ->
     {multiple, [[<<"orgs">>, Org, <<"edit">>],
                 [<<"groups">>, Group, <<"grant">>]]};
@@ -86,8 +86,8 @@ permission_required(#state{method = <<"POST">>,
 
 permission_required(#state{method = <<"POST">>,
                            path = [Org, <<"triggers">> | _],
-                           body = ([{<<"action">>, <<"join_group">>},
-                                    {<<"group">>, Group}])}) ->
+                           body = [{<<"action">>, <<"join_group">>},
+                                   {<<"group">>, Group}]}) ->
     {multiple, [[<<"orgs">>, Org, <<"edit">>],
                 [<<"groups">>, Group, <<"join">>]]};
 
@@ -111,7 +111,8 @@ permission_required(#state{method = <<"DELETE">>,
                            path = [Org, <<"metadata">> | _]}) ->
     {ok, [<<"orgs">>, Org, <<"edit">>]};
 
-permission_required(_State) ->
+permission_required(State) ->
+    lager:warning("Unknown permission request: ~p.", [State]),
     undefined.
 
 %%--------------------------------------------------------------------
