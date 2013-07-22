@@ -63,7 +63,7 @@ permission_required(#state{method = <<"GET">>, path = [Org, <<"triggers">>]}) ->
 
 permission_required(#state{method = <<"POST">>,
                            path = [_Org, <<"triggers">> | _],
-                           body = undefiend}) ->
+                           body = undefined}) ->
     {error, needs_decode};
 
 permission_required(#state{method = <<"POST">>,
