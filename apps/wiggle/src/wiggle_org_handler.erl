@@ -30,11 +30,12 @@ allowed_methods(_Version, _Token, [_Org]) ->
 allowed_methods(_Version, _Token, [_Org, <<"triggers">>]) ->
     [<<"GET">>];
 
-allowed_methods(_Version, _Token, [_Org, <<"metadata">> | _]) ->
-    [<<"PUT">>, <<"DELETE">>];
-
 allowed_methods(_Version, _Token, [_Org, <<"triggers">> | _Trigger]) ->
+    [<<"POST">>, <<"DELETE">>];
+
+allowed_methods(_Version, _Token, [_Org, <<"metadata">> | _]) ->
     [<<"PUT">>, <<"DELETE">>].
+
 
 get(State = #state{path = [Org | _]}) ->
     Start = now(),
@@ -60,10 +61,43 @@ permission_required(#state{method = <<"DELETE">>, path = [Org]}) ->
 permission_required(#state{method = <<"GET">>, path = [Org, <<"triggers">>]}) ->
     {ok, [<<"orgs">>, Org, <<"get">>]};
 
-permission_required(#state{method = <<"PUT">>,
-                           path = [Org, <<"triggers">>, Group | _]}) ->
+permission_required(#state{method = <<"POST">>,
+                           path = [_Org, <<"triggers">> | _],
+                           body = undefiend}) ->
+    {error, needs_decode};
+
+permission_required(#state{method = <<"POST">>,
+                           path = [Org, <<"triggers">> | _],
+                           body = [{<<"action">>, <<"group_grant">>},
+                                   {<<"base">>, _Base},
+                                   {<<"permission">>, _Permission},
+                                   {<<"target">>, Group}]}) ->
     {multiple, [[<<"orgs">>, Org, <<"edit">>],
                 [<<"groups">>, Group, <<"grant">>]]};
+
+permission_required(#state{method = <<"POST">>,
+                           path = [Org, <<"triggers">> | _],
+                           body = [{<<"action">>, <<"user_grant">>},
+                                   {<<"base">>, _Base},
+                                   {<<"permission">>, _Permission},
+                                   {<<"target">>, User}]}) ->
+    {multiple, [[<<"orgs">>, Org, <<"edit">>],
+                [<<"users">>, User, <<"grant">>]]};
+
+permission_required(#state{method = <<"POST">>,
+                           path = [Org, <<"triggers">> | _],
+                           body = ([{<<"action">>, <<"join_group">>},
+                                    {<<"group">>, Group}])}) ->
+    {multiple, [[<<"orgs">>, Org, <<"edit">>],
+                [<<"groups">>, Group, <<"join">>]]};
+
+permission_required(#state{
+                       method = <<"POST">>,
+                       path = [Org, <<"triggers">> | _],
+                       body = ([{<<"action">>, <<"join_org">>},
+                                {<<"org">>, TargetOrg}])}) ->
+    {multiple, [[<<"orgs">>, Org, <<"edit">>],
+                [<<"orgs">>, TargetOrg, <<"join">>]]};
 
 permission_required(#state{method = <<"DELETE">>,
                            path = [Org, <<"triggers">> | _]}) ->
