@@ -192,10 +192,16 @@ permission_required(_State) ->
 %% GET
 %%--------------------------------------------------------------------
 
-read(Req, State = #state{path = []}) ->
+read(Req, State = #state{token = Token, path = []}) ->
     Start = now(),
-    {ok, Res} = libsnarl:user_list(),
+    {ok, Permissions} = libsnarl:user_cache({token, Token}),
     ?MSnarl(?P(State), Start),
+    Start1 = now(),
+    {ok, Res} = libsnarl:user_list(
+                  [{must, 'allowed',
+                    [<<"users">>, {<<"res">>, <<"uuid">>}, <<"get">>],
+                    Permissions}]),
+    ?MSnarl(?P(State), Start1),
     {Res, Req, State};
 
 read(Req, State = #state{path = [_User], obj = UserObj}) ->
