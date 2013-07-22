@@ -111,9 +111,11 @@ create(Req, State = #state{path = [], version = Version}, Decoded) ->
     Start = now(),
     {ok, UUID} = libsnarl:org_add(Org),
     ?MSnarl(?P(State), Start),
-    {{true, <<"/api/", Version/binary, "/orgs/", UUID/binary>>}, Req, State#state{body = Decoded}}.
+    {{true, <<"/api/", Version/binary, "/orgs/", UUID/binary>>},
+     Req, State#state{body = Decoded}}.
 
-write(Req, State = #state{path = [Org, <<"metadata">> | Path]}, [{K, V}]) when is_binary(Org) ->
+write(Req, State = #state{path = [Org, <<"metadata">> | Path]}, [{K, V}])
+  when is_binary(Org) ->
     Start = now(),
     libsnarl:org_set(Org, Path ++ [K], jsxd:from_list(V)),
     ?MSnarl(?P(State), Start),
@@ -125,8 +127,8 @@ write(Req, State = #state{path = [Org]}, _Body) ->
     ?MSnarl(?P(State), Start),
     {true, Req, State};
 
-write(Req, State = #state{path = [Org, <<"triggers">> | Trigger]}, _Body) ->
-    P = erlangify_trigger(Trigger),
+write(Req, State = #state{path = [Org, <<"triggers">>, Trigger]}, Event) ->
+    P = erlangify_trigger(Trigger, Event),
     Start = now(),
     ok = libsnarl:org_add_trigger(Org, P),
     ?MSnarl(?P(State), Start),
@@ -142,8 +144,9 @@ delete(Req, State = #state{path = [Org, <<"metadata">> | Path]}) ->
     ?MSnarl(?P(State), Start),
     {true, Req, State};
 
-delete(Req, State = #state{path = [Org, <<"triggers">> | Trigger]}) ->
-    P = erlangify_trigger(Trigger),
+delete(Req, State = #state{path = [Org, <<"triggers">> , Trigger],
+                           body = Event}) ->
+    P = erlangify_trigger(Trigger, Event),
     Start = now(),
     ok = libsnarl:org_remove_trigger(Org, P),
     ?MSnarl(?P(State), Start),
@@ -157,10 +160,39 @@ delete(Req, State = #state{path = [Org]}) ->
 
 %% Internal Functions
 
-erlangify_trigger([Group | Permission]) ->
+erlangify_trigger(<<"user_create">>, Event) ->
     {vm_create,
-     {grant, group, Group,
-      [<<"vms">>, placeholder | Permission]}}.
+     erlangify_trigger(Event)};
+
+erlangify_trigger(<<"dataset_create">>, Event) ->
+    {dataset_create,
+     erlangify_trigger(Event)};
+
+erlangify_trigger(<<"vm_create">>, Event) ->
+    {user_create,
+     erlangify_trigger(Event)}.
+
+erlangify_trigger([{<<"action">>, <<"join_group">>},
+                   {<<"group">>, Group}]) ->
+    {join, group, Group};
+
+erlangify_trigger([{<<"action">>, <<"join_org">>},
+                   {<<"Org">>, Org}]) ->
+    {join, org, Org};
+
+erlangify_trigger([{<<"action">>, <<"group_grant">>},
+                   {<<"base">>, Base},
+                   {<<"permission">>, Permission},
+                   {<<"target">>, Target}]) ->
+    {grant, group, Target,
+     [Base, placeholder | Permission]};
+
+erlangify_trigger([{<<"action">>, <<"user_grant">>},
+                   {<<"base">>, Base},
+                   {<<"permission">>, Permission},
+                   {<<"target">>, Target}]) ->
+    {user, group, Target,
+     [Base, placeholder | Permission]}.
 
 -ifdef(TEST).
 
