@@ -202,7 +202,7 @@ read(Req, State = #state{token = Token, path = []}) ->
                     [<<"users">>, {<<"res">>, <<"uuid">>}, <<"get">>],
                     Permissions}]),
     ?MSnarl(?P(State), Start1),
-    {Res, Req, State};
+    {[ID || {_, ID} <- Res], Req, State};
 
 read(Req, State = #state{path = [_User], obj = UserObj}) ->
     UserObj1 = jsxd:update(<<"permissions">>,
