@@ -82,6 +82,8 @@ media_type(Req) ->
         {{<<"application">>, <<"x-msgpack">>, _}, Req1} ->
             {msgpack, Req1};
         {{<<"application">>, <<"json">>, _}, Req1} ->
+            {json, Req1};
+        {_, Req1} ->
             {json, Req1}
     end.
 
