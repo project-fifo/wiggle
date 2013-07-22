@@ -84,12 +84,17 @@ permission_required(_State) ->
 %% GET
 %%--------------------------------------------------------------------
 
-read(Req, State = #state{path = []}) ->
+read(Req, State = #state{token = Token, path = []}) ->
     Start = now(),
-    %%    {ok, Triggers} = libsnarl:user_cache({token, Token}),
-    {ok, Res} = libsnarl:org_list(), %{must, 'allowed', [<<"vm">>, {<<"res">>, <<"uuid">>}, <<"get">>], Triggers}),
+    {ok, Permissions} = libsnarl:user_cache({token, Token}),
     ?MSnarl(?P(State), Start),
-    {Res, Req, State};
+    Start1 = now(),
+    {ok, Res} = libsnarl:org_list(
+                  [{must, 'allowed',
+                    [<<"orgs">>, {<<"res">>, <<"uuid">>}, <<"get">>],
+                    Permissions}]),
+    ?MSnarl(?P(State), Start1),
+    {[ID || {_, ID} <- Res], Req, State};
 
 read(Req, State = #state{path = [_Org], obj = OrgObj}) ->
     {OrgObj, Req, State};

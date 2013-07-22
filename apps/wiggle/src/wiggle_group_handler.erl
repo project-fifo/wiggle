@@ -108,7 +108,7 @@ read(Req, State = #state{token = Token, path = []}) ->
                     [<<"groups">>, {<<"res">>, <<"uuid">>}, <<"get">>],
                     Permissions}]),
     ?MSnarl(?P(State), Start1),
-    {Res, Req, State};
+    {[ID || {_, ID} <- Res], Req, State};
 
 read(Req, State = #state{path = [_Group], obj = GroupObj}) ->
     GroupObj1 = jsxd:update(<<"permissions">>,
