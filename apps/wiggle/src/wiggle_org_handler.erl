@@ -212,11 +212,11 @@ erlangify_trigger(<<"vm_create">>, Event) ->
      erlangify_trigger(Event)}.
 
 erlangify_trigger([{<<"action">>, <<"join_group">>},
-                   {<<"group">>, Group}]) ->
+                   {<<"target">>, Group}]) ->
     {join, group, Group};
 
 erlangify_trigger([{<<"action">>, <<"join_org">>},
-                   {<<"org">>, Org}]) ->
+                   {<<"target">>, Org}]) ->
     {join, org, Org};
 
 erlangify_trigger([{<<"action">>, <<"group_grant">>},
