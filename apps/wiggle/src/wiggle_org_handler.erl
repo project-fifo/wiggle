@@ -200,7 +200,7 @@ delete(Req, State = #state{path = [Org]}) ->
 %% Internal Functions
 
 erlangify_trigger(<<"user_create">>, Event) ->
-    {vm_create,
+    {user_create,
      erlangify_trigger(Event)};
 
 erlangify_trigger(<<"dataset_create">>, Event) ->
@@ -208,7 +208,7 @@ erlangify_trigger(<<"dataset_create">>, Event) ->
      erlangify_trigger(Event)};
 
 erlangify_trigger(<<"vm_create">>, Event) ->
-    {user_create,
+    {vm_create,
      erlangify_trigger(Event)}.
 
 erlangify_trigger([{<<"action">>, <<"join_group">>},
