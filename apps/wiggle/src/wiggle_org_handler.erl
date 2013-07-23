@@ -36,7 +36,6 @@ allowed_methods(_Version, _Token, [_Org, <<"triggers">> | _Trigger]) ->
 allowed_methods(_Version, _Token, [_Org, <<"metadata">> | _]) ->
     [<<"PUT">>, <<"DELETE">>].
 
-
 get(State = #state{path = [Org | _]}) ->
     Start = now(),
     R = libsnarl:org_get(Org),

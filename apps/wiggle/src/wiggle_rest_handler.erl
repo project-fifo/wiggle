@@ -170,7 +170,7 @@ write(Req, State = #state{module = M, body = Data}) ->
 %% DEETE
 %%--------------------------------------------------------------------
 
-delete_resource(Req, State = #state{module = M, body = undefiend}) ->
+delete_resource(Req, State = #state{module = M, body = undefined}) ->
     {ok, Data, Req1} = wiggle_handler:decode(Req),
     M:delete(Req1, State#state{body = Data});
 
