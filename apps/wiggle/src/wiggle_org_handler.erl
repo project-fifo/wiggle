@@ -30,10 +30,10 @@ allowed_methods(_Version, _Token, [_Org]) ->
 allowed_methods(_Version, _Token, [_Org, <<"triggers">>]) ->
     [<<"GET">>];
 
-allowed_methods(_Version, _Token, [_Org, <<"metadata">> | _]) ->
-    [<<"PUT">>, <<"DELETE">>];
-
 allowed_methods(_Version, _Token, [_Org, <<"triggers">> | _Trigger]) ->
+    [<<"POST">>, <<"DELETE">>];
+
+allowed_methods(_Version, _Token, [_Org, <<"metadata">> | _]) ->
     [<<"PUT">>, <<"DELETE">>].
 
 get(State = #state{path = [Org | _]}) ->
@@ -60,10 +60,43 @@ permission_required(#state{method = <<"DELETE">>, path = [Org]}) ->
 permission_required(#state{method = <<"GET">>, path = [Org, <<"triggers">>]}) ->
     {ok, [<<"orgs">>, Org, <<"get">>]};
 
-permission_required(#state{method = <<"PUT">>,
-                           path = [Org, <<"triggers">>, Group | _]}) ->
+permission_required(#state{method = <<"POST">>,
+                           path = [_Org, <<"triggers">> | _],
+                           body = undefined}) ->
+    {error, needs_decode};
+
+permission_required(#state{method = <<"POST">>,
+                           path = [Org, <<"triggers">> | _],
+                           body = [{<<"action">>, <<"group_grant">>},
+                                   {<<"base">>, _},
+                                   {<<"permission">>, _},
+                                   {<<"target">>, Group}]}) ->
     {multiple, [[<<"orgs">>, Org, <<"edit">>],
                 [<<"groups">>, Group, <<"grant">>]]};
+
+permission_required(#state{method = <<"POST">>,
+                           path = [Org, <<"triggers">> | _],
+                           body = [{<<"action">>, <<"user_grant">>},
+                                   {<<"base">>, _Base},
+                                   {<<"permission">>, _Permission},
+                                   {<<"target">>, User}]}) ->
+    {multiple, [[<<"orgs">>, Org, <<"edit">>],
+                [<<"users">>, User, <<"grant">>]]};
+
+permission_required(#state{method = <<"POST">>,
+                           path = [Org, <<"triggers">> | _],
+                           body = [{<<"action">>, <<"join_group">>},
+                                   {<<"group">>, Group}]}) ->
+    {multiple, [[<<"orgs">>, Org, <<"edit">>],
+                [<<"groups">>, Group, <<"join">>]]};
+
+permission_required(#state{
+                       method = <<"POST">>,
+                       path = [Org, <<"triggers">> | _],
+                       body = ([{<<"action">>, <<"join_org">>},
+                                {<<"org">>, TargetOrg}])}) ->
+    {multiple, [[<<"orgs">>, Org, <<"edit">>],
+                [<<"orgs">>, TargetOrg, <<"join">>]]};
 
 permission_required(#state{method = <<"DELETE">>,
                            path = [Org, <<"triggers">> | _]}) ->
@@ -77,7 +110,8 @@ permission_required(#state{method = <<"DELETE">>,
                            path = [Org, <<"metadata">> | _]}) ->
     {ok, [<<"orgs">>, Org, <<"edit">>]};
 
-permission_required(_State) ->
+permission_required(State) ->
+    lager:warning("Unknown permission request: ~p.", [State]),
     undefined.
 
 %%--------------------------------------------------------------------
@@ -111,9 +145,23 @@ create(Req, State = #state{path = [], version = Version}, Decoded) ->
     Start = now(),
     {ok, UUID} = libsnarl:org_add(Org),
     ?MSnarl(?P(State), Start),
-    {{true, <<"/api/", Version/binary, "/orgs/", UUID/binary>>}, Req, State#state{body = Decoded}}.
+    {{true, <<"/api/", Version/binary, "/orgs/", UUID/binary>>},
+     Req, State#state{body = Decoded}};
 
-write(Req, State = #state{path = [Org, <<"metadata">> | Path]}, [{K, V}]) when is_binary(Org) ->
+create(Req, State =
+           #state{
+              path = [Org, <<"triggers">>, Trigger],
+              version = Version
+             }, Event) ->
+    P = erlangify_trigger(Trigger, Event),
+    Start = now(),
+    ok = libsnarl:org_add_trigger(Org, P),
+    ?MSnarl(?P(State), Start),
+    {{true, <<"/api/", Version/binary, "/orgs/", Org/binary>>},
+     Req, State}.
+
+write(Req, State = #state{path = [Org, <<"metadata">> | Path]}, [{K, V}])
+  when is_binary(Org) ->
     Start = now(),
     libsnarl:org_set(Org, Path ++ [K], jsxd:from_list(V)),
     ?MSnarl(?P(State), Start),
@@ -122,13 +170,6 @@ write(Req, State = #state{path = [Org, <<"metadata">> | Path]}, [{K, V}]) when i
 write(Req, State = #state{path = [Org]}, _Body) ->
     Start = now(),
     ok = libsnarl:org_add(Org),
-    ?MSnarl(?P(State), Start),
-    {true, Req, State};
-
-write(Req, State = #state{path = [Org, <<"triggers">> | Trigger]}, _Body) ->
-    P = erlangify_trigger(Trigger),
-    Start = now(),
-    ok = libsnarl:org_add_trigger(Org, P),
     ?MSnarl(?P(State), Start),
     {true, Req, State}.
 
@@ -142,8 +183,9 @@ delete(Req, State = #state{path = [Org, <<"metadata">> | Path]}) ->
     ?MSnarl(?P(State), Start),
     {true, Req, State};
 
-delete(Req, State = #state{path = [Org, <<"triggers">> | Trigger]}) ->
-    P = erlangify_trigger(Trigger),
+delete(Req, State = #state{path = [Org, <<"triggers">> , Trigger],
+                           body = Event}) ->
+    P = erlangify_trigger(Trigger, Event),
     Start = now(),
     ok = libsnarl:org_remove_trigger(Org, P),
     ?MSnarl(?P(State), Start),
@@ -157,10 +199,39 @@ delete(Req, State = #state{path = [Org]}) ->
 
 %% Internal Functions
 
-erlangify_trigger([Group | Permission]) ->
+erlangify_trigger(<<"user_create">>, Event) ->
+    {user_create,
+     erlangify_trigger(Event)};
+
+erlangify_trigger(<<"dataset_create">>, Event) ->
+    {dataset_create,
+     erlangify_trigger(Event)};
+
+erlangify_trigger(<<"vm_create">>, Event) ->
     {vm_create,
-     {grant, group, Group,
-      [<<"vms">>, placeholder | Permission]}}.
+     erlangify_trigger(Event)}.
+
+erlangify_trigger([{<<"action">>, <<"join_group">>},
+                   {<<"target">>, Group}]) ->
+    {join, group, Group};
+
+erlangify_trigger([{<<"action">>, <<"join_org">>},
+                   {<<"target">>, Org}]) ->
+    {join, org, Org};
+
+erlangify_trigger([{<<"action">>, <<"group_grant">>},
+                   {<<"base">>, Base},
+                   {<<"permission">>, Permission},
+                   {<<"target">>, Target}]) ->
+    {grant, group, Target,
+     [Base, placeholder | Permission]};
+
+erlangify_trigger([{<<"action">>, <<"user_grant">>},
+                   {<<"base">>, Base},
+                   {<<"permission">>, Permission},
+                   {<<"target">>, Target}]) ->
+    {grant, user, Target,
+     [Base, placeholder | Permission]}.
 
 -ifdef(TEST).
 

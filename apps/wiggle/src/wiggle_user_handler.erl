@@ -228,11 +228,13 @@ read(Req, State = #state{path = [_User, <<"keys">>], obj = UserObj}) ->
 %% PUT
 %%--------------------------------------------------------------------
 
-create(Req, State = #state{path = [], version = Version}, Decoded) ->
+create(Req, State = #state{token = Token, path = [], version = Version}, Decoded) ->
+    {ok, Creator} = libsnarl:user_get({token, Token}),
+    {ok, CUUID} = jsxd:get(<<"uuid">>, Creator),
     {ok, User} = jsxd:get(<<"user">>, Decoded),
     {ok, Pass} = jsxd:get(<<"password">>, Decoded),
     Start = now(),
-    {ok, UUID} = libsnarl:user_add(User),
+    {ok, UUID} = libsnarl:user_add(CUUID, User),
     ?MSnarl(?P(State), Start),
     Start1 = now(),
     ok = libsnarl:user_passwd(UUID, Pass),
