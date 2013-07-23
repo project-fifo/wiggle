@@ -216,7 +216,7 @@ erlangify_trigger([{<<"action">>, <<"join_group">>},
     {join, group, Group};
 
 erlangify_trigger([{<<"action">>, <<"join_org">>},
-                   {<<"Org">>, Org}]) ->
+                   {<<"org">>, Org}]) ->
     {join, org, Org};
 
 erlangify_trigger([{<<"action">>, <<"group_grant">>},
