@@ -86,7 +86,7 @@ permission_required(#state{method = <<"POST">>,
 permission_required(#state{method = <<"POST">>,
                            path = [Org, <<"triggers">> | _],
                            body = [{<<"action">>, <<"join_group">>},
-                                   {<<"group">>, Group}]}) ->
+                                   {<<"target">>, Group}]}) ->
     {multiple, [[<<"orgs">>, Org, <<"edit">>],
                 [<<"groups">>, Group, <<"join">>]]};
 
@@ -94,7 +94,7 @@ permission_required(#state{
                        method = <<"POST">>,
                        path = [Org, <<"triggers">> | _],
                        body = ([{<<"action">>, <<"join_org">>},
-                                {<<"org">>, TargetOrg}])}) ->
+                                {<<"target">>, TargetOrg}])}) ->
     {multiple, [[<<"orgs">>, Org, <<"edit">>],
                 [<<"orgs">>, TargetOrg, <<"join">>]]};
 
