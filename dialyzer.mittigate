@@ -6,3 +6,5 @@
 ^mimetypes
 ^lhttpc
 ^newrelic.erl
+^glc_code.erl:
+^lager.erl
