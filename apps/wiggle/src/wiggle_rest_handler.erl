@@ -95,8 +95,8 @@ is_authorized(Req, State = #state{method = <<"GET">>,
     {true, Req, State};
 
 is_authorized(Req, State = #state{method = <<"POST">>,
-                              module = wiggle_session_handler,
-                              path = []}) ->
+                                  module = wiggle_session_handler,
+                                  path = []}) ->
     {true, Req, State};
 
 is_authorized(Req, State = #state{token = undefined}) ->
@@ -169,6 +169,10 @@ write(Req, State = #state{module = M, body = Data}) ->
 %%--------------------------------------------------------------------
 %% DEETE
 %%--------------------------------------------------------------------
+
+delete_resource(Req, State = #state{module = M, body = undefined}) ->
+    {ok, Data, Req1} = wiggle_handler:decode(Req),
+    M:delete(Req1, State#state{body = Data});
 
 delete_resource(Req, State = #state{module = M}) ->
     M:delete(Req, State).

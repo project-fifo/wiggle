@@ -70,7 +70,7 @@ read(Req, State = #state{token = Token, path = []}) ->
     Start1 = now(),
     {ok, Res} = libsniffle:iprange_list([{must, 'allowed', [<<"ipranges">>, {<<"res">>, <<"uuid">>}, <<"get">>], Permissions}]),
     ?MSniffle(?P(State), Start1),
-    {lists:map(fun ({E, _}) -> E end,  Res), Req, State};
+    {[ID || {_, ID} <- Res], Req, State};
 
 read(Req, State = #state{path = [_Iprange], obj = Obj}) ->
     {jsxd:thread([{update, <<"network">>, fun ip_to_str/1},

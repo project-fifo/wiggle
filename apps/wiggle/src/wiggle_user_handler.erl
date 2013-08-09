@@ -33,6 +33,12 @@ allowed_methods(_Version, _Token, [_Login]) ->
 allowed_methods(_Version, _Token, [_Login, <<"metadata">> | _]) ->
     [<<"PUT">>, <<"DELETE">>];
 
+allowed_methods(_Version, _Token, [_Login, <<"keys">>]) ->
+    [<<"GET">>, <<"PUT">>];
+
+allowed_methods(_Version, _Token, [_Login, <<"keys">>, _]) ->
+    [<<"DELETE">>];
+
 allowed_methods(_Version, _Token, [_Login, <<"permissions">>]) ->
     [<<"GET">>];
 
@@ -43,10 +49,17 @@ allowed_methods(_Version, _Token, [_Login, <<"groups">>]) ->
     [<<"GET">>];
 
 allowed_methods(_Version, _Token, [_Login, <<"groups">>, _Group]) ->
+    [<<"PUT">>, <<"DELETE">>];
+
+allowed_methods(_Version, _Token, [_Login, <<"orgs">>]) ->
+    [<<"GET">>];
+
+allowed_methods(_Version, _Token, [_Login, <<"orgs">>, _Org]) ->
     [<<"PUT">>, <<"DELETE">>].
 
 get(State = #state{path = [User, <<"permissions">> | Permission]}) ->
-    case {erlangify_permission(Permission), wiggle_user_handler:get(State#state{path = [User]})} of
+    case {erlangify_permission(Permission),
+          wiggle_user_handler:get(State#state{path = [User]})} of
         {_, not_found} ->
             not_found;
         {[], {ok, Obj}} ->
@@ -59,7 +72,8 @@ get(State = #state{path = [User, <<"permissions">> | Permission]}) ->
             end
     end;
 
-get(State = #state{method = <<"DELETE">>, path = [User, <<"groups">>, Group]}) ->
+get(State = #state{method = <<"DELETE">>,
+                   path = [User, <<"groups">>, Group]}) ->
     case wiggle_user_handler:get(State#state{path = [User]}) of
         not_found ->
             not_found;
@@ -109,32 +123,66 @@ permission_required(#state{method = <<"PUT">>, path = [User]}) ->
 permission_required(#state{method = <<"DELETE">>, path = [User]}) ->
     {ok, [<<"users">>, User, <<"delete">>]};
 
-permission_required(#state{method = <<"GET">>, path = [User, <<"permissions">>]}) ->
+permission_required(#state{method = <<"GET">>,
+                           path = [User, <<"permissions">>]}) ->
     {ok, [<<"users">>, User, <<"get">>]};
 
-permission_required(#state{method = <<"PUT">>, path = [User, <<"permissions">> | Permission]}) ->
+permission_required(#state{method = <<"PUT">>,
+                           path = [User, <<"permissions">> | Permission]}) ->
     P = erlangify_permission(Permission),
     {multiple, [[<<"users">>, User, <<"grant">>], P]};
 
-permission_required(#state{method = <<"DELETE">>, path = [User, <<"permissions">> | Permission]}) ->
+permission_required(#state{method = <<"DELETE">>,
+                           path = [User, <<"permissions">> | Permission]}) ->
     P = erlangify_permission(Permission),
     {multiple, [[<<"users">>, User, <<"revoke">>], P]};
 
-permission_required(#state{method = <<"GET">>, path = [User, <<"groups">>]}) ->
+permission_required(#state{method = <<"GET">>,
+                           path = [User, <<"groups">>]}) ->
     {ok, [<<"users">>, User, <<"get">>]};
 
-permission_required(#state{method = <<"PUT">>, path = [User, <<"groups">>, Group]}) ->
+permission_required(#state{method = <<"PUT">>,
+                           path = [User, <<"groups">>, Group]}) ->
     {multiple, [[<<"users">>, User, <<"join">>],
                 [<<"groups">>, Group, <<"join">>]]};
 
-permission_required(#state{method = <<"DELETE">>, path = [User, <<"groups">>, Group]}) ->
+permission_required(#state{method = <<"DELETE">>,
+                           path = [User, <<"groups">>, Group]}) ->
     {multiple, [[<<"users">>, User, <<"leave">>],
                 [<<"groups">>, Group, <<"leave">>]]};
 
-permission_required(#state{method = <<"PUT">>, path = [User, <<"metadata">> | _]}) ->
+permission_required(#state{method = <<"GET">>,
+                           path = [User, <<"orgs">>]}) ->
+    {ok, [<<"users">>, User, <<"get">>]};
+
+permission_required(#state{method = <<"PUT">>,
+                           path = [User, <<"orgs">>, Org]}) ->
+    {multiple, [[<<"users">>, User, <<"join">>],
+                [<<"orgs">>, Org, <<"join">>]]};
+
+permission_required(#state{method = <<"DELETE">>,
+                           path = [User, <<"orgs">>, Org]}) ->
+    {multiple, [[<<"users">>, User, <<"leave">>],
+                [<<"orgs">>, Org, <<"leave">>]]};
+
+permission_required(#state{method = <<"PUT">>,
+                           path = [User, <<"metadata">> | _]}) ->
     {ok, [<<"users">>, User, <<"edit">>]};
 
-permission_required(#state{method = <<"DELETE">>, path = [User, <<"metadata">> | _]}) ->
+permission_required(#state{method = <<"DELETE">>,
+                           path = [User, <<"metadata">> | _]}) ->
+    {ok, [<<"users">>, User, <<"edit">>]};
+
+permission_required(#state{method = <<"GET">>,
+                           path = [User, <<"keys">>]}) ->
+    {ok, [<<"users">>, User, <<"get">>]};
+
+permission_required(#state{method = <<"PUT">>,
+                           path = [User, <<"keys">>]}) ->
+    {ok, [<<"users">>, User, <<"edit">>]};
+
+permission_required(#state{method = <<"DELETE">>,
+                           path = [User, <<"keys">>, _KeyID]}) ->
     {ok, [<<"users">>, User, <<"edit">>]};
 
 permission_required(_State) ->
@@ -144,11 +192,17 @@ permission_required(_State) ->
 %% GET
 %%--------------------------------------------------------------------
 
-read(Req, State = #state{path = []}) ->
+read(Req, State = #state{token = Token, path = []}) ->
     Start = now(),
-    {ok, Res} = libsnarl:user_list(),
+    {ok, Permissions} = libsnarl:user_cache({token, Token}),
     ?MSnarl(?P(State), Start),
-    {Res, Req, State};
+    Start1 = now(),
+    {ok, Res} = libsnarl:user_list(
+                  [{must, 'allowed',
+                    [<<"users">>, {<<"res">>, <<"uuid">>}, <<"get">>],
+                    Permissions}]),
+    ?MSnarl(?P(State), Start1),
+    {[ID || {_, ID} <- Res], Req, State};
 
 read(Req, State = #state{path = [_User], obj = UserObj}) ->
     UserObj1 = jsxd:update(<<"permissions">>,
@@ -162,17 +216,25 @@ read(Req, State = #state{path = [_User, <<"permissions">>], obj = UserObj}) ->
     {lists:map(fun jsonify_permissions/1, jsxd:get(<<"permissions">>, [], UserObj)), Req, State};
 
 read(Req, State = #state{path = [_User, <<"groups">>], obj = UserObj}) ->
-    {jsxd:get(<<"groups">>, [], UserObj), Req, State}.
+    {jsxd:get(<<"groups">>, [], UserObj), Req, State};
+
+read(Req, State = #state{path = [_User, <<"orgs">>], obj = UserObj}) ->
+    {jsxd:get(<<"orgs">>, [], UserObj), Req, State};
+
+read(Req, State = #state{path = [_User, <<"keys">>], obj = UserObj}) ->
+    {jsxd:get(<<"keys">>, [], UserObj), Req, State}.
 
 %%--------------------------------------------------------------------
 %% PUT
 %%--------------------------------------------------------------------
 
-create(Req, State = #state{path = [], version = Version}, Decoded) ->
+create(Req, State = #state{token = Token, path = [], version = Version}, Decoded) ->
+    {ok, Creator} = libsnarl:user_get({token, Token}),
+    {ok, CUUID} = jsxd:get(<<"uuid">>, Creator),
     {ok, User} = jsxd:get(<<"user">>, Decoded),
     {ok, Pass} = jsxd:get(<<"password">>, Decoded),
     Start = now(),
-    {ok, UUID} = libsnarl:user_add(User),
+    {ok, UUID} = libsnarl:user_add(CUUID, User),
     ?MSnarl(?P(State), Start),
     Start1 = now(),
     ok = libsnarl:user_passwd(UUID, Pass),
@@ -195,9 +257,35 @@ write(Req, State = #state{path = [User, <<"metadata">> | Path]}, [{K, V}]) ->
     ?MSnarl(?P(State), Start),
     {true, Req, State};
 
+write(Req, State = #state{path = [User, <<"keys">>]}, [{KeyID, Key}]) ->
+    Start = now(),
+    libsnarl:user_key_add(User, KeyID, Key),
+    ?MSnarl(?P(State), Start),
+    {true, Req, State};
+
 write(Req, State = #state{path = [User, <<"groups">>, Group]}, _) ->
     Start = now(),
     ok = libsnarl:user_join(User, Group),
+    ?MSnarl(?P(State), Start),
+    {true, Req, State};
+
+write(Req, State = #state{path = [User, <<"orgs">>, Org]}, []) ->
+    Start = now(),
+    ok = libsnarl:user_join_org(User, Org),
+    ?MSnarl(?P(State), Start),
+    {true, Req, State};
+
+write(Req, State = #state{path = [User, <<"orgs">>, Org]}, [{}]) ->
+    Start = now(),
+    ok = libsnarl:user_join_org(User, Org),
+    ?MSnarl(?P(State), Start),
+    {true, Req, State};
+
+write(Req, State = #state{path = [User, <<"orgs">>, Org]},
+      [{<<"active">>, true}]) ->
+    Start = now(),
+    ok = libsnarl:user_join_org(User, Org),
+    ok = libsnarl:user_select_org(User, Org),
     ?MSnarl(?P(State), Start),
     {true, Req, State};
 
@@ -219,6 +307,12 @@ delete(Req, State = #state{path = [User, <<"metadata">> | Path]}) ->
     ?MSnarl(?P(State), Start),
     {true, Req, State};
 
+delete(Req, State = #state{path = [User, <<"keys">>, KeyID]}) ->
+    Start = now(),
+    libsnarl:user_key_revoke(User, KeyID),
+    ?MSnarl(?P(State), Start),
+    {true, Req, State};
+
 delete(Req, State = #state{path = [_User, <<"sessions">>]}) ->
     Req1 = cowboy_req:set_resp_cookie(<<"x-snarl-token">>, <<"">>, [{max_age, 0}], Req),
     {true, Req1, State};
@@ -233,6 +327,12 @@ delete(Req, State = #state{path = [User, <<"permissions">> | Permission]}) ->
 delete(Req, State = #state{path = [User]}) ->
     Start = now(),
     ok = libsnarl:user_delete(User),
+    ?MSnarl(?P(State), Start),
+    {true, Req, State};
+
+delete(Req, State = #state{path = [User, <<"orgs">>, Org]}) ->
+    Start = now(),
+    ok = libsnarl:user_leave_org(User, Org),
     ?MSnarl(?P(State), Start),
     {true, Req, State};
 

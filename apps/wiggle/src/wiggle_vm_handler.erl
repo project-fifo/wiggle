@@ -18,6 +18,28 @@
               write/3,
               delete/2]).
 
+
+-define(GUARD_CALL(Call),
+        case Call of
+            ok ->
+                true;
+            GuardCallError ->
+                lager:error("Error: ~p", [GuardCallError]),
+                false
+        end).
+
+-define(LIB(Call),
+        Start = now(),
+        case Call of
+            ok ->
+                ?MSniffle(?P(State), Start),
+                {true, Req, State};
+            GuardCallError ->
+                ?MSniffle(?P(State), Start),
+                lager:error("Error: ~p", [GuardCallError]),
+                {false, Req, State}
+        end).
+
 allowed_methods(_Version, _Token, []) ->
     [<<"GET">>, <<"POST">>];
 
@@ -145,7 +167,7 @@ read(Req, State = #state{token = Token, path = []}) ->
     Start1 = now(),
     {ok, Res} = libsniffle:vm_list([{must, 'allowed', [<<"vms">>, {<<"res">>, <<"uuid">>}, <<"get">>], Permissions}]),
     ?MSniffle(?P(State), Start1),
-    {lists:map(fun ({E, _}) -> E end,  Res), Req, State};
+    {[ID || {_, ID} <- Res], Req, State};
 
 read(Req, State = #state{path = [_Vm, <<"snapshots">>], obj = Obj}) ->
     Snaps = jsxd:fold(fun(UUID, Snap, Acc) ->
@@ -194,77 +216,52 @@ create(Req, State = #state{path = [Vm, <<"snapshots">>], version = Version}, Dec
     {ok, UUID} = libsniffle:vm_snapshot(Vm, Comment),
     ?MSniffle(?P(State), Start),
     {{true, <<"/api/", Version/binary, "/vms/", Vm/binary, "/snapshots/", UUID/binary>>}, Req, State#state{body = Decoded}};
+
 create(Req, State = #state{path = [Vm, <<"nics">>], version = Version}, Decoded) ->
     {ok, Network} = jsxd:get(<<"network">>, Decoded),
     Start = now(),
-    ok = libsniffle:vm_add_nic(Vm, Network),
+    R = ok =:= libsniffle:vm_add_nic(Vm, Network),
     ?MSniffle(?P(State), Start),
-    {{true, <<"/api/", Version/binary, "/vms/", Vm/binary>>}, Req, State#state{body = Decoded}}.
+    {{R, <<"/api/", Version/binary, "/vms/", Vm/binary>>}, Req, State#state{body = Decoded}}.
 
 
 write(Req, State = #state{path = [_, <<"nics">>]}, _Body) ->
     {true, Req, State};
 
 write(Req, State = #state{path = [Vm, <<"nics">>, Mac]}, [{<<"primary">>, true}]) ->
-    Start = now(),
-    ok = libsniffle:vm_primary_nic(Vm, Mac),
-    ?MSniffle(?P(State), Start),
-    {true, Req, State};
+    ?LIB(libsniffle:vm_primary_nic(Vm, Mac));
 
 write(Req, State = #state{path = [Vm, <<"metadata">> | Path]}, [{K, V}]) ->
-    Start = now(),
-    libsniffle:vm_set(Vm, [<<"metadata">> | Path] ++ [K], jsxd:from_list(V)),
-    ?MSniffle(?P(State), Start),
-    {true, Req, State};
+    ?LIB(libsniffle:vm_set(Vm, [<<"metadata">> | Path] ++ [K],
+                           jsxd:from_list(V)));
+
 
 write(Req, State = #state{path = [Vm]}, [{<<"action">>, <<"start">>}]) ->
-    Start = now(),
-    libsniffle:vm_start(Vm),
-    ?MSniffle(?P(State), Start),
-    {true, Req, State};
+    ?LIB(libsniffle:vm_start(Vm));
 
 write(Req, State = #state{path = [Vm]}, [{<<"action">>, <<"stop">>}]) ->
-    Start = now(),
-    libsniffle:vm_stop(Vm),
-    ?MSniffle(?P(State), Start),
-    {true, Req, State};
+    ?LIB(libsniffle:vm_stop(Vm));
 
-write(Req, State = #state{path = [Vm]}, [{<<"action">>, <<"stop">>}, {<<"force">>, true}]) ->
-    Start = now(),
-    libsniffle:vm_stop(Vm, [force]),
-    ?MSniffle(?P(State), Start),
-    {true, Req, State};
+write(Req, State = #state{path = [Vm]},
+      [{<<"action">>, <<"stop">>}, {<<"force">>, true}]) ->
+    ?LIB(libsniffle:vm_stop(Vm, [force]));
 
 write(Req, State = #state{path = [Vm]}, [{<<"action">>, <<"reboot">>}]) ->
-    Start = now(),
-    libsniffle:vm_reboot(Vm),
-    ?MSniffle(?P(State), Start),
-    {true, Req, State};
+    ?LIB(libsniffle:vm_reboot(Vm));
 
-write(Req, State = #state{path = [Vm]}, [{<<"action">>, <<"reboot">>}, {<<"force">>, true}]) ->
-    Start = now(),
-    libsniffle:vm_reboot(Vm, [force]),
-    ?MSniffle(?P(State), Start),
-    {true, Req, State};
+write(Req, State = #state{path = [Vm]},
+      [{<<"action">>, <<"reboot">>}, {<<"force">>, true}]) ->
+    ?LIB(libsniffle:vm_reboot(Vm, [force]));
 
 write(Req, State = #state{path = [Vm]}, [{<<"config">>, Config},
                                          {<<"package">>, Package}]) ->
-    Start = now(),
-    libsniffle:vm_update(Vm, Package, Config),
-    ?MSniffle(?P(State), Start),
-    {true, Req, State};
+    ?LIB(libsniffle:vm_update(Vm, Package, Config));
 
 write(Req, State = #state{path = [Vm]}, [{<<"config">>, Config}]) ->
-    Start = now(),
-    libsniffle:vm_update(Vm, undefined, Config),
-    ?MSniffle(?P(State), Start),
-    {true, Req, State};
+    ?LIB(libsniffle:vm_update(Vm, undefined, Config));
 
 write(Req, State = #state{path = [Vm]}, [{<<"package">>, Package}]) ->
-    Start = now(),
-    libsniffle:vm_update(Vm, Package, []),
-    ?MSniffle(?P(State), Start),
-    {true, Req, State};
+    ?LIB(libsniffle:vm_update(Vm, Package, []));
 
 write(Req, State = #state{path = []}, _Body) ->
     {true, Req, State};
@@ -272,11 +269,9 @@ write(Req, State = #state{path = []}, _Body) ->
 write(Req, State = #state{path = [_Vm, <<"snapshots">>]}, _Body) ->
     {true, Req, State};
 
-write(Req, State = #state{path = [Vm, <<"snapshots">>, UUID]}, [{<<"action">>, <<"rollback">>}]) ->
-    Start = now(),
-    ok = libsniffle:vm_rollback_snapshot(Vm, UUID),
-    ?MSniffle(?P(State), Start),
-    {true, Req, State};
+write(Req, State = #state{path = [Vm, <<"snapshots">>, UUID]},
+      [{<<"action">>, <<"rollback">>}]) ->
+    ?LIB(libsniffle:vm_rollback_snapshot(Vm, UUID));
 
 write(Req, State, _Body) ->
     lager:error("Unknown PUT request: ~p~n.", [State]),
