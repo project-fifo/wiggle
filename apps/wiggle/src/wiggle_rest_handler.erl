@@ -80,11 +80,21 @@ resource_exists(Req, State = #state{module = M}) ->
             {true, Req, State#state{obj = Obj}}
     end.
 
+-ifndef(old_hash).
+
 generate_etag(Req, State = #state{obj = undefined}) ->
     {undefined, Req, State};
+generate_etag(Req, State = #state{obj = Obj}) ->
+    {{strong, base64:encode(crypto:hash(md5, term_to_binary(Obj)))}, Req, State}.
 
+-else.
+
+generate_etag(Req, State = #state{obj = undefined}) ->
+    {undefined, Req, State};
 generate_etag(Req, State = #state{obj = Obj}) ->
     {{strong, base64:encode(crypto:md5(term_to_binary(Obj)))}, Req, State}.
+
+-endif.
 
 is_authorized(Req, State = #state{method = <<"OPTIONS">>}) ->
     {true, Req, State};
