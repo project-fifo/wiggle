@@ -1,5 +1,5 @@
 VERSION=0.5.1
-COMPONENT=wiggle
+COMPONENT=fifo-wiggle
 
 .PHONY: build_info package package_list
 
