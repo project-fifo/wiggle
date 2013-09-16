@@ -31,19 +31,19 @@ case $2 in
             echo Service already existings ...
         else
             echo Importing service ...
-            svccfg import /opt/local/wiggle/share/wiggle.xml
+            svccfg import /opt/local/fifo-wiggle/share/wiggle.xml
         fi
         echo Trying to guess configuration ...
         IP=`ifconfig net0 | grep inet | awk -e '{print $2}'`
-        if [ ! -f /opt/local/wiggle/etc/vm.args ]
+        if [ ! -f /opt/local/fifo-wiggle/etc/vm.args ]
         then
-            cp /opt/local/wiggle/etc/vm.args.example /opt/local/wiggle/etc/vm.args
-            sed --in-place -e "s/127.0.0.1/${IP}/g" /opt/local/wiggle/etc/vm.args
+            cp /opt/local/fifo-wiggle/etc/vm.args.example /opt/local/fifo-wiggle/etc/vm.args
+            sed --in-place -e "s/127.0.0.1/${IP}/g" /opt/local/fifo-wiggle/etc/vm.args
         fi
-        if [ ! -f /opt/local/wiggle/etc/app.config ]
+        if [ ! -f /opt/local/fifo-wiggle/etc/app.config ]
         then
-            cp /opt/local/wiggle/etc/app.config.example /opt/local/wiggle/etc/app.config
-            sed --in-place -e "s/127.0.0.1/${IP}/g" /opt/local/wiggle/etc/app.config
+            cp /opt/local/fifo-wiggle/etc/app.config.example /opt/local/fifo-wiggle/etc/app.config
+            sed --in-place -e "s/127.0.0.1/${IP}/g" /opt/local/fifo-wiggle/etc/app.config
         fi
         ;;
 esac
