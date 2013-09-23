@@ -6,7 +6,7 @@ COMPONENT=fifo-wiggle
 
 package_list:
 	echo "@pkgdep erlang>=15.1.1" > packlist
-	(cd ../$(COMPONENT); find * -type f | sort) >> packlist
+	(cd ../$(COMPONENT_INTERNAL); find * -type f | sort) >> packlist
 build_info:
 	pkg_info -X pkg_install | egrep '^(MACHINE_ARCH|OPSYS|OS_VERSION|PKGTOOLS_VERSION)' >build-info
 	echo "CATEGORIES=fifo" >>build-info
