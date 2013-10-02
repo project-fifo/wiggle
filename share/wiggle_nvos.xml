@@ -40,7 +40,7 @@ Copyright 2012 Project FiFo / Heinz N. Gies
         exec='/opt/local/fifo-wiggle/bin/wiggle %m'
         timeout_seconds='30'>
       <method_context>
-        <method_credential user='wiggle' group='www' />
+        <method_credential user='wiggle' group='wiggle' />
         <method_environment>
           <envvar name='PATH' value='/usr/gnu/bin:/usr/bin:/usr/sbin'/>
           <envvar name='HOME' value='/var/db/wiggle'/>
@@ -55,7 +55,7 @@ Copyright 2012 Project FiFo / Heinz N. Gies
         exec='/opt/local/fifo-wiggle/bin/wiggle %m'
         timeout_seconds='60'>
       <method_context>
-        <method_credential user='wiggle' group='www' />
+        <method_credential user='wiggle' group='wiggle' />
         <method_environment>
           <envvar name='PATH' value='/usr/gnu/bin:/usr/bin:/usr/sbin'/>
           <envvar name='HOME' value='/var/db/wiggle'/>
@@ -70,7 +70,7 @@ Copyright 2012 Project FiFo / Heinz N. Gies
         exec='/opt/local/fifo-wiggle/bin/wiggle smf-stop'
         timeout_seconds='60'>
       <method_context>
-        <method_credential user='wiggle' group='www' />
+        <method_credential user='wiggle' group='wiggle' />
         <method_environment>
           <envvar name='PATH' value='/usr/gnu/bin:/usr/bin:/usr/sbin'/>
           <envvar name='HOME' value='/var/db/wiggle'/>
