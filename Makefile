@@ -28,6 +28,7 @@ test: all
 	$(REBAR) skip_deps=true eunit
 
 rel: all zabbix
+	-rm -r rel/wiggle/share
 	$(REBAR) generate
 
 relclean:
