@@ -21,6 +21,9 @@ allowed_methods(_Version, _Token, []) ->
 allowed_methods(_Version, _Token, [_Hypervisor]) ->
     [<<"GET">>];
 
+allowed_methods(_Version, _Token, [_Hypervisor, <<"config">>|_]) ->
+    [<<"PUT">>];
+
 allowed_methods(_Version, _Token, [_Hypervisor, <<"characteristics">>|_]) ->
     [<<"PUT">>, <<"DELETE">>];
 
@@ -38,6 +41,9 @@ permission_required(#state{path = []}) ->
 
 permission_required(#state{method = <<"GET">>, path = [Hypervisor]}) ->
     {ok, [<<"hypervisors">>, Hypervisor, <<"get">>]};
+
+permission_required(#state{method = <<"PUT">>, path = [Hypervisor, <<"config">> | _]}) ->
+    {ok, [<<"hypervisors">>, Hypervisor, <<"edit">>]};
 
 permission_required(#state{method = <<"PUT">>, path = [Hypervisor, <<"metadata">> | _]}) ->
     {ok, [<<"hypervisors">>, Hypervisor, <<"edit">>]};
@@ -74,6 +80,13 @@ read(Req, State = #state{path = [_Hypervisor], obj = Obj}) ->
 %%--------------------------------------------------------------------
 %% PUT
 %%--------------------------------------------------------------------
+
+write(Req, State = #state{path = [Hypervisor, <<"config">>]},
+      [{<<"alias">>, V}]) when is_binary(V)->
+    Start = now(),
+    libsniffle:hypervisor_set(Hypervisor, [<<"alias">>], V),
+    ?MSniffle(?P(State), Start),
+    {true, Req, State};
 
 write(Req, State = #state{path = [Hypervisor, <<"characteristics">> | Path]}, [{K, V}]) ->
     Start = now(),
