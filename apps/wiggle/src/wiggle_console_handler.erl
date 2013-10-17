@@ -23,7 +23,15 @@ e(Code, Msg, Req) ->
     {shutdown, Req1}.
 
 websocket_init(_Any, Req, []) ->
-    {ID, Req1} = cowboy_req:binding(uuid, Req),
+    Req0 = case cowboy_req:parse_header(<<"sec-websocket-protocol">>, Req) of
+               {undefined, _, ReqR} ->
+                   ReqR;
+               {ok, [], ReqR} ->
+                   ReqR;
+               {ok, [P |_], ReqR} ->
+                   cowboy_req:set_resp_header(<<"sec-websocket-protocol">>, P, ReqR)
+           end,
+    {ID, Req1} = cowboy_req:binding(uuid, Req0),
     Req2 = wiggle_handler:set_access_header(Req1),
     case wiggle_handler:get_token(Req2) of
         {undefined, Req3} ->
