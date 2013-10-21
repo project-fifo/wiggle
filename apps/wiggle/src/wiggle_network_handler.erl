@@ -125,7 +125,7 @@ write(Req, State = #state{method = <<"POST">>, path = []}, _) ->
 
 write(Req, State = #state{path = [Network, <<"metadata">> | Path]}, [{K, V}]) ->
     Start = now(),
-    libsniffle:network_set(Network, [<<"metadata">> | Path] ++ [K], jsxd:from_list(V)),
+    libsniffle:network_set(Network, Path ++ [K], jsxd:from_list(V)),
     ?MSniffle(?P(State), Start),
     {true, Req, State};
 
@@ -138,7 +138,7 @@ write(Req, State, _Body) ->
 
 delete(Req, State = #state{path = [Network, <<"metadata">> | Path]}) ->
     Start = now(),
-    libsniffle:network_set(Network, [<<"metadata">> | Path], delete),
+    libsniffle:network_set(Network, Path, delete),
     ?MSniffle(?P(State), Start),
     {true, Req, State};
 
