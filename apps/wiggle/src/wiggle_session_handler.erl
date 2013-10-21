@@ -66,9 +66,10 @@ create(Req, State = #state{path = [], version = Version}, Decoded) ->
             Req1 = cowboy_req:set_resp_cookie(<<"x-snarl-token">>, UUID,
                                               [{max_age, 364*24*60*60}], Req),
             Req2 = cowboy_req:set_resp_header(<<"x-snarl-token">>, UUID, Req1),
-            {{true, <<"/api/", Version/binary, "/sessions/", UUID/binary>>}, Req2, State#state{body = Decoded}};
+            {{true, <<"/api/", Version/binary, "/sessions/", UUID/binary>>},
+             Req2, State#state{body = Decoded}};
         _ ->
-            {ok, Req1} = cowboy_req:reply(403, [], <<"Forbidden!">>, Req),
+            {ok, Req1} = cowboy_req:reply(401, [], <<"Forbidden!">>, Req),
             {halt, Req1, State}
     end.
 
