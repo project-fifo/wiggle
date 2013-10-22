@@ -182,7 +182,19 @@ write(Req, State = #state{module = M, body = Data}) ->
 
 delete_resource(Req, State = #state{module = M, body = undefined}) ->
     {ok, Data, Req1} = wiggle_handler:decode(Req),
-    M:delete(Req1, State#state{body = Data});
+    case M:delete(Req1, State#state{body = Data}) of
+        {N, Req2, State} when is_integer(N) ->
+            {ok, Req3} = cowboy_req:reply(N, Req2),
+            {false, Req3, State};
+        R ->
+            R
+    end;
 
 delete_resource(Req, State = #state{module = M}) ->
-    M:delete(Req, State).
+    case M:delete(Req, State) of
+        {N, Req1, State} when is_integer(N) ->
+            {ok, Req2} = cowboy_req:reply(N, Req1),
+            {false, Req2, State};
+        R ->
+            R
+    end.

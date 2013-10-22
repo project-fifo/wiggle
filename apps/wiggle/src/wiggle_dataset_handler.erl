@@ -135,8 +135,8 @@ delete(Req, State = #state{path = [Dataset]}) ->
                     ?MSniffle(?P(State), Start),
                     {true, Req, State};
                 _ ->
-                    {false, Req, State}
+                    {409, Req, State}
             end;
         _ ->
-            {false, Req, State}
+            {404, Req, State}
     end.
