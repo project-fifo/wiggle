@@ -220,9 +220,18 @@ create(Req, State = #state{path = [Vm, <<"snapshots">>], version = Version}, Dec
 create(Req, State = #state{path = [Vm, <<"nics">>], version = Version}, Decoded) ->
     {ok, Network} = jsxd:get(<<"network">>, Decoded),
     Start = now(),
-    R = ok =:= libsniffle:vm_add_nic(Vm, Network),
-    ?MSniffle(?P(State), Start),
-    {{R, <<"/api/", Version/binary, "/vms/", Vm/binary>>}, Req, State#state{body = Decoded}}.
+    case libsniffle:vm_add_nic(Vm, Network) of
+        ok ->
+            ?MSniffle(?P(State), Start),
+            {{true, <<"/api/", Version/binary, "/vms/", Vm/binary>>},
+             Req, State#state{body = Decoded}};
+        E ->
+            ?MSniffle(?P(State), Start),
+            lager:error("Error adding nic to VM(~p) on network(~p) / ~p", [Vm, Network, E]),
+            {ok, Req1} = cowboy_req:reply(500, Req),
+            lager:error("Could not add nic: ~P"),
+            {halt, Req1, State}
+    end.
 
 
 write(Req, State = #state{path = [_, <<"nics">>]}, _Body) ->
