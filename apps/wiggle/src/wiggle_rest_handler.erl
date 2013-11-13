@@ -182,7 +182,23 @@ write(Req, State = #state{module = M, body = Data}) ->
 
 delete_resource(Req, State = #state{module = M, body = undefined}) ->
     {ok, Data, Req1} = wiggle_handler:decode(Req),
-    M:delete(Req1, State#state{body = Data});
+    case M:delete(Req1, State#state{body = Data}) of
+        {N, Req2, State1} when is_number(N) ->
+            lager:info("Delete failed with ~p.", [N]),
+            {ok, Req3} = cowboy_req:reply(N, Req2),
+            {false, Req3, State1};
+        {N, _, _} = R ->
+            lager:info("Delete succeeded with ~p.", [N]),
+            R
+    end;
 
 delete_resource(Req, State = #state{module = M}) ->
-    M:delete(Req, State).
+    case M:delete(Req, State) of
+        {N, Req1, State1} when is_number(N) ->
+            lager:info("Delete failed with ~p.", [N]),
+            {ok, Req2} = cowboy_req:reply(N, Req1),
+            {false, Req2, State1};
+        {N, _, _} = R ->
+            lager:info("Delete succeeded with ~p.", [N]),
+            R
+    end.

@@ -44,7 +44,7 @@ Copyright 2012 Project FiFo / Heinz N. Gies
     <exec_method
         type='method'
         name='start'
-        exec='/opt/local/wiggle/bin/wiggle %m'
+        exec='/opt/local/fifo-wiggle/bin/wiggle %m'
         timeout_seconds='30'>
       <method_context>
         <method_credential user='wiggle' group='www' />
@@ -59,7 +59,7 @@ Copyright 2012 Project FiFo / Heinz N. Gies
     <exec_method
         name='restart'
         type='method'
-        exec='/opt/local/wiggle/bin/wiggle %m'
+        exec='/opt/local/fifo-wiggle/bin/wiggle %m'
         timeout_seconds='60'>
       <method_context>
         <method_credential user='wiggle' group='www' />
@@ -74,7 +74,7 @@ Copyright 2012 Project FiFo / Heinz N. Gies
     <exec_method
         name='stop'
         type='method'
-        exec='/opt/local/wiggle/bin/wiggle smf-stop'
+        exec='/opt/local/fifo-wiggle/bin/wiggle smf-stop'
         timeout_seconds='60'>
       <method_context>
         <method_credential user='wiggle' group='www' />

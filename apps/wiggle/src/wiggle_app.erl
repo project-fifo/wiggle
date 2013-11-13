@@ -13,7 +13,13 @@ start(_StartType, _StartArgs) ->
     {ok, Port} = application:get_env(wiggle, port),
     {ok, Acceptors} = application:get_env(wiggle, acceptors),
 
+    case (catch eplugin:wait_for_init()) of
+        {'EXIT', Why} -> lager:warning("Error waiting for eplugin init: ~p", [Why]),
+                         lager:warning("Your plugins are probably taking too long to load, and some wiggle:dispatchs hooks may not run.");
+        ok -> ok
+    end,
     PluginDispatchs = eplugin:fold('wiggle:dispatchs', []),
+
     Dispatch = cowboy_router:compile(
                  [{'_', [{<<"/api/:version/users/[...]">>,
                           wiggle_rest_handler, [wiggle_user_handler]},

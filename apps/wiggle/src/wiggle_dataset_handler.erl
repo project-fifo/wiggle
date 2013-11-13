@@ -126,7 +126,17 @@ delete(Req, State = #state{path = [Dataset, <<"metadata">> | Path]}) ->
     {true, Req, State};
 
 delete(Req, State = #state{path = [Dataset]}) ->
-    Start = now(),
-    ok = libsniffle:dataset_delete(Dataset),
-    ?MSniffle(?P(State), Start),
-    {true, Req, State}.
+    case libsniffle:dataset_get(Dataset) of
+        {ok, D} ->
+            case jsxd:get(<<"imported">>, D) of
+                {ok, 1} ->
+                    Start = now(),
+                    ok = libsniffle:dataset_delete(Dataset),
+                    ?MSniffle(?P(State), Start),
+                    {true, Req, State};
+                _ ->
+                    {409, Req, State}
+            end;
+        _ ->
+            {404, Req, State}
+    end.
