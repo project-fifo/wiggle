@@ -46,6 +46,9 @@ allowed_methods(_Version, _Token, []) ->
 allowed_methods(_Version, _Token, [_Vm]) ->
     [<<"GET">>, <<"PUT">>, <<"DELETE">>];
 
+allowed_methods(_Version, _Token, [_Vm, <<"owner">>]) ->
+    [<<"PUT">>];
+
 allowed_methods(_Version, _Token, [_Vm, <<"metadata">>|_]) ->
     [<<"PUT">>, <<"DELETE">>];
 
@@ -122,6 +125,20 @@ permission_required(#state{method = <<"POST">>, path = [Vm, <<"snapshots">>]}) -
 
 permission_required(#state{method = <<"GET">>, path = [Vm, <<"snapshots">>, _Snap]}) ->
     {ok, [<<"vms">>, Vm, <<"get">>]};
+
+
+permission_required(#state{method = <<"PUT">>, path = [_Vm, <<"owner">>], body = undefiend}) ->
+    {error, needs_decode};
+
+permission_required(#state{method = <<"PUT">>, path = [Vm, <<"owner">>], body = Decoded}) ->
+    case Decoded of
+        [{<<"org">>, Owner}] ->
+            {multiple,
+             [[<<"vms">>, Vm, <<"edit">>],
+              [<<"orgs">>, Owner, <<"edit">>]]};
+        _ ->
+            {ok, [<<"vms">>, Vm, <<"edit">>]}
+    end;
 
 permission_required(#state{method = <<"PUT">>, body = undefiend}) ->
     {error, needs_decode};
@@ -236,6 +253,22 @@ create(Req, State = #state{path = [Vm, <<"nics">>], version = Version}, Decoded)
 
 write(Req, State = #state{path = [_, <<"nics">>]}, _Body) ->
     {true, Req, State};
+
+write(Req, State = #state{path = [Vm, <<"owner">>]}, [{<<"org">>, Org}]) ->
+    Start = now(),
+    case libsnarl:org_get(Org) of
+        {ok, _} ->
+            R = libsniffle:vm_owner(Vm, Org),
+            ?MSniffle(?P(State), Start),
+            {R =:= ok, Req, State};
+        _ ->
+            ?MSniffle(?P(State), Start),
+            lager:error("Error trying to assign org ~p since it does not "
+                        "seem to exist", [Org]),
+            {ok, Req1} = cowboy_req:reply(500, Req),
+            lager:error("Could not add nic: ~P"),
+            {halt, Req1, State}
+    end;
 
 write(Req, State = #state{path = [Vm, <<"nics">>, Mac]}, [{<<"primary">>, true}]) ->
     ?LIB(libsniffle:vm_primary_nic(Vm, Mac));
