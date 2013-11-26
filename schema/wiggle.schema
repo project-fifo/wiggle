@@ -1,0 +1,30 @@
+%% -*- erlang -*-
+
+%% @doc The port wiggle listens to.
+{mapping, "port", "wiggle.port",
+ [{default, 8080},
+  {datatype, integer}]}.
+
+%% @doc Number of acceptor processes that are keeped ready
+{mapping, "acceptors", "wiggle.acceptors",
+ [{default, 100},
+  {datatype, integer}]}.
+
+%% @doc The TCP IP that mdns messages arrive to.
+{mapping, "listening_ip", "mdns_client_lib.interface",
+ [{commented, "127.0.0.1"},
+  {datatype, string}]}.
+
+{translation,
+ "mdns_client_lib.interface",
+ fun(Conf) ->
+         case cuttlefish_util:conf_get_value("ip", Conf) of
+             {IP, _Port} ->
+                 [A, B, C, D] = [list_to_integer(O) ||
+                                    O <- re:split(IP, "\\.", [{return, list}])],
+                 {ok, {A, B, C, D}};
+             _ ->
+                 undefined
+         end
+ end
+}.
