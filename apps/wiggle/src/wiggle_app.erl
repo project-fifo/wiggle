@@ -14,8 +14,10 @@ start(_StartType, _StartArgs) ->
     {ok, Acceptors} = application:get_env(wiggle, acceptors),
 
     case (catch eplugin:wait_for_init()) of
-        {'EXIT', Why} -> lager:warning("Error waiting for eplugin init: ~p", [Why]),
-                         lager:warning("Your plugins are probably taking too long to load, and some wiggle:dispatchs hooks may not run.");
+        {'EXIT', Why} ->
+            lager:warning("Error waiting for eplugin init: ~p", [Why]),
+            lager:warning("Your plugins are probably taking too long to load, "
+                          "and some wiggle:dispatchs hooks may not run.");
         ok -> ok
     end,
     PluginDispatchs = eplugin:fold('wiggle:dispatchs', []),
