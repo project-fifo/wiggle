@@ -23,7 +23,10 @@ e(Code, Msg, Req) ->
 
 websocket_init(_Any, Req, []) ->
     Req0 = case cowboy_req:parse_header(<<"sec-websocket-protocol">>, Req) of
-               {undefined, _, ReqR} -> ReqR;
+               {ok, undefined, ReqR} ->
+                   ReqR;
+               {ok, [], ReqR} ->
+                   ReqR;
                {ok, List, ReqR} ->
                    case lists:member(<<"base64">>, List) of
                        true ->
