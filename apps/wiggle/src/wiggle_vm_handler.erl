@@ -210,7 +210,9 @@ create(Req, State = #state{path = [], version = Version, token = Token}, Decoded
         %% If the creating user has advanced_create permissions they can pass
         %% 'requirements' as part of the config, if they lack the permission
         %% it simply gets removed.
-        case libsnarl:allowed({token, Token}, [<<"cloud">>, <<"vms">>, <<"advanced_create">>]) of
+        Config1 = case libsnarl:allowed(
+                         {token, Token},
+                         [<<"cloud">>, <<"vms">>, <<"advanced_create">>]) of
             true ->
                 Config;
             _ ->
@@ -220,7 +222,7 @@ create(Req, State = #state{path = [], version = Version, token = Token}, Decoded
             {ok, User} = libsnarl:user_get({token, Token}),
             {ok, Owner} = jsxd:get(<<"uuid">>, User),
             Start = now(),
-            {ok, UUID} = libsniffle:create(Package, Dataset, jsxd:set(<<"owner">>, Owner, Config)),
+            {ok, UUID} = libsniffle:create(Package, Dataset, jsxd:set(<<"owner">>, Owner, Config1)),
             ?MSniffle(?P(State), Start),
             {{true, <<"/api/", Version/binary, "/vms/", UUID/binary>>}, Req, State#state{body = Decoded}}
         catch
