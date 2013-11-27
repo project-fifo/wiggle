@@ -207,6 +207,15 @@ create(Req, State = #state{path = [], version = Version, token = Token}, Decoded
         {ok, Dataset} = jsxd:get(<<"dataset">>, Decoded),
         {ok, Package} = jsxd:get(<<"package">>, Decoded),
         {ok, Config} = jsxd:get(<<"config">>, Decoded),
+        %% If the creating user has advanced_create permissions they can pass
+        %% 'requirements' as part of the config, if they lack the permission
+        %% it simply gets removed.
+        case libsnarl:allowed({token, Token}, [<<"cloud">>, <<"vms">>, <<"advanced_create">>]) of
+            true ->
+                Config;
+            _ ->
+                jsxd:set(<<"requirements">>, [], Config)
+        end,
         try
             {ok, User} = libsnarl:user_get({token, Token}),
             {ok, Owner} = jsxd:get(<<"uuid">>, User),
