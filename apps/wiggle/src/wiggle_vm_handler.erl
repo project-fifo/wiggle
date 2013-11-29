@@ -193,7 +193,12 @@ read(Req, State = #state{path = [_Vm, <<"snapshots">>], obj = Obj}) ->
     {Snaps, Req, State};
 
 read(Req, State = #state{path = [_Vm, <<"snapshots">>, Snap], obj = Obj}) ->
-    {jsxd:get([<<"snapshots">>, Snap], null, Obj), Req, State};
+    case jsxd:get([<<"snapshots">>, Snap], null, Obj) of
+        null ->
+            {null, Req, State};
+        SnapObj ->
+            {jsxd:set(<<"uuid">>, Snap, SnapObj), Req, State}
+    end;
 
 read(Req, State = #state{path = [_Vm], obj = Obj}) ->
     {Obj, Req, State}.
