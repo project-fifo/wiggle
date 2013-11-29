@@ -164,9 +164,25 @@ read(Req, State = #state{module = M}) ->
 %% write
 %%--------------------------------------------------------------------
 
-write(Req, State = #state{body = undefined}) ->
-    {ok, Data, Req1} = wiggle_handler:decode(Req),
-    write(Req1, State#state{body = Data});
+write(Req, State = #state{module = M, body = undefined}) ->
+    RawFun =  case erlang:function_exported(M, raw_body, 1) of
+                  true ->
+                      fun M:raw_body/1;
+                  false ->
+                      fun(_) -> false end
+              end,
+    case RawFun(State) of
+        true ->
+            case cowboy_req:method(Req) of
+                {<<"POST">>, Req1} ->
+                    M:create(Req1, State, undefined);
+                {<<"PUT">>, Req1} ->
+                    M:write(Req1, State, undefined)
+            end;
+        false ->
+            {ok, Data, Req1} = wiggle_handler:decode(Req),
+            write(Req1, State#state{body = Data})
+    end;
 
 write(Req, State = #state{module = M, body = Data}) ->
     case cowboy_req:method(Req) of
