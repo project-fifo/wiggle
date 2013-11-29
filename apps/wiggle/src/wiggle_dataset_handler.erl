@@ -12,7 +12,7 @@
          create/3,
          write/3,
          delete/2,
-         raw/1]).
+         raw_body/1]).
 
 -ignore_xref([allowed_methods/3,
               get/1,
@@ -21,7 +21,7 @@
               create/3,
               write/3,
               delete/2,
-              raw/1]).
+              raw_body/1]).
 
 
 allowed_methods(_Version, _Token, []) ->
@@ -85,9 +85,10 @@ permission_required(_State) ->
     undefined.
 
 
-raw(#state{path=[_, <<"dataset.tar.gz">>], method = <<"PUT">>}) ->
+raw_body(#state{path=[_, <<"dataset.tar.gz">>], method = <<"PUT">>}) ->
     true;
-raw(_) ->
+raw_body(#state{path=P}) ->
+    lager:info("We got path: ~p", [P]),
     false.
 
 
