@@ -85,7 +85,7 @@ permission_required(_State) ->
     undefined.
 
 
-raw(#state{path=[_, <<"dataset.tar.gz">>], method = <<"POST">>}) ->
+raw(#state{path=[_, <<"dataset.tar.gz">>], method = <<"PUT">>}) ->
     true;
 raw(_) ->
     false.
