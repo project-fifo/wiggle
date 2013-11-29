@@ -60,7 +60,16 @@ permission_required(#state{method = <<"PUT">>, path = [Dataset]}) ->
 permission_required(#state{method = <<"POST">>, path = [Dataset]}) ->
     {ok, [<<"datasets">>, Dataset, <<"create">>]};
 
+permission_required(#state{method = <<"GET">>, path = [Dataset, <<"dataset.tar.gz">>]}) ->
+    {ok, [<<"datasets">>, Dataset, <<"create">>]};
+
+permission_required(#state{method = <<"GET">>, path = [Dataset, <<"dataset.tar.bz2">>]}) ->
+    {ok, [<<"datasets">>, Dataset, <<"export">>]};
+
 permission_required(#state{method = <<"PUT">>, path = [Dataset, <<"dataset.tar.gz">>]}) ->
+    {ok, [<<"datasets">>, Dataset, <<"create">>]};
+
+permission_required(#state{method = <<"PUT">>, path = [Dataset, <<"dataset.tar.bz2">>]}) ->
     {ok, [<<"datasets">>, Dataset, <<"create">>]};
 
 permission_required(#state{method = <<"DELETE">>, path = [Dataset]}) ->
