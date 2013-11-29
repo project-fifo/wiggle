@@ -44,8 +44,12 @@ rest_init(Req, [Module]) ->
     {ok, Req1, State#state{module = Module}}.
 
 rest_terminate(_Req, State) ->
-    statman_histogram:record_value({State#state.path_bin, total},
-                                   State#state.start),
+    try
+        statman_histogram:record_value({State#state.path_bin, total},
+                                       State#state.start)
+    catch
+        _:_ -> ok
+    end,
     ok.
 
 service_available(Req, State) ->
@@ -165,14 +169,15 @@ read(Req, State = #state{module = M}) ->
 %%--------------------------------------------------------------------
 
 write(Req, State = #state{module = M, body = undefined}) ->
-    RawFun =  case erlang:function_exported(M, raw_body, 1) of
-                  true ->
-                      fun M:raw_body/1;
-                  false ->
-                      fun(_) -> false end
-              end,
+    RawFun = case erlang:function_exported(M, raw_body, 1) of
+                 true ->
+                     fun M:raw_body/1;
+                 false ->
+                     fun(_) -> false end
+             end,
     case RawFun(State) of
         true ->
+            lager:info("This is a raw request"),
             case cowboy_req:method(Req) of
                 {<<"POST">>, Req1} ->
                     M:create(Req1, State, undefined);
