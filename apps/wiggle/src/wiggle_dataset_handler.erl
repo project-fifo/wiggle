@@ -218,7 +218,9 @@ transform_dataset(D1) ->
                      <<"disk_driver">>, <<"nic_driver">>]},
             {set, <<"dataset">>, ID},
             {set, <<"image_size">>,
-             ensure_integer(jsxd:get(<<"image_size">>, 0, D1))},
+             ensure_integer(
+               jsxd:get(<<"image_size">>,
+                        jsxd:get([<<"files">>, 0, <<"size">>], 0, D1), D1))},
             {set, <<"networks">>,
              jsxd:get(<<"requirements.networks">>, [], D1)}],
            D1),
