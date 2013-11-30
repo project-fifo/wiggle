@@ -156,8 +156,8 @@ create(Req, State = #state{path = [], version = Version}, Decoded) ->
 write(Req, State = #state{path = [UUID, <<"dataset.tar.gz">>]}, _) ->
     case libsniffle:dataset_get(UUID) of
         {ok, R} ->
-            Size = jsxd:get(<<"image_size">>, 0, R),
-            {Res, Req1} = import_dataset(UUID, 0, Size, Req),
+            Size = jsxd:get(<<"image_size">>, 1, R),
+            {Res, Req1} = import_dataset(UUID, 0, ensure_integer(Size), Req),
             {Res, Req1, State};
         _ ->
             {false, Req, State}
