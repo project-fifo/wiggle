@@ -73,7 +73,7 @@ content_types_accepted(Req, State = #state{module = M}) ->
                 false ->
                     fun(_) -> wiggle_handler:accepted() end
             end,
-    {CTFun(), Req, State}.
+    {CTFun(State), Req, State}.
 
 allowed_methods(Req, State = #state{module = M}) ->
     {[<<"HEAD">>, <<"OPTIONS">> |
