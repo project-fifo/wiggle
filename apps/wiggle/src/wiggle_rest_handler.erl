@@ -57,11 +57,23 @@ options(Req, State = #state{module = M}) ->
                                 State#state.path),
     wiggle_handler:options(Req, State,Methods).
 
-content_types_provided(Req, State) ->
-    {wiggle_handler:provided(), Req, State}.
+content_types_provided(Req, State = #state{module = M}) ->
+    CTFun = case erlang:function_exported(M, content_types_provided, 1) of
+                true ->
+                    fun M:content_types_provided/1;
+                false ->
+                    fun(_) -> wiggle_handler:provided() end
+            end,
+    {CTFun(State), Req, State}.
 
-content_types_accepted(Req, State) ->
-    {wiggle_handler:accepted(), Req, State}.
+content_types_accepted(Req, State = #state{module = M}) ->
+    CTFun = case erlang:function_exported(M, content_types_accepted, 1) of
+                true ->
+                    fun M:content_types_accepted/1;
+                false ->
+                    fun(_) -> wiggle_handler:accepted() end
+            end,
+    {CTFun(), Req, State}.
 
 allowed_methods(Req, State = #state{module = M}) ->
     {[<<"HEAD">>, <<"OPTIONS">> |

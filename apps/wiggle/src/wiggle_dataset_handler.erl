@@ -12,7 +12,8 @@
          create/3,
          write/3,
          delete/2,
-         raw_body/1]).
+         raw_body/1,
+         content_types_accepted/1]).
 
 -ignore_xref([allowed_methods/3,
               get/1,
@@ -21,7 +22,8 @@
               create/3,
               write/3,
               delete/2,
-              raw_body/1]).
+              raw_body/1,
+              content_types_accepted/1]).
 
 
 allowed_methods(_Version, _Token, []) ->
@@ -87,10 +89,14 @@ permission_required(_State) ->
 
 raw_body(#state{path=[_, <<"dataset.tar.gz">>], method = <<"PUT">>}) ->
     true;
-raw_body(#state{path=P}) ->
-    lager:info("We got path: ~p", [P]),
+raw_body(_) ->
     false.
-
+content_types_accepted(#state{path=[_, <<"dataset.tar.gz">>], method = <<"PUT">>}) ->
+    [
+     {{<<"application">>, <<"x-gzip">>, '*'}, write}
+    ];
+content_types_accepted(_) ->
+    wiggle_handler:accepted().
 
 %%--------------------------------------------------------------------
 %% GET
@@ -191,11 +197,15 @@ delete(Req, State = #state{path = [Dataset, <<"metadata">> | Path]}) ->
     {true, Req, State};
 
 delete(Req, State = #state{path = [Dataset]}) ->
+    Start = now(),
     case libsniffle:dataset_get(Dataset) of
         {ok, D} ->
             case jsxd:get(<<"imported">>, D) of
                 {ok, 1} ->
-                    Start = now(),
+                    ok = libsniffle:dataset_delete(Dataset),
+                    ?MSniffle(?P(State), Start),
+                    {true, Req, State};
+                {ok, <<"failed">>} ->
                     ok = libsniffle:dataset_delete(Dataset),
                     ?MSniffle(?P(State), Start),
                     {true, Req, State};
@@ -236,15 +246,34 @@ import_dataset(UUID, Idx, TotalSize, Req) ->
         {ok, Data, Req1} ->
             Idx1 = Idx + 1,
             Done = (Idx1 * 1024*1024) / TotalSize,
-            ok = libsniffle:img_create(UUID, Idx, Data),
-            ok = libsniffle:dataset_set(UUID, <<"imported">>, Done),
-            import_dataset(UUID, Idx1, TotalSize, Req1);
+            case libsniffle:img_create(UUID, Idx, Data) of
+                ok ->
+                    libsniffle:dataset_set(UUID, <<"imported">>, Done),
+                    libhowl:send(UUID,
+                                 [{<<"event">>, <<"progress">>},
+                                  {<<"data">>, [{<<"imported">>, Done}]}]),
+                    import_dataset(UUID, Idx1, TotalSize, Req1);
+                Reason ->
+                    fail_import(UUID, Reason, Idx)
+            end;
         {done, Req1} ->
+            ok = libsniffle:dataset_set(UUID, <<"imported">>, 1),
+            libhowl:send(UUID,
+                         [{<<"event">>, <<"progress">>},
+                          {<<"data">>, [{<<"imported">>, 1}]}]),
             {true, Req1};
         {error, Reason} ->
-            lager:error("Could not import dataset ~s: ", [UUID, Reason]),
+            fail_import(UUID, Reason, Idx),
             {false, Req}
     end.
+
+fail_import(UUID, Reason, Idx) ->
+    lager:error("[~s] Could not import dataset: ~p", [UUID, Reason]),
+    libhowl:send(UUID,
+                 [{<<"event">>, <<"error">>},
+                  {<<"data">>, [{<<"message">>, Reason},
+                                {<<"index">>, Idx}]}]),
+    libsniffle:dataset_set(UUID, <<"imported">>, <<"failed">>).
 
 ensure_integer(I) when is_integer(I) ->
     I;
