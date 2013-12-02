@@ -163,7 +163,7 @@ write(Req, State = #state{path = [UUID, <<"dataset.tar.gz">>]}, _) ->
     case libsniffle:dataset_get(UUID) of
         {ok, R} ->
             Size = jsxd:get(<<"image_size">>, 1, R),
-            {Res, Req1} = import_dataset(UUID, 0, ensure_integer(Size), Req),
+            {Res, Req1} = import_dataset(UUID, 0, ensure_integer(Size), Req, undefined),
             {Res, Req1, State};
         _ ->
             {false, Req, State}
@@ -241,22 +241,23 @@ transform_dataset(D1) ->
             jsxd:set(<<"type">>, <<"kvm">>, D2)
     end.
 
-import_dataset(UUID, Idx, TotalSize, Req) ->
+import_dataset(UUID, Idx, TotalSize, Req, WReq) ->
     case cowboy_req:stream_body(1024*1024, Req) of
         {ok, Data, Req1} ->
             Idx1 = Idx + 1,
             Done = (Idx1 * 1024*1024) / TotalSize,
-            case libsniffle:img_create(UUID, Idx, Data) of
-                ok ->
+            case libsniffle:img_create(UUID, Idx, Data, WReq) of
+                {ok, WReq1} ->
                     libsniffle:dataset_set(UUID, <<"imported">>, Done),
                     libhowl:send(UUID,
                                  [{<<"event">>, <<"progress">>},
                                   {<<"data">>, [{<<"imported">>, Done}]}]),
-                    import_dataset(UUID, Idx1, TotalSize, Req1);
+                    import_dataset(UUID, Idx1, TotalSize, Req1, WReq1);
                 Reason ->
                     fail_import(UUID, Reason, Idx)
             end;
         {done, Req1} ->
+            libsniffle:img_create(UUID, done, <<>>, WReq),
             ok = libsniffle:dataset_set(UUID, <<"imported">>, 1),
             libhowl:send(UUID,
                          [{<<"event">>, <<"progress">>},
