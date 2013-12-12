@@ -138,7 +138,8 @@ create(Req, State = #state{path = [UUID], version = Version}, Decoded) ->
             {false, Req, State};
         _ ->
             D1 = transform_dataset(Decoded),
-            libsniffle:dataset_set(UUID, [{<<"imported">>, 0} | D1]),
+            libsniffle:dataset_set(UUID, [{<<"imported">>, 0},
+                                          {<<"status">>, <<"pending">>}| D1]),
             {{true, <<"/api/", Version/binary, "/datasets/", UUID/binary>>},
              Req, State#state{body = Decoded}}
     end;
