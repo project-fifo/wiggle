@@ -163,6 +163,7 @@ write(Req, State = #state{path = [UUID, <<"dataset.tar.gz">>]}, _) ->
     case libsniffle:dataset_get(UUID) of
         {ok, R} ->
             Size = jsxd:get(<<"image_size">>, 1, R),
+            libsniffle:dataset_set(UUID, <<"status">>, <<"importing">>),
             {Res, Req1} = import_dataset(UUID, 0, ensure_integer(Size), Req, undefined),
             {Res, Req1, State};
         _ ->
@@ -259,6 +260,7 @@ import_dataset(UUID, Idx, TotalSize, Req, WReq) ->
         {done, Req1} ->
             libsniffle:img_create(UUID, done, <<>>, WReq),
             ok = libsniffle:dataset_set(UUID, <<"imported">>, 1),
+            libsniffle:dataset_set(UUID, <<"status">>, <<"imported">>),
             libhowl:send(UUID,
                          [{<<"event">>, <<"progress">>},
                           {<<"data">>, [{<<"imported">>, 1}]}]),
