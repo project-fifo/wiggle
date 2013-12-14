@@ -202,17 +202,14 @@ delete(Req, State = #state{path = [Dataset]}) ->
     Start = now(),
     case libsniffle:dataset_get(Dataset) of
         {ok, D} ->
-            case jsxd:get(<<"imported">>, D) of
-                {ok, 1} ->
-                    ok = libsniffle:dataset_delete(Dataset),
+            case jsxd:get(<<"status">>, D) of
+                {ok, <<"importing">>} ->
                     ?MSniffle(?P(State), Start),
-                    {true, Req, State};
-                {ok, <<"failed">>} ->
-                    ok = libsniffle:dataset_delete(Dataset),
-                    ?MSniffle(?P(State), Start),
-                    {true, Req, State};
+                    {409, Req, State};
                 _ ->
-                    {409, Req, State}
+                    ok = libsniffle:dataset_delete(Dataset),
+                    ?MSniffle(?P(State), Start),
+                    {true, Req, State}
             end;
         _ ->
             {404, Req, State}
