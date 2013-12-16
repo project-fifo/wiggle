@@ -8,7 +8,7 @@ RUNNER_BASE_DIR=${RUNNER_SCRIPT_DIR%/*}
 RUNNER_ETC_DIR=$RUNNER_BASE_DIR/etc
 RUNNER_LOG_DIR={{log_path}}
 # Note the trailing slash on $PIPE_DIR/
-PIPE_DIR=/tmp/wiggle/
+PIPE_DIR=/tmp/{{run_user}}/
 RUNNER_USER={{run_user}}
 
 # Make sure this script is running as the appropriate user
@@ -43,9 +43,8 @@ else
     CONFIG_PATH="$RUNNER_ETC_DIR/app.config"
 fi
 
-# Extract the target node name from node.args
-NAME_ARG=`egrep '^\-name' $RUNNER_ETC_DIR/vm.args 2> /dev/null`
-if [ -z "$NAME_ARG" ]; then
+# Extract the target node name and cookie from vm.args
+if [ ! -f "$RUNNER_ETC_DIR/vm.args" ]; then
     NODENAME=`egrep '^[ \t]*nodename[ \t]*=[ \t]*' $RUNNER_ETC_DIR/{{cuttlefish_conf}} 2> /dev/null | tail -n 1 | cut -d = -f 2`
     if [ -z "$NODENAME" ]; then
         echo "vm.args needs to have a -name parameter."
@@ -54,17 +53,24 @@ if [ -z "$NAME_ARG" ]; then
     else
         NAME_ARG="-name ${NODENAME# *}"
     fi
-fi
-
-# Extract the target cookie
-COOKIE_ARG=`grep -e '-setcookie' $RUNNER_ETC_DIR/vm.args 2> /dev/null`
-if [ -z "$COOKIE_ARG" ]; then
     COOKIE=`egrep '^[ \t]*distributed_cookie[ \t]*=[ \t]*' $RUNNER_ETC_DIR/{{cuttlefish_conf}} 2> /dev/null | cut -d = -f 2`
     if [ -z "$COOKIE" ]; then
         echo "vm.args needs to have a -setcookie parameter."
         exit 1
     else
         COOKIE_ARG="-setcookie $COOKIE"
+    fi
+else
+    NAME_ARG=`egrep '^\-name' $RUNNER_ETC_DIR/vm.args 2> /dev/null`
+    if [ -z "$NAME_ARG" ]; then
+        echo "vm.args needs to have a -name parameter."
+        echo "  -sname is not supported."
+        exit 1
+    fi
+    COOKIE_ARG=`grep -e '-setcookie' $RUNNER_ETC_DIR/vm.args 2> /dev/null`
+    if [ -z "$COOKIE" ]; then
+        echo "vm.args needs to have a -setcookie parameter."
+        exit 1
     fi
 fi
 
