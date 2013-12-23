@@ -62,7 +62,24 @@ allowed_methods(_Version, _Token, [_Vm, <<"snapshots">>, _ID]) ->
     [<<"GET">>, <<"PUT">>, <<"DELETE">>];
 
 allowed_methods(_Version, _Token, [_Vm, <<"snapshots">>]) ->
+    [<<"GET">>, <<"POST">>];
+
+allowed_methods(_Version, _Token, [_Vm, <<"backups">>, _ID]) ->
+    [<<"GET">>, <<"PUT">>, <<"DELETE">>];
+
+allowed_methods(_Version, _Token, [_Vm, <<"backups">>]) ->
     [<<"GET">>, <<"POST">>].
+
+get(State = #state{path = [Vm, <<"backups">>, Snap]}) ->
+    case wiggle_vm_handler:get(State#state{path=[Vm]}) of
+        {ok, Obj} ->
+            case jsxd:get([<<"backups">>, Snap], Obj) of
+                undefined -> not_found;
+                {ok, _} -> {ok, Obj}
+            end;
+        E ->
+            E
+    end;
 
 get(State = #state{path = [Vm, <<"snapshots">>, Snap]}) ->
     case wiggle_vm_handler:get(State#state{path=[Vm]}) of
@@ -126,6 +143,14 @@ permission_required(#state{method = <<"POST">>, path = [Vm, <<"snapshots">>]}) -
 permission_required(#state{method = <<"GET">>, path = [Vm, <<"snapshots">>, _Snap]}) ->
     {ok, [<<"vms">>, Vm, <<"get">>]};
 
+permission_required(#state{method = <<"GET">>, path = [Vm, <<"backups">>]}) ->
+    {ok, [<<"vms">>, Vm, <<"get">>]};
+
+permission_required(#state{method = <<"POST">>, path = [Vm, <<"backups">>]}) ->
+    {ok, [<<"vms">>, Vm, <<"backups">>]};
+
+permission_required(#state{method = <<"GET">>, path = [Vm, <<"backups">>, _Snap]}) ->
+    {ok, [<<"vms">>, Vm, <<"get">>]};
 
 permission_required(#state{method = <<"PUT">>, path = [_Vm, <<"owner">>], body = undefiend}) ->
     {error, needs_decode};
@@ -160,12 +185,24 @@ permission_required(#state{method = <<"PUT">>, body = Decoded,
             {ok, [<<"vms">>, Vm, <<"edit">>]}
     end;
 
+permission_required(#state{method = <<"DELETE">>, path = [Vm, <<"snapshots">>, _Snap]}) ->
+    {ok, [<<"vms">>, Vm, <<"snapshot_delete">>]};
+
+permission_required(#state{method = <<"PUT">>, body = Decoded,
+                           path = [Vm, <<"backups">>, _Snap]}) ->
+    case Decoded of
+        [{<<"action">>, <<"rollback">>}] ->
+            {ok, [<<"vms">>, Vm, <<"rollback">>]};
+        _ ->
+            {ok, [<<"vms">>, Vm, <<"edit">>]}
+    end;
+
+permission_required(#state{method = <<"DELETE">>, path = [Vm, <<"backup">>, _Snap]}) ->
+    {ok, [<<"vms">>, Vm, <<"snapshot_delete">>]};
+
 permission_required(#state{method = <<"PUT">>,
                            path = [Vm, <<"metadata">> | _]}) ->
     {ok, [<<"vms">>, Vm, <<"edit">>]};
-
-permission_required(#state{method = <<"DELETE">>, path = [Vm, <<"snapshots">>, _Snap]}) ->
-    {ok, [<<"vms">>, Vm, <<"snapshot_delete">>]};
 
 permission_required(#state{method = <<"DELETE">>, path = [Vm, <<"metadata">> | _]}) ->
     {ok, [<<"vms">>, Vm, <<"edit">>]};
@@ -194,6 +231,20 @@ read(Req, State = #state{path = [_Vm, <<"snapshots">>], obj = Obj}) ->
 
 read(Req, State = #state{path = [_Vm, <<"snapshots">>, Snap], obj = Obj}) ->
     case jsxd:get([<<"snapshots">>, Snap], null, Obj) of
+        null ->
+            {null, Req, State};
+        SnapObj ->
+            {jsxd:set(<<"uuid">>, Snap, SnapObj), Req, State}
+    end;
+
+read(Req, State = #state{path = [_Vm, <<"backups">>], obj = Obj}) ->
+    Snaps = jsxd:fold(fun(UUID, Snap, Acc) ->
+                              [jsxd:set(<<"uuid">>, UUID, Snap) | Acc]
+                      end, [], jsxd:get(<<"backups">>, [], Obj)),
+    {Snaps, Req, State};
+
+read(Req, State = #state{path = [_Vm, <<"backups">>, Snap], obj = Obj}) ->
+    case jsxd:get([<<"backups">>, Snap], null, Obj) of
         null ->
             {null, Req, State};
         SnapObj ->
@@ -249,6 +300,37 @@ create(Req, State = #state{path = [Vm, <<"snapshots">>], version = Version}, Dec
     {ok, UUID} = libsniffle:vm_snapshot(Vm, Comment),
     ?MSniffle(?P(State), Start),
     {{true, <<"/api/", Version/binary, "/vms/", Vm/binary, "/snapshots/", UUID/binary>>}, Req, State#state{body = Decoded}};
+
+create(Req, State = #state{path = [Vm, <<"backups">>], version = Version}, Decoded) ->
+    Comment = jsxd:get(<<"comment">>, <<"">>, Decoded),
+    Opts = case jsxd:get(<<"xml">>, false, Decoded) of
+               true ->
+                   [xml];
+               false ->
+                   []
+           end,
+    Start = now(),
+    {ok, UUID} = case jsxd:get(<<"parent">>, Decoded) of
+                     {ok, Parent} ->
+                         Opts1 = case jsxd:get(<<"delete">>, false, Decoded) of
+                                     true ->
+                                         [{delete, parent} | Opts];
+                                     false ->
+                                         Opts
+                                 end,
+                         libsniffle:vm_incremental_backup(Vm, Parent, Comment,
+                                                          Opts1);
+                     _ ->
+                         Opts1 = case jsxd:get(<<"delete">>, false, Decoded) of
+                                     true ->
+                                         [delete | Opts];
+                                     false ->
+                                         Opts
+                                 end,
+                         libsniffle:vm_full_backup(Vm, Comment, Opts1)
+                 end,
+    ?MSniffle(?P(State), Start),
+    {{true, <<"/api/", Version/binary, "/vms/", Vm/binary, "/backups/", UUID/binary>>}, Req, State#state{body = Decoded}};
 
 create(Req, State = #state{path = [Vm, <<"nics">>], version = Version}, Decoded) ->
     {ok, Network} = jsxd:get(<<"network">>, Decoded),
@@ -331,6 +413,13 @@ write(Req, State = #state{path = [Vm, <<"snapshots">>, UUID]},
       [{<<"action">>, <<"rollback">>}]) ->
     ?LIB(libsniffle:vm_rollback_snapshot(Vm, UUID));
 
+write(Req, State = #state{path = [_Vm, <<"backups">>]}, _Body) ->
+    {true, Req, State};
+
+write(Req, State = #state{path = [Vm, <<"backups">>, UUID]},
+      [{<<"action">>, <<"rollback">>}]) ->
+    ?LIB(libsniffle:vm_restore_backup(Vm, UUID));
+
 write(Req, State, _Body) ->
     lager:error("Unknown PUT request: ~p~n.", [State]),
     {false, Req, State}.
@@ -342,6 +431,12 @@ write(Req, State, _Body) ->
 delete(Req, State = #state{path = [Vm, <<"snapshots">>, UUID]}) ->
     Start = now(),
     ok = libsniffle:vm_delete_snapshot(Vm, UUID),
+    ?MSniffle(?P(State), Start),
+    {true, Req, State};
+
+delete(Req, State = #state{path = [Vm, <<"backups">>, UUID]}) ->
+    Start = now(),
+    ok = libsniffle:vm_delete_backup(Vm, UUID, cloud),
     ?MSniffle(?P(State), Start),
     {true, Req, State};
 
