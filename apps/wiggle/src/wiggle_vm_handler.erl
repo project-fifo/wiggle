@@ -147,7 +147,7 @@ permission_required(#state{method = <<"GET">>, path = [Vm, <<"backups">>]}) ->
     {ok, [<<"vms">>, Vm, <<"get">>]};
 
 permission_required(#state{method = <<"POST">>, path = [Vm, <<"backups">>]}) ->
-    {ok, [<<"vms">>, Vm, <<"backups">>]};
+    {ok, [<<"vms">>, Vm, <<"backup">>]};
 
 permission_required(#state{method = <<"GET">>, path = [Vm, <<"backups">>, _Snap]}) ->
     {ok, [<<"vms">>, Vm, <<"get">>]};
@@ -197,8 +197,8 @@ permission_required(#state{method = <<"PUT">>, body = Decoded,
             {ok, [<<"vms">>, Vm, <<"edit">>]}
     end;
 
-permission_required(#state{method = <<"DELETE">>, path = [Vm, <<"backup">>, _Snap]}) ->
-    {ok, [<<"vms">>, Vm, <<"snapshot_delete">>]};
+permission_required(#state{method = <<"DELETE">>, path = [Vm, <<"backups">>, _Snap]}) ->
+    {ok, [<<"vms">>, Vm, <<"backup_delete">>]};
 
 permission_required(#state{method = <<"PUT">>,
                            path = [Vm, <<"metadata">> | _]}) ->
