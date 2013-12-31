@@ -434,6 +434,13 @@ delete(Req, State = #state{path = [Vm, <<"snapshots">>, UUID]}) ->
     ?MSniffle(?P(State), Start),
     {true, Req, State};
 
+delete(Req, State = #state{path = [Vm, <<"backups">>, UUID],
+                           body=[{<<"location">>, <<"hypervisor">>}]}) ->
+    Start = now(),
+    ok = libsniffle:vm_delete_backup(Vm, UUID, hypervisor),
+    ?MSniffle(?P(State), Start),
+    {true, Req, State};
+
 delete(Req, State = #state{path = [Vm, <<"backups">>, UUID]}) ->
     Start = now(),
     ok = libsniffle:vm_delete_backup(Vm, UUID, cloud),
