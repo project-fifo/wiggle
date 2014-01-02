@@ -303,7 +303,7 @@ create(Req, State = #state{path = [Vm, <<"snapshots">>], version = Version}, Dec
 
 create(Req, State = #state{path = [Vm, <<"backups">>], version = Version}, Decoded) ->
     Comment = jsxd:get(<<"comment">>, <<"">>, Decoded),
-    Opts = case jsxd:get(<<"xml">>, false, Decoded) of
+    Opts = case jsxd:get(<<"xml">>, true, Decoded) of
                true ->
                    [xml];
                false ->
