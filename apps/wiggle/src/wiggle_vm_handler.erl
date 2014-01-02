@@ -191,7 +191,7 @@ permission_required(#state{method = <<"DELETE">>, path = [Vm, <<"snapshots">>, _
 permission_required(#state{method = <<"PUT">>, body = Decoded,
                            path = [Vm, <<"backups">>, _Snap]}) ->
     case Decoded of
-        [{<<"action">>, <<"rollback">>}] ->
+        [{<<"action">>, <<"rollback">>}|_] ->
             {ok, [<<"vms">>, Vm, <<"rollback">>]};
         _ ->
             {ok, [<<"vms">>, Vm, <<"edit">>]}
@@ -417,6 +417,10 @@ write(Req, State = #state{path = [_Vm, <<"backups">>]}, _Body) ->
     {true, Req, State};
 
 write(Req, State = #state{path = [Vm, <<"backups">>, UUID]},
+      [{<<"action">>, <<"rollback">>},
+       {<<"hypervisor">>, Hypervisor}]) ->
+    ?LIB(libsniffle:vm_restore_backup(Vm, UUID, Hypervisor));
+write(Req, State = #state{path = [Vm, <<"backups">>, UUID]},
       [{<<"action">>, <<"rollback">>}]) ->
     ?LIB(libsniffle:vm_restore_backup(Vm, UUID));
 
@@ -450,6 +454,13 @@ delete(Req, State = #state{path = [Vm, <<"backups">>, UUID]}) ->
 delete(Req, State = #state{path = [Vm, <<"nics">>, Mac]}) ->
     Start = now(),
     ok = libsniffle:vm_remove_nic(Vm, Mac),
+    ?MSniffle(?P(State), Start),
+    {true, Req, State};
+
+delete(Req, State = #state{path = [Vm],
+                           body=[{<<"location">>, <<"hypervisor">>}]}) ->
+    Start = now(),
+    ok = libsniffle:vm_store(Vm),
     ?MSniffle(?P(State), Start),
     {true, Req, State};
 
