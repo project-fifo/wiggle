@@ -258,10 +258,15 @@ write(Req, State = #state{path = [User, <<"metadata">> | Path]}, [{K, V}]) ->
     {true, Req, State};
 
 write(Req, State = #state{path = [User, <<"keys">>]}, [{KeyID, Key}]) ->
-    Start = now(),
-    libsnarl:user_key_add(User, KeyID, Key),
-    ?MSnarl(?P(State), Start),
-    {true, Req, State};
+    case re:split(Key, " ") of
+        [_,_,_] ->
+            Start = now(),
+            libsnarl:user_key_add(User, KeyID, Key),
+            ?MSnarl(?P(State), Start),
+            {true, Req, State};
+        _ ->
+            {false, Req, State}
+    end;
 
 write(Req, State = #state{path = [User, <<"groups">>, Group]}, _) ->
     Start = now(),
