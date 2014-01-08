@@ -66,9 +66,9 @@ permission_required(_State) ->
 %% GET
 %%--------------------------------------------------------------------
 
-read(Req, State = #state{token = Token, path = []}) ->
+read(Req, State = #state{token = Token, path = [], full_list=FullList}) ->
     {ok, Permissions} = libsnarl:user_cache({token, Token}),
-    {ok, Res} = libsniffle:package_list([{must, 'allowed', [<<"packages">>, {<<"res">>, <<"uuid">>}, <<"get">>], Permissions}]),
+    {ok, Res} = libsniffle:package_list([{must, 'allowed', [<<"packages">>, {<<"res">>, <<"uuid">>}, <<"get">>], Permissions}], FullList),
     {[ID || {_, ID} <- Res], Req, State};
 
 read(Req, State = #state{path = [_Package], obj = Obj}) ->
