@@ -214,12 +214,21 @@ permission_required(_State) ->
 %% GET
 %%--------------------------------------------------------------------
 
-read(Req, State = #state{token = Token, path = []}) ->
+read(Req, State = #state{token = Token, path = [], body=[]}) ->
     Start = now(),
     {ok, Permissions} = libsnarl:user_cache({token, Token}),
     ?MSnarl(?P(State), Start),
     Start1 = now(),
     {ok, Res} = libsniffle:vm_list([{must, 'allowed', [<<"vms">>, {<<"res">>, <<"uuid">>}, <<"get">>], Permissions}]),
+    ?MSniffle(?P(State), Start1),
+    {[ID || {_, ID} <- Res], Req, State};
+
+read(Req, State = #state{token = Token, path = [], body=[{<<"full">>, _}]}) ->
+    Start = now(),
+    {ok, Permissions} = libsnarl:user_cache({token, Token}),
+    ?MSnarl(?P(State), Start),
+    Start1 = now(),
+    {ok, Res} = libsniffle:vm_list([{must, 'allowed', [<<"vms">>, {<<"res">>, <<"uuid">>}, <<"get">>], Permissions}], true),
     ?MSniffle(?P(State), Start1),
     {[ID || {_, ID} <- Res], Req, State};
 
