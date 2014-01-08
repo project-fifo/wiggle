@@ -214,24 +214,14 @@ permission_required(_State) ->
 %% GET
 %%--------------------------------------------------------------------
 
-read(Req, State = #state{token = Token, path = [], body=[{<<"full">>, _}]}) ->
+read(Req, State = #state{token = Token, path = [], full_list=FullList}) ->
     Start = now(),
     {ok, Permissions} = libsnarl:user_cache({token, Token}),
     ?MSnarl(?P(State), Start),
     Start1 = now(),
-    {ok, Res} = libsniffle:vm_list([{must, 'allowed', [<<"vms">>, {<<"res">>, <<"uuid">>}, <<"get">>], Permissions}], true),
+    {ok, Res} = libsniffle:vm_list([{must, 'allowed', [<<"vms">>, {<<"res">>, <<"uuid">>}, <<"get">>], Permissions}], FullList),
     ?MSniffle(?P(State), Start1),
     {[ID || {_, ID} <- Res], Req, State};
-
-read(Req, State = #state{token = Token, path = []}) ->
-    Start = now(),
-    {ok, Permissions} = libsnarl:user_cache({token, Token}),
-    ?MSnarl(?P(State), Start),
-    Start1 = now(),
-    {ok, Res} = libsniffle:vm_list([{must, 'allowed', [<<"vms">>, {<<"res">>, <<"uuid">>}, <<"get">>], Permissions}]),
-    ?MSniffle(?P(State), Start1),
-    {[ID || {_, ID} <- Res], Req, State};
-
 
 read(Req, State = #state{path = [_Vm, <<"snapshots">>], obj = Obj}) ->
     Snaps = jsxd:fold(fun(UUID, Snap, Acc) ->
