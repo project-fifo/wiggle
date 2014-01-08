@@ -21,24 +21,26 @@ initial_state(Req) ->
     {Path, Req2} = cowboy_req:path_info(Req1),
     {Token, Req3} = get_token(Req2),
     {PathB, Req4} = cowboy_req:path(Req3),
+    {FullList, Req5} = full_list(Req4),
     State =  #state{
                 version = Version,
                 method = Method,
                 token = Token,
                 path = Path,
                 start = now(),
-                path_bin = PathB
+                path_bin = PathB,
+                full_list = FullList
                },
-    {ok, set_access_header(Req4), State}.
+    {ok, set_access_header(Req5), State}.
 
 set_access_header(Req) ->
     Req1 = cowboy_req:set_resp_header(<<"access-control-allow-origin">>, <<"*">>, Req),
     Req2 = cowboy_req:set_resp_header(
              <<"access-control-allow-headers">>,
-             <<"content-type, x-snarl-token">>, Req1),
+             <<"content-type, x-snarl-token, x-full-list">>, Req1),
     Req3 = cowboy_req:set_resp_header(
              <<"access-control-expose-headers">>,
-             <<"x-snarl-token">>, Req2),
+             <<"x-snarl-token, x-full-list">>, Req2),
     cowboy_req:set_resp_header(
       <<"allow-access-control-credentials">>,
       <<"true">>, Req3).
@@ -52,6 +54,17 @@ get_token(Req) ->
             ReqX1 = cowboy_req:set_resp_header(<<"x-snarl-token">>, TokenX, ReqX),
             {TokenX, ReqX1}
     end.
+
+full_list(Req) ->
+    case cowboy_req:header(<<"x-snarl-token">>, Req) of
+        {<<"true">>, ReqX} ->
+            {true, ReqX};
+        {<<"True">>, ReqX} ->
+            {true, ReqX};
+        {_, ReqX} ->
+            {false, ReqX}
+    end.
+
 
 
 provided() ->
