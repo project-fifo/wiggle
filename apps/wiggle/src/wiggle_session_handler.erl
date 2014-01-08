@@ -61,7 +61,13 @@ read(Req, State = #state{path = [Session], obj = Obj}) ->
 create(Req, State = #state{path = [], version = Version}, Decoded) ->
     {ok, User} = jsxd:get(<<"user">>, Decoded),
     {ok, Pass} = jsxd:get(<<"password">>, Decoded),
-    case libsnarl:auth(User, Pass) of
+    R = case jsxd:get(<<"opt">>, Decoded) of
+            {ok, OTP} ->
+                libsnarl:auth(User, Pass, OTP);
+            _ ->
+                libsnarl:auth(User, Pass)
+        end,
+    case R of
         {ok, {token, UUID}} ->
             Req1 = cowboy_req:set_resp_cookie(<<"x-snarl-token">>, UUID,
                                               [{max_age, 364*24*60*60}], Req),
