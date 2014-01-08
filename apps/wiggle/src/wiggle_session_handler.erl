@@ -61,7 +61,7 @@ read(Req, State = #state{path = [Session], obj = Obj}) ->
 create(Req, State = #state{path = [], version = Version}, Decoded) ->
     {ok, User} = jsxd:get(<<"user">>, Decoded),
     {ok, Pass} = jsxd:get(<<"password">>, Decoded),
-    R = case jsxd:get(<<"opt">>, Decoded) of
+    R = case jsxd:get(<<"otp">>, Decoded) of
             {ok, OTP} ->
                 libsnarl:auth(User, Pass, OTP);
             _ ->
