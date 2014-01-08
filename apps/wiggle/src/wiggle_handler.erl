@@ -56,7 +56,7 @@ get_token(Req) ->
     end.
 
 full_list(Req) ->
-    case cowboy_req:header(<<"x-snarl-token">>, Req) of
+    case cowboy_req:header(<<"x-full-list">>, Req) of
         {<<"true">>, ReqX} ->
             {true, ReqX};
         {<<"True">>, ReqX} ->
