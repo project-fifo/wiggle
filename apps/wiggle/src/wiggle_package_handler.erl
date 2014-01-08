@@ -81,7 +81,8 @@ read(Req, State = #state{path = [_Package], obj = Obj}) ->
 
 create(Req, State = #state{path = [], version = Version}, Data) ->
     Data1 = jsxd:select([<<"cpu_cap">>, <<"quota">>, <<"ram">>,
-                         <<"requirements">>, <<"zfs_iox_priority">>], Data),
+                         <<"requirements">>, <<"zfs_iox_priority">>,
+                         <<"max_swap">>], Data),
     {ok, Package} = jsxd:get(<<"name">>, Data),
     case libsniffle:package_create(Package) of
         {ok, UUID} ->
