@@ -39,6 +39,12 @@ allowed_methods(_Version, _Token, [_Login, <<"keys">>]) ->
 allowed_methods(_Version, _Token, [_Login, <<"keys">>, _]) ->
     [<<"DELETE">>];
 
+allowed_methods(_Version, _Token, [_Login, <<"yubikeys">>]) ->
+    [<<"GET">>, <<"PUT">>];
+
+allowed_methods(_Version, _Token, [_Login, <<"yubikeys">>, _]) ->
+    [<<"DELETE">>];
+
 allowed_methods(_Version, _Token, [_Login, <<"permissions">>]) ->
     [<<"GET">>];
 
@@ -185,6 +191,18 @@ permission_required(#state{method = <<"DELETE">>,
                            path = [User, <<"keys">>, _KeyID]}) ->
     {ok, [<<"users">>, User, <<"edit">>]};
 
+permission_required(#state{method = <<"GET">>,
+                           path = [User, <<"yubikeys">>]}) ->
+    {ok, [<<"users">>, User, <<"get">>]};
+
+permission_required(#state{method = <<"PUT">>,
+                           path = [User, <<"yubikeys">>]}) ->
+    {ok, [<<"users">>, User, <<"edit">>]};
+
+permission_required(#state{method = <<"DELETE">>,
+                           path = [User, <<"yubikeys">>, _KeyID]}) ->
+    {ok, [<<"users">>, User, <<"edit">>]};
+
 permission_required(_State) ->
     undefined.
 
@@ -222,7 +240,10 @@ read(Req, State = #state{path = [_User, <<"orgs">>], obj = UserObj}) ->
     {jsxd:get(<<"orgs">>, [], UserObj), Req, State};
 
 read(Req, State = #state{path = [_User, <<"keys">>], obj = UserObj}) ->
-    {jsxd:get(<<"keys">>, [], UserObj), Req, State}.
+    {jsxd:get(<<"keys">>, [], UserObj), Req, State};
+
+read(Req, State = #state{path = [_User, <<"yubikeys">>], obj = UserObj}) ->
+    {jsxd:get(<<"yubikeys">>, [], UserObj), Req, State}.
 
 %%--------------------------------------------------------------------
 %% PUT
@@ -267,6 +288,12 @@ write(Req, State = #state{path = [User, <<"keys">>]}, [{KeyID, Key}]) ->
         _ ->
             {false, Req, State}
     end;
+
+write(Req, State = #state{path = [User, <<"yubikeys">>]}, [{<<"otp">>, OTP}]) ->
+    Start = now(),
+    libsnarl:user_yubikey_add(User, OTP),
+    ?MSnarl(?P(State), Start),
+    {true, Req, State};
 
 write(Req, State = #state{path = [User, <<"groups">>, Group]}, _) ->
     Start = now(),
@@ -315,6 +342,12 @@ delete(Req, State = #state{path = [User, <<"metadata">> | Path]}) ->
 delete(Req, State = #state{path = [User, <<"keys">>, KeyID]}) ->
     Start = now(),
     libsnarl:user_key_revoke(User, KeyID),
+    ?MSnarl(?P(State), Start),
+    {true, Req, State};
+
+delete(Req, State = #state{path = [User, <<"yubikeys">>, KeyID]}) ->
+    Start = now(),
+    libsnarl:user_yubikey_remove(User, KeyID),
     ?MSnarl(?P(State), Start),
     {true, Req, State};
 
