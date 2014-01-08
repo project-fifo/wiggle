@@ -65,8 +65,6 @@ full_list(Req) ->
             {false, ReqX}
     end.
 
-
-
 provided() ->
     [
      {{<<"application">>, <<"x-msgpack">>, []}, read},
