@@ -69,8 +69,9 @@ create(Req, State = #state{path = [], version = Version}, Decoded) ->
         end,
     case R of
         {ok, {token, UUID}} ->
+            OneYear = 364*24*60*60,
             Req1 = cowboy_req:set_resp_cookie(<<"x-snarl-token">>, UUID,
-                                              [{max_age, 364*24*60*60}], Req),
+                                              [{max_age, OneYear}], Req),
             Req2 = cowboy_req:set_resp_header(<<"x-snarl-token">>, UUID, Req1),
             {{true, <<"/api/", Version/binary, "/sessions/", UUID/binary>>},
              Req2, State#state{body = Decoded}};
