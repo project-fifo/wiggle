@@ -121,7 +121,7 @@ encode(Body, Req) ->
         json ->
             {jsx:encode(Body), Req1};
         msgpack ->
-            {msgpack:pack(Body), Req1}
+            {msgpack:pack(Body, [jsx]), Req1}
     end.
 
 options(Req, State, Methods) ->
