@@ -1,5 +1,5 @@
 -record(state, {module, path, method, version, token, content, reply, obj, body,
-                start, path_bin, etag, full_list = false}).
+                start, path_bin, etag, full_list = false, full_list_fields=[]}).
 
 -define(P(State), State#state.path_bin).
 -define(MEx(Path, Service, Start), io_lib:format("~p~p", [Path, Start])).
