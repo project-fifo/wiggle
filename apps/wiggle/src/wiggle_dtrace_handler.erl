@@ -60,14 +60,22 @@ permission_required(_State) ->
 %% GET
 %%--------------------------------------------------------------------
 
-read(Req, State = #state{token = Token, path = [], full_list=FullList}) ->
+read(Req, State = #state{token = Token, path = [], full_list=FullList, full_list_fields=Filter}) ->
     Start = now(),
     {ok, Permissions} = libsnarl:user_cache({token, Token}),
     ?MSnarl(?P(State), Start),
     Start1 = now(),
     {ok, Res} = libsniffle:dtrace_list([{must, 'allowed', [<<"dtraces">>, {<<"res">>, <<"uuid">>}, <<"get">>], Permissions}], FullList),
     ?MSniffle(?P(State), Start1),
-    {[ID || {_, ID} <- Res], Req, State};
+    Res1 = case {Filter, FullList} of
+               {_, false} ->
+                   [ID || {_, ID} <- Res];
+               {[], _} ->
+                   [ID || {_, ID} <- Res];
+               _ ->
+                   [jsxd:select(Filter, ID) || {_, ID} <- Res]
+           end,
+    {Res1, Req, State};
 
 read(Req, State = #state{path = [_Dtrace], obj = Obj}) ->
     Obj1 = jsxd:update(<<"script">>, fun (S) ->
