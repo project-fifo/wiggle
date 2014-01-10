@@ -170,7 +170,7 @@ read(Req, State = #state{module = M}) ->
     Start = now(),
     {Data, Req2} = wiggle_handler:encode(Reply, Req1),
     ?MEx(?P(State), <<"encode">>, Start),
-    {Data, Req2, State1}.
+    {Data, Req2, State1#state{obj = Data}}.
 
 %%--------------------------------------------------------------------
 %% write
