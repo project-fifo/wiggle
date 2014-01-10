@@ -221,8 +221,10 @@ read(Req, State = #state{token = Token, path = [], full_list=FullList, full_list
     Start1 = now(),
     {ok, Res} = libsniffle:vm_list([{must, 'allowed', [<<"vms">>, {<<"res">>, <<"uuid">>}, <<"get">>], Permissions}], FullList),
     ?MSniffle(?P(State), Start1),
-    Res1 = case Filter of
-               [] ->
+    Res1 = case {Filter, FullList} of
+               {_, false} ->
+                   [ID || {_, ID} <- Res];
+               {[], _} ->
                    [ID || {_, ID} <- Res];
                _ ->
                    [jsxd:select(Filter, ID) || {_, ID} <- Res]
