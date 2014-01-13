@@ -74,10 +74,21 @@ start(_StartType, _StartArgs) ->
                                           {keyfile, SSLKey}],
                                          [{compress, Compression},
                                           {env, [{dispatch, Dispatch}]}]);
-            _ ->
-                           ok
-                   end,
-
+        {ok, spdy} ->
+            {ok, SSLPort} = application:get_env(wiggle, ssl_port),
+            {ok, SSLCA} = application:get_env(wiggle, ssl_cacertfile),
+            {ok, SSLCert} = application:get_env(wiggle, ssl_certfile),
+            {ok, SSLKey} = application:get_env(wiggle, ssl_keyfile),
+            {ok, _} = cowboy:start_spdy(spdy, Acceptors,
+                                        [{port, SSLPort},
+                                         {cacertfile, SSLCA},
+                                         {certfile, SSLCert},
+                                         {keyfile, SSLKey}],
+                                        [{compress, Compression},
+                                         {env, [{dispatch, Dispatch}]}]);
+        _ ->
+            ok
+    end,
     R = wiggle_sup:start_link(),
     statman_server:add_subscriber(statman_aggregator),
     wiggle_snmp_handler:start(),

@@ -28,7 +28,7 @@
 %% @doc Enable or disable SSL compression
 {mapping, "ssl", "wiggle.ssl",
  [{default, on},
-  {datatype, {enum, [on, off]}}]}.
+  {datatype, {enum, [on, off, spdy]}}]}.
 
 {translation,
  "wiggle.ssl",
@@ -36,6 +36,8 @@
          case cuttlefish_util:conf_get_value("ssl", Conf) of
              on ->
                  true;
+             spdy ->
+                 spdy;
              _ ->
                  false
          end
