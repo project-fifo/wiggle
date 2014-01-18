@@ -32,10 +32,10 @@ allowed_methods(_Version, _Token, []) ->
 allowed_methods(_Version, _Token, [_Dataset]) ->
     [<<"GET">>, <<"DELETE">>, <<"PUT">>, <<"POST">>];
 
-allowed_methods(_Version, _Token, [_Dataset, <<"dataset.tar.gz">>]) ->
+allowed_methods(_Version, _Token, [_Dataset, <<"dataset.gz">>]) ->
     [<<"PUT">>, <<"GET">>];
 
-allowed_methods(_Version, _Token, [_Dataset, <<"dataset.tar.bz2">>]) ->
+allowed_methods(_Version, _Token, [_Dataset, <<"dataset.bz2">>]) ->
     [<<"PUT">>, <<"GET">>];
 
 allowed_methods(_Version, _Token, [_Dataset, <<"metadata">>|_]) ->
@@ -62,16 +62,16 @@ permission_required(#state{method = <<"PUT">>, path = [Dataset]}) ->
 permission_required(#state{method = <<"POST">>, path = [Dataset]}) ->
     {ok, [<<"datasets">>, Dataset, <<"create">>]};
 
-permission_required(#state{method = <<"GET">>, path = [Dataset, <<"dataset.tar.gz">>]}) ->
+permission_required(#state{method = <<"GET">>, path = [Dataset, <<"dataset.gz">>]}) ->
     {ok, [<<"datasets">>, Dataset, <<"create">>]};
 
-permission_required(#state{method = <<"GET">>, path = [Dataset, <<"dataset.tar.bz2">>]}) ->
+permission_required(#state{method = <<"GET">>, path = [Dataset, <<"dataset.bz2">>]}) ->
     {ok, [<<"datasets">>, Dataset, <<"export">>]};
 
-permission_required(#state{method = <<"PUT">>, path = [Dataset, <<"dataset.tar.gz">>]}) ->
+permission_required(#state{method = <<"PUT">>, path = [Dataset, <<"dataset.gz">>]}) ->
     {ok, [<<"datasets">>, Dataset, <<"create">>]};
 
-permission_required(#state{method = <<"PUT">>, path = [Dataset, <<"dataset.tar.bz2">>]}) ->
+permission_required(#state{method = <<"PUT">>, path = [Dataset, <<"dataset.bz2">>]}) ->
     {ok, [<<"datasets">>, Dataset, <<"create">>]};
 
 permission_required(#state{method = <<"DELETE">>, path = [Dataset]}) ->
@@ -87,11 +87,11 @@ permission_required(_State) ->
     undefined.
 
 
-raw_body(#state{path=[_, <<"dataset.tar.gz">>], method = <<"PUT">>}) ->
+raw_body(#state{path=[_, <<"dataset.gz">>], method = <<"PUT">>}) ->
     true;
 raw_body(_) ->
     false.
-content_types_accepted(#state{path=[_, <<"dataset.tar.gz">>], method = <<"PUT">>}) ->
+content_types_accepted(#state{path=[_, <<"dataset.gz">>], method = <<"PUT">>}) ->
     [
      {{<<"application">>, <<"x-gzip">>, '*'}, write}
     ];
@@ -122,7 +122,7 @@ read(Req, State = #state{token = Token, path = [], full_list=FullList, full_list
 read(Req, State = #state{path = [_Dataset], obj = Obj}) ->
     {Obj, Req, State};
 
-read(Req, State = #state{path = [UUID, <<"dataset.tar.gz">>], obj = _Obj}) ->
+read(Req, State = #state{path = [UUID, <<"dataset.gz">>], obj = _Obj}) ->
     {ok, Req1} = cowboy_req:chunked_reply(200, Req),
     {ok, Idxs} = libsniffle:img_list(UUID),
     [begin
@@ -168,7 +168,7 @@ create(Req, State = #state{path = [], version = Version}, Decoded) ->
             {{true, <<"/api/", Version/binary, "/datasets/", UUID/binary>>}, Req, State#state{body = Decoded}}
     end.
 
-write(Req, State = #state{path = [UUID, <<"dataset.tar.gz">>]}, _) ->
+write(Req, State = #state{path = [UUID, <<"dataset.gz">>]}, _) ->
     case libsniffle:dataset_get(UUID) of
         {ok, R} ->
             Size = jsxd:get(<<"image_size">>, 1, R),
