@@ -191,11 +191,9 @@ delete(Req, State = #state{path = [Org, <<"metadata">> | Path]}) ->
     ?MSnarl(?P(State), Start),
     {true, Req, State};
 
-delete(Req, State = #state{path = [Org, <<"triggers">> , Trigger],
-                           body = Event}) ->
-    P = erlangify_trigger(Trigger, Event),
+delete(Req, State = #state{path = [Org, <<"triggers">> , Trigger]}) ->
     Start = now(),
-    ok = libsnarl:org_remove_trigger(Org, P),
+    ok = libsnarl:org_remove_trigger(Org, Trigger),
     ?MSnarl(?P(State), Start),
     {true, Req, State};
 
