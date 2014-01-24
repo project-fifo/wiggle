@@ -63,8 +63,8 @@ websocket_init(_Any, Req, []) ->
                     case libsniffle:dtrace_get(ID) of
                         {ok, Obj} ->
                             lager:debug("[dtrace] Gotten object: ~p", [Obj]),
-                            {ok, Req, #state{id = ID, config = jsxd:get(<<"config">>, [], Obj),
-                                             encoder = Encoder, decoder = Decoder, type = Type}};
+                            {ok, Req3, #state{id = ID, config = jsxd:get(<<"config">>, [], Obj),
+                                              encoder = Encoder, decoder = Decoder, type = Type}};
                         _ ->
                             lager:info("[dtrace] Not found!"),
                             e(404, Req3)
