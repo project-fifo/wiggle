@@ -24,19 +24,19 @@ e(Code, Msg, Req) ->
     {shutdown, Req1}.
 
 websocket_init(_Any, Req, []) ->
-    ReqSWP = case cowboy_req:parse_header(<<"sec-websocket-protocol">>, Req) of
-                 {ok, undefined, ReqR} ->
-                     ReqR;
-                 {ok, [], ReqR} ->
-                     ReqR;
-                 {ok, [P |_], ReqR} ->
-                     cowboy_req:set_resp_header(<<"sec-websocket-protocol">>, P, ReqR)
-             end,
-    {_, C, Req0} = cowboy_req:parse_header(<<"sec-websocket-protocol">>, ReqSWP, <<"json">>),
+    {Proto, Req0} = case cowboy_req:parse_header(<<"sec-websocket-protocol">>, Req) of
+                        {ok, undefined, ReqR} ->
+                            {<<"json">>, ReqR};
+                        {ok, [], ReqR} ->
+                            {<<"json">>, ReqR};
+                        {ok, [P |_], ReqR} ->
+                            lager:debug("[dtrace] Setting up protocol to ~s", [P]),
+                            {P, cowboy_req:set_resp_header(<<"sec-websocket-protocol">>, P, ReqR)}
+                    end,
     {ID, Req1} = cowboy_req:binding(uuid, Req0),
     Req2 = wiggle_handler:set_access_header(Req1),
-    {Encoder, Decoder, Type} = case C of
-                                   [<<"msgpack">> | _] ->
+    {Encoder, Decoder, Type} = case Proto of
+                                   <<"msgpack">> ->
                                        {fun(O) ->
                                                 msgpack:pack(O, [jsx])
                                         end,
@@ -45,7 +45,7 @@ websocket_init(_Any, Req, []) ->
                                                 jsxd:from_list(O)
                                         end,
                                         binary};
-                                   [<<"json">> | _ ] ->
+                                   <<"json">> ->
                                        {fun(O) ->
                                                 jsx:encode(O)
                                         end,
@@ -55,18 +55,23 @@ websocket_init(_Any, Req, []) ->
                                end,
     case wiggle_handler:get_token(Req2) of
         {undefined, Req3} ->
+            lager:info("[dtrace] Not authenticated!"),
             e(401, <<".">>, Req3);
         {Token, Req3} ->
             case libsnarl:allowed({token, Token}, [<<"dtrace">>, ID, <<"stream">>]) of
                 true ->
                     case libsniffle:dtrace_get(ID) of
                         {ok, Obj} ->
+                            lager:debug("[dtrace] Gotten object: ~p", [Obj]),
                             {ok, Req, #state{id = ID, config = jsxd:get(<<"config">>, [], Obj),
                                              encoder = Encoder, decoder = Decoder, type = Type}};
                         _ ->
+                            lager:info("[dtrace] Not found!"),
                             e(404, Req3)
                     end;
                 false ->
+                    lager:info("[dtrace] forbidden!"),
+
                     e(403, <<"forbidden">>, Req3)
             end
     end.
@@ -112,6 +117,7 @@ handle(null, Req, State = #state{encoder = Enc, type = Type}) ->
     end;
 
 handle(Config, Req, State  = #state{encoder = Enc, type = Type}) ->
+    lager:debug("[dtrace] handle(~p)", [Config]),
     {ok, Servers} = libsniffle:hypervisor_list(),
     Config1 = case jsxd:get([<<"vms">>], [], Config) of
                   [] ->
