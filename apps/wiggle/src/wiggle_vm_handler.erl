@@ -49,6 +49,9 @@ allowed_methods(_Version, _Token, [_Vm]) ->
 allowed_methods(_Version, _Token, [_Vm, <<"owner">>]) ->
     [<<"PUT">>];
 
+allowed_methods(_Version, _Token, [_Vm, <<"services">>]) ->
+    [<<"PUT">>, <<"GET">>];
+
 allowed_methods(_Version, _Token, [_Vm, <<"metadata">>|_]) ->
     [<<"PUT">>, <<"DELETE">>];
 
@@ -139,6 +142,12 @@ permission_required(#state{method = <<"GET">>, path = [Vm, <<"snapshots">>]}) ->
 
 permission_required(#state{method = <<"POST">>, path = [Vm, <<"snapshots">>]}) ->
     {ok, [<<"vms">>, Vm, <<"snapshot">>]};
+
+permission_required(#state{method = <<"GET">>, path = [Vm, <<"services">>]}) ->
+    {ok, [<<"vms">>, Vm, <<"get">>]};
+
+permission_required(#state{method = <<"PUT">>, path = [Vm, <<"services">>]}) ->
+    {ok, [<<"vms">>, Vm, <<"edit">>]};
 
 permission_required(#state{method = <<"GET">>, path = [Vm, <<"snapshots">>, _Snap]}) ->
     {ok, [<<"vms">>, Vm, <<"get">>]};
@@ -237,13 +246,12 @@ read(Req, State = #state{path = [_Vm, <<"snapshots">>], obj = Obj}) ->
                       end, [], jsxd:get(<<"snapshots">>, [], Obj)),
     {Snaps, Req, State};
 
-read(Req, State = #state{path = [_Vm, <<"snapshots">>, Snap], obj = Obj}) ->
-    case jsxd:get([<<"snapshots">>, Snap], null, Obj) of
-        null ->
-            {null, Req, State};
-        SnapObj ->
-            {jsxd:set(<<"uuid">>, Snap, SnapObj), Req, State}
-    end;
+read(Req, State = #state{path = [_Vm, <<"services">>], obj = Obj}) ->
+    Snaps = jsxd:fold(fun(UUID, Snap, Acc) ->
+                              [jsxd:set(<<"uuid">>, UUID, Snap) | Acc]
+                      end, [], jsxd:get(<<"services">>, [], Obj)),
+    {Snaps, Req, State};
+
 
 read(Req, State = #state{path = [_Vm, <<"backups">>], obj = Obj}) ->
     Snaps = jsxd:fold(fun(UUID, Snap, Acc) ->
@@ -258,6 +266,9 @@ read(Req, State = #state{path = [_Vm, <<"backups">>, Snap], obj = Obj}) ->
         SnapObj ->
             {jsxd:set(<<"uuid">>, Snap, SnapObj), Req, State}
     end;
+
+read(Req, State = #state{path = [_Vm, <<"services">>, Snap], obj = Obj}) ->
+    {jsxd:get([<<"services">>, Snap], [{}], Obj), Req, State};
 
 read(Req, State = #state{path = [_Vm], obj = Obj}) ->
     {Obj, Req, State}.
@@ -355,6 +366,24 @@ create(Req, State = #state{path = [Vm, <<"nics">>], version = Version}, Decoded)
             lager:error("Could not add nic: ~P"),
             {halt, Req1, State}
     end.
+
+write(Req, State = #state{path = [Vm, <<"services">>]},
+      [{<<"action">>, <<"enable">>},
+       {<<"service">>, Service}]) ->
+    libsniffle:vm_service_enable(Vm, Service),
+    {true, Req, State};
+
+write(Req, State = #state{path = [Vm, <<"services">>]},
+      [{<<"action">>, <<"disable">>},
+       {<<"service">>, Service}]) ->
+    libsniffle:vm_service_disable(Vm, Service),
+    {true, Req, State};
+
+write(Req, State = #state{path = [Vm, <<"services">>]},
+      [{<<"action">>, <<"clear">>},
+       {<<"service">>, Service}]) ->
+    libsniffle:vm_service_clear(Vm, Service),
+    {true, Req, State};
 
 
 write(Req, State = #state{path = [_, <<"nics">>]}, _Body) ->
