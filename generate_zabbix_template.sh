@@ -1,4 +1,5 @@
-cat <<EOF > share/wiggle_template.xml
+DST=share/wiggle_template.xml
+cat <<EOF > $DST
 <?xml version="1.0" encoding="UTF-8"?>
 <zabbix_export>
     <version>2.0</version>
@@ -26,7 +27,7 @@ cat <<EOF > share/wiggle_template.xml
 EOF
 cat apps/wiggle/include/WIGGLE-MIB.hrl | grep instance | sed 's/-define(//' | sed 's/_instance, ./ /' | sed 's/]).//' | sed 's/,/./g' | while read param oid
 do
-    cat <<EOF >> wiggle_template.xml
+    cat <<EOF >> $DST
                 <item>
                     <name>$param</name>
                     <type>4</type>
@@ -43,18 +44,18 @@ do
 EOF
     if echo $param | grep Count
     then
-        cat <<EOF >> wiggle_template.xml
+        cat <<EOF >> $DST
                     <units>requests</units>
                     <formula>1</formula>
 EOF
     else
-        cat <<EOF >> wiggle_template.xml
+        cat <<EOF >> $DST
                     <units>nanoseconds</units>
                     <formula>0.001</formula>
 EOF
     fi
 
-    cat <<EOF >> wiggle_template.xml
+    cat <<EOF >> $DST
 
                     <delta>0</delta>
                     <snmpv3_securityname/>
@@ -78,7 +79,7 @@ EOF
                 </item>
 EOF
 done
-cat <<EOF >> wiggle_template.xml
+cat <<EOF >> $DST
             </items>
             <discovery_rules/>
             <macros/>
