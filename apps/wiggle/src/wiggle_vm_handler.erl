@@ -46,6 +46,9 @@ allowed_methods(_Version, _Token, []) ->
 allowed_methods(_Version, _Token, [_Vm]) ->
     [<<"GET">>, <<"PUT">>, <<"DELETE">>];
 
+allowed_methods(_Version, _Token, [_Vm, <<"hypervisor">>]) ->
+    [<<"DELETE">>];
+
 allowed_methods(_Version, _Token, [_Vm, <<"owner">>]) ->
     [<<"PUT">>];
 
@@ -126,6 +129,9 @@ permission_required(#state{method = <<"GET">>, path = [Vm]}) ->
     {ok, [<<"vms">>, Vm, <<"get">>]};
 
 permission_required(#state{method = <<"DELETE">>, path = [Vm]}) ->
+    {ok, [<<"vms">>, Vm, <<"delete">>]};
+
+permission_required(#state{method = <<"DELETE">>, path = [Vm, <<"hypervisor">>]}) ->
     {ok, [<<"vms">>, Vm, <<"delete">>]};
 
 permission_required(#state{method = <<"POST">>, path = [Vm, <<"nics">>]}) ->
@@ -496,6 +502,12 @@ delete(Req, State = #state{path = [Vm, <<"nics">>, Mac]}) ->
 
 delete(Req, State = #state{path = [Vm],
                            body=[{<<"location">>, <<"hypervisor">>}]}) ->
+    Start = now(),
+    ok = libsniffle:vm_store(Vm),
+    ?MSniffle(?P(State), Start),
+    {true, Req, State};
+
+delete(Req, State = #state{path = [Vm, <<"hypervisor">>]}) ->
     Start = now(),
     ok = libsniffle:vm_store(Vm),
     ?MSniffle(?P(State), Start),
