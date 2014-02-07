@@ -17,6 +17,7 @@
                   snmp,
                   mnesia,
                   eplugin,
+                  ensq,
                   cowboy
                  ]},
   {mod, { wiggle_app, []}},
