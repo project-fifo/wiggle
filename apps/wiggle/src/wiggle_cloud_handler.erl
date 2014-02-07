@@ -49,17 +49,17 @@ read(Req, State = #state{path = []}) ->
                     {ok, SnaVer} when is_binary(SnaVer) ->
                         {[{snarl, SnaVer}], MetricsSna, WarningsSna};
                     _ ->
-                        {[], MetricsSna, [{<<"sniffle">>, <<"down">>} | WarningsSna]}
+                        {[], MetricsSna, [{<<"snarl">>, <<"down(version)">>} | WarningsSna]}
                 end;
             _ ->
-                {[], [], [{<<"sniffle">>, <<"down">>}]}
+                {[], [], [{<<"snarl">>, <<"down(status)">>}]}
         end,
     {Versions2, Metrics2, Warnings2} =
         case libhowl:version() of
             {ok, HowlVer} when is_binary(HowlVer) ->
                 {[{howl, HowlVer} | Versions1], Metrics1, Warnings1};
             _ ->
-                {Versions1, Metrics1, [{<<"sniffle">>, <<"down">>} | Warnings1]}
+                {Versions1, Metrics1, [{<<"howl">>, <<"down">>} | Warnings1]}
         end,
     {Versions3, Metrics3, Warnings3} =
         case libsniffle:cloud_status() of
