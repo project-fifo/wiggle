@@ -19,9 +19,18 @@ cat <<EOF > $DST
                 </group>
             </groups>
             <applications>
-                <application>
-                    <name>General</name>
-                </application>
+                <application><name>Wiggle</name></application>
+                <application><name>users</name></application>
+                <application><name>sessions</name></application>
+                <application><name>groups</name></application>
+                <application><name>cloud</name></application>
+                <application><name>hypervisors</name></application>
+                <application><name>dtrace</name></application>
+                <application><name>vms</name></application>
+                <application><name>ipranges</name></application>
+                <application><name>datasets</name></application>
+                <application><name>packages</name></application>
+
             </applications>
             <items>
 EOF
@@ -72,7 +81,25 @@ EOF
                     <publickey/>
                     <privatekey/>
                     <port/>
-                    <description/>
+                    <applications>
+EOF
+    if echo $param | grep '^\(users\|sessions\|groups\|cloud\|hypervisors\|dtrace\|vms\|ipranges\|datasets\|packages\)'
+    then
+        app=$(echo $param | sed -e 's/^\([a-z]*\).*/\1/g')
+        cat <<EOF >> $DST
+                        <application>
+                            <name>$app</name>
+                        </application>
+EOF
+    else
+        cat <<EOF >> $DST
+                        <application>
+                            <name>Wiggle</name>
+                        </application>
+EOF
+    fi
+cat <<EOF >> $DST
+                    </applications>
                     <inventory_link>0</inventory_link>
                     <applications/>
                     <valuemap/>
