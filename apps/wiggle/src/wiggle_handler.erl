@@ -86,17 +86,6 @@ accepted() ->
      {{<<"application">>, <<"x-msgpack">>, '*'}, write},
      {{<<"application">>, <<"json">>, '*'}, write}
     ].
-%%  {<<"application/x-msgpack; charset=UTF-8">>, },
-%%  {<<"application/x-msgpack; charset=utf-8">>, from_msgpack},
-%%  {<<"application/x-msgpack;charset=utf-8">>, from_msgpack},
-%%  {<<"application/x-msgpack; charset=UTF-8">>, from_msgpack},
-%%  {<<"application/x-msgpack">>, from_msgpack},
-%%  {<<"application/json; charset=UTF-8">>, from_json},
-%%  {<<"application/json; charset=utf-8">>, from_json},
-%%  {<<"application/json;charset=UTF-8">>, from_json},
-%%  {<<"application/json;charset=utf-8">>, from_json},
-%%  {<<"application/json">>, from_json}
-%% ].
 
 media_type(Req) ->
     case cowboy_req:meta(media_type, Req) of
