@@ -17,6 +17,7 @@
                   newrelic,
                   snmp,
                   mnesia,
+                  uuid,
                   eplugin,
                   cowboy
                  ]},
