@@ -6,6 +6,7 @@
   {applications, [
                   kernel,
                   stdlib,
+                  ensq,
                   libsnarl,
                   libsniffle,
                   libhowl,
@@ -17,7 +18,6 @@
                   snmp,
                   mnesia,
                   eplugin,
-                  ensq,
                   cowboy
                  ]},
   {mod, { wiggle_app, []}},
