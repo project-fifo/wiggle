@@ -75,6 +75,9 @@ create(Req, State = #state{path = [], version = Version}, Decoded) ->
             Req2 = cowboy_req:set_resp_header(<<"x-snarl-token">>, UUID, Req1),
             {{true, <<"/api/", Version/binary, "/sessions/", UUID/binary>>},
              Req2, State#state{body = Decoded}};
+        key_required ->
+            {ok, Req1} = cowboy_req:reply(449, [], <<"Retry with valid parameters: user, password, otp.">>, Req),
+            {halt, Req1, State};
         _ ->
             {ok, Req1} = cowboy_req:reply(401, [], <<"Forbidden!">>, Req),
             {halt, Req1, State}
