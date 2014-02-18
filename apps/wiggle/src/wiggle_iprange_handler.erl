@@ -74,24 +74,26 @@ read(Req, State = #state{token = Token, path = [], full_list=FullList, full_list
                {_, false} ->
                    [ID || {_, ID} <- Res];
                {[], _} ->
-                   [ID || {_, ID} <- Res];
+                   [to_json(Obj) || {_, Obj} <- Res];
                _ ->
-                   [jsxd:select(Filter, ID) || {_, ID} <- Res]
+                   [jsxd:select(Filter, to_json(Obj)) || {_, Obj} <- Res]
            end,
     {Res1, Req, State};
 
 read(Req, State = #state{path = [_Iprange], obj = Obj}) ->
-    {jsxd:thread([{update, <<"network">>, fun ip_to_str/1},
-                  {update, <<"gateway">>, fun ip_to_str/1},
-                  {update, <<"netmask">>, fun ip_to_str/1},
-                  {update, <<"first">>, fun ip_to_str/1},
-                  {update, <<"last">>, fun ip_to_str/1},
-                  {update, <<"current">>, fun ip_to_str/1},
-                  {update, <<"free">>,
-                   fun (Free) ->
-                           lists:map(fun ip_to_str/1, Free)
-                   end}], Obj), Req, State}.
+    {to_json(Obj), Req, State}.
 
+to_json(Obj) ->
+    jsxd:thread([{update, <<"network">>, fun ip_to_str/1},
+                 {update, <<"gateway">>, fun ip_to_str/1},
+                 {update, <<"netmask">>, fun ip_to_str/1},
+                 {update, <<"first">>, fun ip_to_str/1},
+                 {update, <<"last">>, fun ip_to_str/1},
+                 {update, <<"current">>, fun ip_to_str/1},
+                 {update, <<"free">>,
+                  fun (Free) ->
+                          lists:map(fun ip_to_str/1, Free)
+                  end}], Obj).
 %%--------------------------------------------------------------------
 %% PUT
 %%--------------------------------------------------------------------
