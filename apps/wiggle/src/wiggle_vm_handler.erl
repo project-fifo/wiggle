@@ -254,7 +254,7 @@ read(Req, State = #state{path = [_Vm, <<"snapshots">>], obj = Obj}) ->
 
 read(Req, State = #state{path = [_Vm, <<"snapshots">>, SnapID], obj = Obj}) ->
     {ok, Snap} = jsxd:get([<<"snapshots">>, SnapID], Obj),
-    {Snap, Req, State};
+    {jsxd:set(<<"uuid">>, SnapID, Snap), Req, State};
 
 read(Req, State = #state{path = [_Vm, <<"services">>], obj = Obj}) ->
     Snaps = jsxd:fold(fun(UUID, Snap, Acc) ->
