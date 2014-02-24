@@ -167,14 +167,16 @@ options(Req, State, Methods) ->
                          [<<"HEAD">>, <<"OPTIONS">> | Methods]), ", "), Req),
     {ok, Req1, State}.
 
-allowed(State, Perm) ->
+allowed(State = #state{token = Token}, Perm) ->
     Start = now(),
-    R = case libsnarl:allowed(State#state.token, Perm) of
+    R = case libsnarl:allowed(Token, Perm) of
             not_found ->
+                lager:warning("[auth] unknown Token for allowed: ~p", [Token]),
                 true;
             true ->
                 false;
             false ->
+                lager:warning("[auth] ~p is not allowed for: ~p", [Perm, Token]),
                 true
         end,
     ?MSnarl(?P(State), Start),
