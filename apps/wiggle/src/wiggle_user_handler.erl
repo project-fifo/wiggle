@@ -212,7 +212,7 @@ permission_required(_State) ->
 
 read(Req, State = #state{token = Token, path = [], full_list=FullList, full_list_fields=Filter}) ->
     Start = now(),
-    {ok, Permissions} = libsnarl:user_cache({token, Token}),
+    {ok, Permissions} = libsnarl:user_cache(Token),
     ?MSnarl(?P(State), Start),
     Start1 = now(),
     {ok, Res} = libsnarl:user_list(
@@ -258,7 +258,7 @@ read(Req, State = #state{path = [_User, <<"yubikeys">>], obj = UserObj}) ->
 %%--------------------------------------------------------------------
 
 create(Req, State = #state{token = Token, path = [], version = Version}, Decoded) ->
-    {ok, Creator} = libsnarl:user_get({token, Token}),
+    {ok, Creator} = libsnarl:user_get(Token),
     {ok, CUUID} = jsxd:get(<<"uuid">>, Creator),
     {ok, User} = jsxd:get(<<"user">>, Decoded),
     {ok, Pass} = jsxd:get(<<"password">>, Decoded),

@@ -58,7 +58,7 @@ websocket_init(_Any, Req, []) ->
             lager:info("[dtrace] Not authenticated!"),
             e(401, <<".">>, Req3);
         {Token, Req3} ->
-            case libsnarl:allowed({token, Token}, [<<"dtrace">>, ID, <<"stream">>]) of
+            case libsnarl:allowed(Token, [<<"dtrace">>, ID, <<"stream">>]) of
                 true ->
                     case libsniffle:dtrace_get(ID) of
                         {ok, Obj} ->

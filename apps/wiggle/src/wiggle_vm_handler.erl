@@ -231,7 +231,7 @@ permission_required(_State) ->
 
 read(Req, State = #state{token = Token, path = [], full_list=FullList, full_list_fields=Filter}) ->
     Start = now(),
-    {ok, Permissions} = libsnarl:user_cache({token, Token}),
+    {ok, Permissions} = libsnarl:user_cache(Token),
     ?MSnarl(?P(State), Start),
     Start1 = now(),
     {ok, Res} = libsniffle:vm_list([{must, 'allowed', [<<"vms">>, {<<"res">>, <<"uuid">>}, <<"get">>], Permissions}], FullList),
@@ -296,7 +296,7 @@ create(Req, State = #state{path = [], version = Version, token = Token}, Decoded
         %% 'requirements' as part of the config, if they lack the permission
         %% it simply gets removed.
         Config1 = case libsnarl:allowed(
-                         {token, Token},
+                         Token,
                          [<<"cloud">>, <<"vms">>, <<"advanced_create">>]) of
             true ->
                 Config;
@@ -304,7 +304,7 @@ create(Req, State = #state{path = [], version = Version, token = Token}, Decoded
                 jsxd:set(<<"requirements">>, [], Config)
         end,
         try
-            {ok, User} = libsnarl:user_get({token, Token}),
+            {ok, User} = libsnarl:user_get(Token),
             {ok, Owner} = jsxd:get(<<"uuid">>, User),
             Start = now(),
             {ok, UUID} = libsniffle:create(Package, Dataset, jsxd:set(<<"owner">>, Owner, Config1)),
