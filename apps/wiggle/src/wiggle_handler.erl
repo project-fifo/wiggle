@@ -39,7 +39,7 @@ set_access_header(Req) ->
     Req1 = cowboy_req:set_resp_header(<<"access-control-allow-origin">>, <<"*">>, Req),
     Req2 = cowboy_req:set_resp_header(
              <<"access-control-allow-headers">>,
-             <<"content-type, x-snarl-token, x-full-list, x-full-fields">>, Req1),
+             <<"Authorization, content-type, x-snarl-token, x-full-list, x-full-fields">>, Req1),
     Req3 = cowboy_req:set_resp_header(
              <<"access-control-expose-headers">>,
              <<"x-snarl-token, x-full-list, x-full-fields">>, Req2),
@@ -54,7 +54,8 @@ get_token(Req) ->
                 {undefined, ReqX1} ->
                     case cowboy_req:header(<<"Authorization">>, ReqX1) of
                         {undefined, ReqX2} ->
-                            lager:warning("[auth] No authenticaiton."),
+                            lager:warning("[auth] No authenticaiton req was: ~p.",
+                                          [Req]),
                             {undefined, ReqX2};
                         {AuthorizationHeader, ReqX2} ->
                             Res = basic_auth(AuthorizationHeader),
