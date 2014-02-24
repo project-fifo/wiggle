@@ -52,7 +52,7 @@ get_token(Req) ->
         {undefined, ReqX} ->
             case cowboy_req:cookie(<<"x-snarl-token">>, ReqX) of
                 {undefined, ReqX1} ->
-                    case cowboy_req:header(<<"Authorization">>, ReqX1) of
+                    case cowboy_req:header(<<"authorization">>, ReqX1) of
                         {undefined, ReqX2} ->
                             lager:warning("[auth] No authenticaiton req was: ~p.",
                                           [Req]),
