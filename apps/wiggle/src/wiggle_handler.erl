@@ -50,12 +50,46 @@ set_access_header(Req) ->
 get_token(Req) ->
     case cowboy_req:header(<<"x-snarl-token">>, Req) of
         {undefined, ReqX} ->
-            {TokenX, ReqX1} = cowboy_req:cookie(<<"x-snarl-token">>, ReqX),
-            {TokenX, ReqX1};
+            case cowboy_req:cookie(<<"x-snarl-token">>, ReqX) of
+                {undefined, ReqX1} ->
+                    case cowboy_req:cookie(<<"Authorization">>, ReqX1) of
+                        {undefined, ReqX2} ->
+                            {undefined, ReqX2};
+                        {AuthorizationHeader, ReqX2} ->
+                            Res = basic_auth(AuthorizationHeader),
+                            {Res, ReqX2}
+                    end;
+                {TokenX, ReqX1} ->
+                    {{token, TokenX}, ReqX1}
+                end;
         {TokenX, ReqX} ->
             ReqX1 = cowboy_req:set_resp_header(<<"x-snarl-token">>, TokenX, ReqX),
-            {TokenX, ReqX1}
+            {{token, TokenX}, ReqX1}
     end.
+
+
+basic_auth(AuthorizationHeader) ->
+    case binary:split(AuthorizationHeader, <<$ >>) of
+        [<<"Basic">>, EncodedCredentials] ->
+            decoded_credentials(EncodedCredentials);
+        _ ->
+            undefined
+    end.
+
+decoded_credentials(EncodedCredentials) ->
+    DecodedCredentials = base64:decode(EncodedCredentials),
+    case binary:split(DecodedCredentials, <<$:>>) of
+        [UUID, Password] ->
+            case libsnarl:auth(UUID, Password) of
+                {ok, UUID} ->
+                    UUID;
+                _ ->
+                    undefined
+            end;
+        _ ->
+            undefined
+    end.
+
 
 full_list(Req) ->
     case cowboy_req:header(<<"x-full-list">>, Req) of
@@ -132,9 +166,8 @@ options(Req, State, Methods) ->
     {ok, Req1, State}.
 
 allowed(State, Perm) ->
-    Token = State#state.token,
     Start = now(),
-    R = case libsnarl:allowed({token, Token}, Perm) of
+    R = case libsnarl:allowed(State#state.token, Perm) of
             not_found ->
                 true;
             true ->
