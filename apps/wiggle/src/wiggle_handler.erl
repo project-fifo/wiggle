@@ -54,6 +54,7 @@ get_token(Req) ->
                 {undefined, ReqX1} ->
                     case cowboy_req:cookie(<<"Authorization">>, ReqX1) of
                         {undefined, ReqX2} ->
+                            lager:warning("[auth] No authenticaiton."),
                             {undefined, ReqX2};
                         {AuthorizationHeader, ReqX2} ->
                             Res = basic_auth(AuthorizationHeader),
@@ -84,6 +85,7 @@ decoded_credentials(EncodedCredentials) ->
                 {ok, UUID} ->
                     UUID;
                 _ ->
+                    lager:warning("[auth] Basic auth failed."),
                     undefined
             end;
         _ ->
