@@ -25,6 +25,7 @@
               raw_body/1,
               content_types_accepted/1]).
 
+-define(WRETRY, 5).
 
 allowed_methods(_Version, _Token, []) ->
     [<<"GET">>, <<"POST">>];
@@ -257,10 +258,10 @@ transform_dataset(D1) ->
 import_dataset(UUID, Idx, TotalSize, Req, WReq) ->
     case cowboy_req:stream_body(1024*1024, Req) of
         {ok, Data, Req1} ->
-            Idx1 = Idx + 1,
-            Done = (Idx1 * 1024*1024) / TotalSize,
-            case libsniffle:img_create(UUID, Idx, Data, WReq) of
+            case do_write(UUID, Idx, Data, WReq, 0) of
                 {ok, WReq1} ->
+                    Idx1 = Idx + 1,
+                    Done = (Idx1 * 1024*1024) / TotalSize,
                     libsniffle:dataset_set(UUID, <<"imported">>, Done),
                     libhowl:send(UUID,
                                  [{<<"event">>, <<"progress">>},
@@ -280,6 +281,18 @@ import_dataset(UUID, Idx, TotalSize, Req, WReq) ->
         {error, Reason} ->
             fail_import(UUID, Reason, Idx),
             {false, Req}
+    end.
+
+do_write(_, _, _, _, ?WRETRY) ->
+    {error, retry_exceeded};
+do_write(UUID, Idx, Data, WReq, Retry) ->
+    case libsniffle:img_create(UUID, Idx, Data, WReq) of
+        {ok, WReq1} ->
+            {ok, WReq1};
+        Reason ->
+            lager:warning("[~s:~p] Import Error: ~p",
+                         [UUID, Retry, Reason]),
+            do_write(UUID, Idx, Data, WReq, Retry + 1)
     end.
 
 fail_import(UUID, Reason, Idx) ->
