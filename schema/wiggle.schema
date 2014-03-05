@@ -77,13 +77,9 @@
 {translation,
  "mdns_client_lib.interface",
  fun(Conf) ->
-         case cuttlefish_util:conf_get_value("ip", Conf) of
-             {IP, _Port} ->
-                 [A, B, C, D] = [list_to_integer(O) ||
-                                    O <- re:split(IP, "\\.", [{return, list}])],
-                 {ok, {A, B, C, D}};
-             _ ->
-                 undefined
-         end
+         IP = cuttlefish_util:conf_get_value("listening_ip", Conf), 
+         [A, B, C, D] = [list_to_integer(O) ||
+                            O <- re:split(IP, "\\.", [{return, list}])],
+         {ok, {A, B, C, D}}
  end
 }.
