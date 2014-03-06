@@ -71,7 +71,7 @@
 
 %% @doc The TCP IP that mdns messages arrive to.
 {mapping, "listening_ip", "mdns_client_lib.interface",
- [{commented, "127.0.0.1"},
+ [{default, "127.0.0.1"},
   {datatype, string}]}.
 
 {translation,
