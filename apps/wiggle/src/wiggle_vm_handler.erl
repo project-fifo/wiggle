@@ -277,7 +277,8 @@ read(Req, State = #state{path = [_Vm, <<"backups">>, Snap], obj = Obj}) ->
             {jsxd:set(<<"uuid">>, Snap, SnapObj), Req, State}
     end;
 
-read(Req, State = #state{path = [_Vm, <<"services">>, Snap], obj = Obj}) ->
+read(Req, State = #state{path = [_Vm, <<"services">>, Snap],
+                         obj = Obj = [{_,_}|_]}) when is_binary(Snap) ->
     {jsxd:get([<<"services">>, Snap], [{}], Obj), Req, State};
 
 read(Req, State = #state{path = [_Vm], obj = Obj}) ->
