@@ -290,8 +290,8 @@ do_write(UUID, Idx, Data, WReq, Retry) ->
         {ok, WReq1} ->
             {ok, WReq1};
         Reason ->
-            lager:warning("[~s:~p] Import Error: ~p",
-                         [UUID, Retry, Reason]),
+            lager:warning("[~s(~p):~p] Import Error: ~p",
+                         [UUID, Idx, Retry, Reason]),
             do_write(UUID, Idx, Data, WReq, Retry + 1)
     end.
 

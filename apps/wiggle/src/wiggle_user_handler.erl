@@ -288,11 +288,17 @@ write(Req, State = #state{path = [User, <<"metadata">> | Path]}, [{K, V}]) ->
 
 write(Req, State = #state{path = [User, <<"keys">>]}, [{KeyID, Key}]) ->
     case re:split(Key, " ") of
-        [_,_,_] ->
-            Start = now(),
-            libsnarl:user_key_add(User, KeyID, Key),
-            ?MSnarl(?P(State), Start),
-            {true, Req, State};
+        [_,ID,_] ->
+            try
+                base64:decode(ID),
+                Start = now(),
+                libsnarl:user_key_add(User, KeyID, Key),
+                ?MSnarl(?P(State), Start),
+                {true, Req, State}
+            catch
+                _:_ ->
+                    {false, Req, State}
+            end;
         _ ->
             {false, Req, State}
     end;

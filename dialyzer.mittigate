@@ -9,3 +9,9 @@
 ^glc_code.erl:
 ^lager.erl
 ^msgpack.erl:185
+^conf_parse.erl
+^cuttlefish_escript.erl
+^mdns_client_lib_worker.erl:97
+^neotoma
+^uuid.erl:96:
+^uuid.erl:110:
