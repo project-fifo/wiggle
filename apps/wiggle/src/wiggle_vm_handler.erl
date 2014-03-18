@@ -277,9 +277,9 @@ read(Req, State = #state{path = [_Vm, <<"backups">>, Snap], obj = Obj}) ->
             {jsxd:set(<<"uuid">>, Snap, SnapObj), Req, State}
     end;
 
-read(Req, State = #state{path = [_Vm, <<"services">>, Snap],
-                         obj = Obj = [{_,_}|_]}) when is_binary(Snap) ->
-    {jsxd:get([<<"services">>, Snap], [{}], Obj), Req, State};
+read(Req, State = #state{path = [_Vm, <<"services">>, Service],
+                         obj = Obj = [{_,_}|_]}) when is_binary(Service) ->
+    {jsxd:get([<<"services">>, Service], [{}], Obj), Req, State};
 
 read(Req, State = #state{path = [_Vm], obj = Obj}) ->
     {Obj, Req, State}.
@@ -299,11 +299,11 @@ create(Req, State = #state{path = [], version = Version, token = Token}, Decoded
         Config1 = case libsnarl:allowed(
                          Token,
                          [<<"cloud">>, <<"vms">>, <<"advanced_create">>]) of
-            true ->
-                Config;
-            _ ->
-                jsxd:set(<<"requirements">>, [], Config)
-        end,
+                      true ->
+                          Config;
+                      _ ->
+                          jsxd:set(<<"requirements">>, [], Config)
+                  end,
         try
             {ok, User} = libsnarl:user_get(Token),
             {ok, Owner} = jsxd:get(<<"uuid">>, User),
