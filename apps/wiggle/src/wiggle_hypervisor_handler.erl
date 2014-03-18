@@ -28,7 +28,10 @@ allowed_methods(_Version, _Token, [_Hypervisor, <<"characteristics">>|_]) ->
     [<<"PUT">>, <<"DELETE">>];
 
 allowed_methods(_Version, _Token, [_Hypervisor, <<"metadata">>|_]) ->
-    [<<"PUT">>, <<"DELETE">>].
+    [<<"PUT">>, <<"DELETE">>];
+
+allowed_methods(_Version, _Token, [_Hypervisor, <<"services">>]) ->
+    [<<"PUT">>, <<"GET">>].
 
 get(State = #state{path = [Hypervisor | _]}) ->
     Start = now(),
@@ -57,6 +60,12 @@ permission_required(#state{method = <<"PUT">>, path = [Hypervisor, <<"characteri
 permission_required(#state{method = <<"DELETE">>, path = [Hypervisor, <<"characteristics">> | _]}) ->
     {ok, [<<"hypervisors">>, Hypervisor, <<"edit">>]};
 
+permission_required(#state{method = <<"GET">>, path = [Hypervisor, <<"services">>]}) ->
+    {ok, [<<"hypervisors">>, Hypervisor, <<"get">>]};
+
+permission_required(#state{method = <<"PUT">>, path = [Hypervisor, <<"services">>]}) ->
+    {ok, [<<"hypervisors">>, Hypervisor, <<"edit">>]};
+
 permission_required(_State) ->
     undefined.
 
@@ -80,6 +89,16 @@ read(Req, State = #state{token = Token, path = [], full_list=FullList, full_list
                    [jsxd:select(Filter, ID) || {_, ID} <- Res]
            end,
     {Res1, Req, State};
+
+read(Req, State = #state{path = [_Hypervisor, <<"services">>], obj = Obj}) ->
+    Snaps = jsxd:fold(fun(UUID, Snap, Acc) ->
+                              [jsxd:set(<<"uuid">>, UUID, Snap) | Acc]
+                      end, [], jsxd:get(<<"services">>, [], Obj)),
+    {Snaps, Req, State};
+
+read(Req, State = #state{path = [_Hypervisor, <<"services">>, Service],
+                         obj = Obj = [{_,_}|_]}) when is_binary(Service) ->
+    {jsxd:get([<<"services">>, Service], [{}], Obj), Req, State};
 
 read(Req, State = #state{path = [_Hypervisor], obj = Obj}) ->
     {Obj, Req, State}.
@@ -106,6 +125,24 @@ write(Req, State = #state{path = [Hypervisor, <<"metadata">> | Path]}, [{K, V}])
     Start = now(),
     libsniffle:hypervisor_set(Hypervisor, [<<"metadata">> | Path] ++ [K], jsxd:from_list(V)),
     ?MSniffle(?P(State), Start),
+    {true, Req, State};
+
+write(Req, State = #state{path = [Hypervisor, <<"services">>]},
+      [{<<"action">>, <<"enable">>},
+       {<<"service">>, Service}]) ->
+    libsniffle:hypervisor_service_action(Hypervisor, enable, Service),
+    {true, Req, State};
+
+write(Req, State = #state{path = [Hypervisor, <<"services">>]},
+      [{<<"action">>, <<"disable">>},
+       {<<"service">>, Service}]) ->
+    libsniffle:hypervisor_service_action(Hypervisor, disable, Service),
+    {true, Req, State};
+
+write(Req, State = #state{path = [Hypervisor, <<"services">>]},
+      [{<<"action">>, <<"clear">>},
+       {<<"service">>, Service}]) ->
+    libsniffle:hypervisor_service_action(Hypervisor, clear, Service),
     {true, Req, State};
 
 write(Req, State, _Body) ->
