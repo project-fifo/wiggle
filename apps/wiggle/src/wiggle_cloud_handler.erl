@@ -43,40 +43,40 @@ read(Req, State = #state{path = [<<"connection">>]}) ->
 
 read(Req, State = #state{path = []}) ->
     {Versions1, Metrics1, Warnings1} =
-        case libsnarl:status() of
-            {ok, {MetricsSna, WarningsSna}} ->
-                case libsnarl:version() of
-                    {ok, SnaVer} when is_binary(SnaVer) ->
-                        {[{snarl, SnaVer}], MetricsSna, WarningsSna};
-                    _ ->
-                        {[], MetricsSna, [{<<"snarl">>, <<"down(version)">>} | WarningsSna]}
-                end;
+        case {libsnarl:version(), libsnarl:status()} of
+            {{ok, SnaVer}, {ok, {MetricsSna, WarningsSna}}}
+              when is_binary(SnaVer) ->
+                {[{snarl, SnaVer}], MetricsSna, WarningsSna};
             _ ->
-                {[], [], [{<<"snarl">>, <<"down(status)">>}]}
+                {[], [], [[[{<<"category">>, <<"snarl">>},
+                            {<<"element">>, <<"all">>},
+                            {<<"message">>, <<"The Snarl subsystem could not be reached.">>}
+                           ]]]}
         end,
     {Versions2, Metrics2, Warnings2} =
         case libhowl:version() of
             {ok, HowlVer} when is_binary(HowlVer) ->
                 {[{howl, HowlVer} | Versions1], Metrics1, Warnings1};
             _ ->
-                {Versions1, Metrics1, [{<<"howl">>, <<"down">>} | Warnings1]}
+                {Versions1, Metrics1, [[{<<"category">>, <<"howl">>},
+                                          {<<"element">>, <<"all">>},
+                                          {<<"message">>, <<"The Howl subsystem could not be reached.">>}
+                                         ] | Warnings1]}
         end,
     {Versions3, Metrics3, Warnings3} =
-        case libsniffle:cloud_status() of
-            {ok, {MetricsSni, WarningsSni}} ->
-                case libsniffle:version() of
-                    {ok, SniVer} when is_binary(SniVer) ->
-                        {ok, Vms} = libsniffle:vm_list(),
-                        {[{sniffle, SniVer} | Versions2],
-                         [{<<"vms">>, length(Vms)} | MetricsSni] ++ Metrics2,
-                         WarningsSni ++ Warnings2};
-                    _ ->
-                        {Versions2, MetricsSni ++ Metrics2,
-                         WarningsSni ++ [{<<"sniffle">>, <<"down">>} | Warnings2]}
-                end;
+        case {libsniffle:version(), libsniffle:cloud_status()} of
+            {{ok, SniVer}, {ok, {MetricsSni, WarningsSni}}}
+              when is_binary(SniVer) ->
+                {ok, Vms} = libsniffle:vm_list(),
+                {[{sniffle, SniVer} | Versions2],
+                 [{<<"vms">>, length(Vms)} | MetricsSni] ++ Metrics2,
+                 WarningsSni ++ Warnings2};
             _ ->
                 {Versions2, Metrics2,
-                 [{<<"sniffle">>, <<"down">>} | Warnings2]}
+                 [[{<<"category">>, <<"sniffle">>},
+                   {<<"element">>, <<"all">>},
+                   {<<"message">>, <<"The Sniffle subsystem could not be reached.">>}
+                  ] | Warnings2]}
         end,
     {[{versions, [{wiggle, ?VERSION} | Versions3]},
       {metrics,  Metrics3},
