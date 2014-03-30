@@ -11,11 +11,14 @@
 
 start(_StartType, _StartArgs) ->
     {ok, Port} = application:get_env(wiggle, port),
+    {ok, Compression} = application:get_env(wiggle, compression),
     {ok, Acceptors} = application:get_env(wiggle, acceptors),
 
     case (catch eplugin:wait_for_init()) of
-        {'EXIT', Why} -> lager:warning("Error waiting for eplugin init: ~p", [Why]),
-                         lager:warning("Your plugins are probably taking too long to load, and some wiggle:dispatchs hooks may not run.");
+        {'EXIT', Why} ->
+            lager:warning("Error waiting for eplugin init: ~p", [Why]),
+            lager:warning("Your plugins are probably taking too long to load, "
+                          "and some wiggle:dispatchs hooks may not run.");
         ok -> ok
     end,
     PluginDispatchs = eplugin:fold('wiggle:dispatchs', []),
@@ -54,9 +57,38 @@ start(_StartType, _StartArgs) ->
                        PluginDispatchs
                   }]
                 ),
-    {ok, _} = cowboy:start_http(http, Acceptors, [{port, Port}],
-                                [{env, [{dispatch, Dispatch}]}]),
 
+    {ok, _} = cowboy:start_http(http, Acceptors, [{port, Port}],
+                                [{compress, Compression},
+                                 {env, [{dispatch, Dispatch}]}]),
+    case application:get_env(wiggle, ssl) of
+        {ok, true} ->
+            {ok, SSLPort} = application:get_env(wiggle, ssl_port),
+            {ok, SSLCA} = application:get_env(wiggle, ssl_cacertfile),
+            {ok, SSLCert} = application:get_env(wiggle, ssl_certfile),
+            {ok, SSLKey} = application:get_env(wiggle, ssl_keyfile),
+            {ok, _} = cowboy:start_https(https, Acceptors,
+                                         [{port, SSLPort},
+                                          {cacertfile, SSLCA},
+                                          {certfile, SSLCert},
+                                          {keyfile, SSLKey}],
+                                         [{compress, Compression},
+                                          {env, [{dispatch, Dispatch}]}]);
+        {ok, spdy} ->
+            {ok, SSLPort} = application:get_env(wiggle, ssl_port),
+            {ok, SSLCA} = application:get_env(wiggle, ssl_cacertfile),
+            {ok, SSLCert} = application:get_env(wiggle, ssl_certfile),
+            {ok, SSLKey} = application:get_env(wiggle, ssl_keyfile),
+            {ok, _} = cowboy:start_spdy(spdy, Acceptors,
+                                        [{port, SSLPort},
+                                         {cacertfile, SSLCA},
+                                         {certfile, SSLCert},
+                                         {keyfile, SSLKey}],
+                                        [{compress, Compression},
+                                         {env, [{dispatch, Dispatch}]}]);
+        _ ->
+            ok
+    end,
     R = wiggle_sup:start_link(),
     statman_server:add_subscriber(statman_aggregator),
     wiggle_snmp_handler:start(),

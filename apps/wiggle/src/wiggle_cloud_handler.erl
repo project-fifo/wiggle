@@ -42,45 +42,42 @@ read(Req, State = #state{path = [<<"connection">>]}) ->
     {Res, Req, State};
 
 read(Req, State = #state{path = []}) ->
-    Start = now(),
-    case libsniffle:cloud_status() of
-        {ok, {Metrics, Warnings}} ->
-            ?MSniffle(?P(State), Start),
-            Start1 = now(),
-            Vers0 = case libsnarl:version() of
-                        {ok, SrvVer} when is_binary(SrvVer) ->
-                            [{snarl, SrvVer}];
-                        _ ->
-                            [{snarl, <<"not connected">>}]
-                    end,
-            ?MSnarl(?P(State), Start1),
-            Start2 = now(),
-            Vers1 = case libsniffle:version() of
-                        {ok, SrvVer1} when is_binary(SrvVer1) ->
-                            [{sniffle, SrvVer1} | Vers0];
-                        _ ->
-                            [{sniffle, <<"not connected">>} | Vers0]
-                    end,
-            ?MSniffle(?P(State), Start2),
-            Start3 = now(),
-            Vers2 = case libhowl:version() of
-                        {ok, SrvVer2} when is_binary(SrvVer2) ->
-                            [{howl, SrvVer2} | Vers1];
-                        _ ->
-                            [{howl, <<"not connected">>} | Vers1]
-                    end,
-            ?MHowl(?P(State), Start3),
-            Start4 = now(),
-            {ok, Users} = libsnarl:user_list(),
-            ?MSnarl(?P(State), Start4),
-            Start5 = now(),
-            {ok, Vms} = libsniffle:vm_list(),
-            ?MSniffle(?P(State), Start5),
-            {[{versions, [{wiggle, ?VERSION} | Vers2]},
-              {metrics, [{<<"users">>, length(Users)},
-                         {<<"vms">>, length(Vms)} |
-                         Metrics]},
-              {warnings, Warnings}], Req, State};
-        _ ->
-            {[{warnings, [{cloud, <<"down!">>}]}], Req, State}
-    end.
+    {Versions1, Metrics1, Warnings1} =
+        case {libsnarl:version(), libsnarl:status()} of
+            {{ok, SnaVer}, {ok, {MetricsSna, WarningsSna}}}
+              when is_binary(SnaVer) ->
+                {[{snarl, SnaVer}], MetricsSna, WarningsSna};
+            _ ->
+                {[], [], [[[{<<"category">>, <<"snarl">>},
+                            {<<"element">>, <<"all">>},
+                            {<<"message">>, <<"The Snarl subsystem could not be reached.">>}
+                           ]]]}
+        end,
+    {Versions2, Metrics2, Warnings2} =
+        case libhowl:version() of
+            {ok, HowlVer} when is_binary(HowlVer) ->
+                {[{howl, HowlVer} | Versions1], Metrics1, Warnings1};
+            _ ->
+                {Versions1, Metrics1, [[{<<"category">>, <<"howl">>},
+                                          {<<"element">>, <<"all">>},
+                                          {<<"message">>, <<"The Howl subsystem could not be reached.">>}
+                                         ] | Warnings1]}
+        end,
+    {Versions3, Metrics3, Warnings3} =
+        case {libsniffle:version(), libsniffle:cloud_status()} of
+            {{ok, SniVer}, {ok, {MetricsSni, WarningsSni}}}
+              when is_binary(SniVer) ->
+                {ok, Vms} = libsniffle:vm_list(),
+                {[{sniffle, SniVer} | Versions2],
+                 [{<<"vms">>, length(Vms)} | MetricsSni] ++ Metrics2,
+                 WarningsSni ++ Warnings2};
+            _ ->
+                {Versions2, Metrics2,
+                 [[{<<"category">>, <<"sniffle">>},
+                   {<<"element">>, <<"all">>},
+                   {<<"message">>, <<"The Sniffle subsystem could not be reached.">>}
+                  ] | Warnings2]}
+        end,
+    {[{versions, [{wiggle, ?VERSION} | Versions3]},
+      {metrics,  Metrics3},
+      {warnings, Warnings3}], Req, State}.

@@ -1,0 +1,85 @@
+%% -*- erlang -*-
+
+
+
+
+%% @doc Enable or disable compression
+{mapping, "compression", "wiggle.compression",
+ [{default, on},
+  {datatype, {enum, [on, off]}}]}.
+
+{translation,
+ "wiggle.compression",
+ fun(Conf) ->
+         case cuttlefish_util:conf_get_value("compression", Conf) of
+             on ->
+                 true;
+             _ ->
+                 false
+         end
+ end
+}.
+
+%% @doc The port wiggle listens to.
+{mapping, "port", "wiggle.port",
+ [{default, 8080},
+  {datatype, integer}]}.
+
+%% @doc Enable or disable SSL compression
+{mapping, "ssl", "wiggle.ssl",
+ [{default, on},
+  {datatype, {enum, [on, off, spdy]}}]}.
+
+{translation,
+ "wiggle.ssl",
+ fun(Conf) ->
+         case cuttlefish_util:conf_get_value("ssl", Conf) of
+             on ->
+                 true;
+             spdy ->
+                 spdy;
+             _ ->
+                 false
+         end
+ end
+}.
+
+%% @doc The port wiggle listens to.
+{mapping, "ssl.port", "wiggle.ssl_port",
+ [{default, 8443},
+  {datatype, integer}]}.
+
+%% @doc The SSL CA certificate.
+{mapping, "ssl.cacertfile", "wiggle.ssl_cacertfile",
+ [{default, "/var/db/fifo/fifo.crt"},
+  {datatype, string}]}.
+
+%% @doc The SSL Server certificate
+{mapping, "ssl.certfile", "wiggle.ssl_certfile",
+ [{default, "/var/db/fifo/fifo.pem"},
+  {datatype, string}]}.
+
+%% @doc The SSL Key file
+{mapping, "ssl.keyfile", "wiggle.ssl_keyfile",
+ [{default, "/var/db/fifo/fifo.key"},
+  {datatype, string}]}.
+
+%% @doc Number of acceptor processes that are keeped ready
+{mapping, "acceptors", "wiggle.acceptors",
+ [{default, 100},
+  {datatype, integer}]}.
+
+%% @doc The TCP IP that mdns messages arrive to.
+{mapping, "listening_ip", "mdns_client_lib.interface",
+ [{default, "127.0.0.1"},
+  {datatype, string}]}.
+
+{translation,
+ "mdns_client_lib.interface",
+ fun(Conf) ->
+         IP = cuttlefish_util:conf_get_value("listening_ip", Conf), 
+         [A, B, C, D] = [list_to_integer(O) ||
+                            O <- re:split(IP, "\\.", [{return, list}])],
+         {ok, {A, B, C, D}}
+ end
+}.

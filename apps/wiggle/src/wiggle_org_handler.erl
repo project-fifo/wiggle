@@ -118,17 +118,25 @@ permission_required(State) ->
 %% GET
 %%--------------------------------------------------------------------
 
-read(Req, State = #state{token = Token, path = []}) ->
+read(Req, State = #state{token = Token, path = [], full_list=FullList, full_list_fields=Filter}) ->
     Start = now(),
-    {ok, Permissions} = libsnarl:user_cache({token, Token}),
+    {ok, Permissions} = libsnarl:user_cache(Token),
     ?MSnarl(?P(State), Start),
     Start1 = now(),
     {ok, Res} = libsnarl:org_list(
                   [{must, 'allowed',
                     [<<"orgs">>, {<<"res">>, <<"uuid">>}, <<"get">>],
-                    Permissions}]),
+                    Permissions}], FullList),
     ?MSnarl(?P(State), Start1),
-    {[ID || {_, ID} <- Res], Req, State};
+    Res1 = case {Filter, FullList} of
+               {_, false} ->
+                   [ID || {_, ID} <- Res];
+               {[], _} ->
+                   [ID || {_, ID} <- Res];
+               _ ->
+                   [jsxd:select(Filter, ID) || {_, ID} <- Res]
+           end,
+    {Res1, Req, State};
 
 read(Req, State = #state{path = [_Org], obj = OrgObj}) ->
     {OrgObj, Req, State};
@@ -183,11 +191,9 @@ delete(Req, State = #state{path = [Org, <<"metadata">> | Path]}) ->
     ?MSnarl(?P(State), Start),
     {true, Req, State};
 
-delete(Req, State = #state{path = [Org, <<"triggers">> , Trigger],
-                           body = Event}) ->
-    P = erlangify_trigger(Trigger, Event),
+delete(Req, State = #state{path = [Org, <<"triggers">> , Trigger]}) ->
     Start = now(),
-    ok = libsnarl:org_remove_trigger(Org, P),
+    ok = libsnarl:org_remove_trigger(Org, Trigger),
     ?MSnarl(?P(State), Start),
     {true, Req, State};
 

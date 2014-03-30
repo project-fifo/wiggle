@@ -24,7 +24,7 @@ e(Code, Msg, Req) ->
 
 websocket_init(_Any, Req, []) ->
     Req0 = case cowboy_req:parse_header(<<"sec-websocket-protocol">>, Req) of
-               {undefined, _, ReqR} ->
+               {ok, undefined, ReqR} ->
                    ReqR;
                {ok, [], ReqR} ->
                    ReqR;
@@ -37,7 +37,7 @@ websocket_init(_Any, Req, []) ->
         {undefined, Req3} ->
             e(401, Req3);
         {Token, Req3} ->
-            case libsnarl:allowed({token, Token}, [<<"vms">>, ID, <<"console">>]) of
+            case libsnarl:allowed(Token, [<<"vms">>, ID, <<"console">>]) of
                 true ->
                     case libsniffle:vm_get(ID) of
                         {ok, VM} ->

@@ -39,6 +39,12 @@ allowed_methods(_Version, _Token, [_Login, <<"keys">>]) ->
 allowed_methods(_Version, _Token, [_Login, <<"keys">>, _]) ->
     [<<"DELETE">>];
 
+allowed_methods(_Version, _Token, [_Login, <<"yubikeys">>]) ->
+    [<<"GET">>, <<"PUT">>];
+
+allowed_methods(_Version, _Token, [_Login, <<"yubikeys">>, _]) ->
+    [<<"DELETE">>];
+
 allowed_methods(_Version, _Token, [_Login, <<"permissions">>]) ->
     [<<"GET">>];
 
@@ -185,6 +191,18 @@ permission_required(#state{method = <<"DELETE">>,
                            path = [User, <<"keys">>, _KeyID]}) ->
     {ok, [<<"users">>, User, <<"edit">>]};
 
+permission_required(#state{method = <<"GET">>,
+                           path = [User, <<"yubikeys">>]}) ->
+    {ok, [<<"users">>, User, <<"get">>]};
+
+permission_required(#state{method = <<"PUT">>,
+                           path = [User, <<"yubikeys">>]}) ->
+    {ok, [<<"users">>, User, <<"edit">>]};
+
+permission_required(#state{method = <<"DELETE">>,
+                           path = [User, <<"yubikeys">>, _KeyID]}) ->
+    {ok, [<<"users">>, User, <<"edit">>]};
+
 permission_required(_State) ->
     undefined.
 
@@ -192,17 +210,25 @@ permission_required(_State) ->
 %% GET
 %%--------------------------------------------------------------------
 
-read(Req, State = #state{token = Token, path = []}) ->
+read(Req, State = #state{token = Token, path = [], full_list=FullList, full_list_fields=Filter}) ->
     Start = now(),
-    {ok, Permissions} = libsnarl:user_cache({token, Token}),
+    {ok, Permissions} = libsnarl:user_cache(Token),
     ?MSnarl(?P(State), Start),
     Start1 = now(),
     {ok, Res} = libsnarl:user_list(
                   [{must, 'allowed',
                     [<<"users">>, {<<"res">>, <<"uuid">>}, <<"get">>],
-                    Permissions}]),
+                    Permissions}], FullList),
     ?MSnarl(?P(State), Start1),
-    {[ID || {_, ID} <- Res], Req, State};
+    Res1 = case {Filter, FullList} of
+               {_, false} ->
+                   [ID || {_, ID} <- Res];
+               {[], _} ->
+                   [ID || {_, ID} <- Res];
+               _ ->
+                   [jsxd:select(Filter, ID) || {_, ID} <- Res]
+           end,
+    {Res1, Req, State};
 
 read(Req, State = #state{path = [_User], obj = UserObj}) ->
     UserObj1 = jsxd:update(<<"permissions">>,
@@ -222,14 +248,17 @@ read(Req, State = #state{path = [_User, <<"orgs">>], obj = UserObj}) ->
     {jsxd:get(<<"orgs">>, [], UserObj), Req, State};
 
 read(Req, State = #state{path = [_User, <<"keys">>], obj = UserObj}) ->
-    {jsxd:get(<<"keys">>, [], UserObj), Req, State}.
+    {jsxd:get(<<"keys">>, [], UserObj), Req, State};
+
+read(Req, State = #state{path = [_User, <<"yubikeys">>], obj = UserObj}) ->
+    {jsxd:get(<<"yubikeys">>, [], UserObj), Req, State}.
 
 %%--------------------------------------------------------------------
 %% PUT
 %%--------------------------------------------------------------------
 
 create(Req, State = #state{token = Token, path = [], version = Version}, Decoded) ->
-    {ok, Creator} = libsnarl:user_get({token, Token}),
+    {ok, Creator} = libsnarl:user_get(Token),
     {ok, CUUID} = jsxd:get(<<"uuid">>, Creator),
     {ok, User} = jsxd:get(<<"user">>, Decoded),
     {ok, Pass} = jsxd:get(<<"password">>, Decoded),
@@ -258,8 +287,25 @@ write(Req, State = #state{path = [User, <<"metadata">> | Path]}, [{K, V}]) ->
     {true, Req, State};
 
 write(Req, State = #state{path = [User, <<"keys">>]}, [{KeyID, Key}]) ->
+    case re:split(Key, " ") of
+        [_,ID,_] ->
+            try
+                base64:decode(ID),
+                Start = now(),
+                libsnarl:user_key_add(User, KeyID, Key),
+                ?MSnarl(?P(State), Start),
+                {true, Req, State}
+            catch
+                _:_ ->
+                    {false, Req, State}
+            end;
+        _ ->
+            {false, Req, State}
+    end;
+
+write(Req, State = #state{path = [User, <<"yubikeys">>]}, [{<<"otp">>, OTP}]) ->
     Start = now(),
-    libsnarl:user_key_add(User, KeyID, Key),
+    libsnarl:user_yubikey_add(User, OTP),
     ?MSnarl(?P(State), Start),
     {true, Req, State};
 
@@ -310,6 +356,12 @@ delete(Req, State = #state{path = [User, <<"metadata">> | Path]}) ->
 delete(Req, State = #state{path = [User, <<"keys">>, KeyID]}) ->
     Start = now(),
     libsnarl:user_key_revoke(User, KeyID),
+    ?MSnarl(?P(State), Start),
+    {true, Req, State};
+
+delete(Req, State = #state{path = [User, <<"yubikeys">>, KeyID]}) ->
+    Start = now(),
+    libsnarl:user_yubikey_remove(User, KeyID),
     ?MSnarl(?P(State), Start),
     {true, Req, State};
 

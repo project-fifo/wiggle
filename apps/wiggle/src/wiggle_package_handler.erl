@@ -66,10 +66,22 @@ permission_required(_State) ->
 %% GET
 %%--------------------------------------------------------------------
 
-read(Req, State = #state{token = Token, path = []}) ->
-    {ok, Permissions} = libsnarl:user_cache({token, Token}),
-    {ok, Res} = libsniffle:package_list([{must, 'allowed', [<<"packages">>, {<<"res">>, <<"uuid">>}, <<"get">>], Permissions}]),
-    {[ID || {_, ID} <- Res], Req, State};
+read(Req, State = #state{token = Token, path = [], full_list=FullList, full_list_fields=Filter}) ->
+    Start = now(),
+    {ok, Permissions} = libsnarl:user_cache(Token),
+    ?MSnarl(?P(State), Start),
+    Start1 = now(),
+    {ok, Res} = libsniffle:package_list([{must, 'allowed', [<<"packages">>, {<<"res">>, <<"uuid">>}, <<"get">>], Permissions}], FullList),
+    ?MSniffle(?P(State), Start1),
+    Res1 = case {Filter, FullList} of
+               {_, false} ->
+                   [ID || {_, ID} <- Res];
+               {[], _} ->
+                   [ID || {_, ID} <- Res];
+               _ ->
+                   [jsxd:select(Filter, ID) || {_, ID} <- Res]
+           end,
+    {Res1, Req, State};
 
 read(Req, State = #state{path = [_Package], obj = Obj}) ->
     {Obj, Req, State}.
@@ -81,7 +93,8 @@ read(Req, State = #state{path = [_Package], obj = Obj}) ->
 
 create(Req, State = #state{path = [], version = Version}, Data) ->
     Data1 = jsxd:select([<<"cpu_cap">>, <<"quota">>, <<"ram">>,
-                         <<"requirements">>, <<"zfs_io_priority">>], Data),
+                         <<"requirements">>, <<"zfs_iox_priority">>,
+                         <<"max_swap">>], Data),
     {ok, Package} = jsxd:get(<<"name">>, Data),
     case libsniffle:package_create(Package) of
         {ok, UUID} ->

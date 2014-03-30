@@ -43,9 +43,9 @@ rest_init(Req, [Module]) ->
     {ok, Req1, State} = wiggle_handler:initial_state(Req),
     {ok, Req1, State#state{module = Module}}.
 
-rest_terminate(_Req, State) ->
-    statman_histogram:record_value({State#state.path_bin, total},
-                                   State#state.start),
+rest_terminate(_Req, _State) ->
+    %%statman_histogram:record_value({State#state.path_bin, total},
+    %%State#state.start)
     ok.
 
 service_available(Req, State) ->
@@ -57,11 +57,23 @@ options(Req, State = #state{module = M}) ->
                                 State#state.path),
     wiggle_handler:options(Req, State,Methods).
 
-content_types_provided(Req, State) ->
-    {wiggle_handler:provided(), Req, State}.
+content_types_provided(Req, State = #state{module = M}) ->
+    CTFun = case erlang:function_exported(M, content_types_provided, 1) of
+                true ->
+                    fun M:content_types_provided/1;
+                false ->
+                    fun(_) -> wiggle_handler:provided() end
+            end,
+    {CTFun(State), Req, State}.
 
-content_types_accepted(Req, State) ->
-    {wiggle_handler:accepted(), Req, State}.
+content_types_accepted(Req, State = #state{module = M}) ->
+    CTFun = case erlang:function_exported(M, content_types_accepted, 1) of
+                true ->
+                    fun M:content_types_accepted/1;
+                false ->
+                    fun(_) -> wiggle_handler:accepted() end
+            end,
+    {CTFun(State), Req, State}.
 
 allowed_methods(Req, State = #state{module = M}) ->
     {[<<"HEAD">>, <<"OPTIONS">> |
@@ -158,15 +170,32 @@ read(Req, State = #state{module = M}) ->
     Start = now(),
     {Data, Req2} = wiggle_handler:encode(Reply, Req1),
     ?MEx(?P(State), <<"encode">>, Start),
-    {Data, Req2, State1}.
+    {Data, Req2, State1#state{obj = Data}}.
 
 %%--------------------------------------------------------------------
 %% write
 %%--------------------------------------------------------------------
 
-write(Req, State = #state{body = undefined}) ->
-    {ok, Data, Req1} = wiggle_handler:decode(Req),
-    write(Req1, State#state{body = Data});
+write(Req, State = #state{module = M, body = undefined}) ->
+    RawFun = case erlang:function_exported(M, raw_body, 1) of
+                 true ->
+                     fun M:raw_body/1;
+                 false ->
+                     fun(_) -> false end
+             end,
+    case RawFun(State) of
+        true ->
+            lager:info("This is a raw request"),
+            case cowboy_req:method(Req) of
+                {<<"POST">>, Req1} ->
+                    M:create(Req1, State, undefined);
+                {<<"PUT">>, Req1} ->
+                    M:write(Req1, State, undefined)
+            end;
+        false ->
+            {ok, Data, Req1} = wiggle_handler:decode(Req),
+            write(Req1, State#state{body = Data})
+    end;
 
 write(Req, State = #state{module = M, body = Data}) ->
     case cowboy_req:method(Req) of

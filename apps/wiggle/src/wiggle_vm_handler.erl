@@ -46,6 +46,15 @@ allowed_methods(_Version, _Token, []) ->
 allowed_methods(_Version, _Token, [_Vm]) ->
     [<<"GET">>, <<"PUT">>, <<"DELETE">>];
 
+allowed_methods(_Version, _Token, [_Vm, <<"hypervisor">>]) ->
+    [<<"DELETE">>];
+
+allowed_methods(_Version, _Token, [_Vm, <<"owner">>]) ->
+    [<<"PUT">>];
+
+allowed_methods(_Version, _Token, [_Vm, <<"services">>]) ->
+    [<<"PUT">>, <<"GET">>];
+
 allowed_methods(_Version, _Token, [_Vm, <<"metadata">>|_]) ->
     [<<"PUT">>, <<"DELETE">>];
 
@@ -59,7 +68,24 @@ allowed_methods(_Version, _Token, [_Vm, <<"snapshots">>, _ID]) ->
     [<<"GET">>, <<"PUT">>, <<"DELETE">>];
 
 allowed_methods(_Version, _Token, [_Vm, <<"snapshots">>]) ->
+    [<<"GET">>, <<"POST">>];
+
+allowed_methods(_Version, _Token, [_Vm, <<"backups">>, _ID]) ->
+    [<<"GET">>, <<"PUT">>, <<"DELETE">>];
+
+allowed_methods(_Version, _Token, [_Vm, <<"backups">>]) ->
     [<<"GET">>, <<"POST">>].
+
+get(State = #state{path = [Vm, <<"backups">>, Snap]}) ->
+    case wiggle_vm_handler:get(State#state{path=[Vm]}) of
+        {ok, Obj} ->
+            case jsxd:get([<<"backups">>, Snap], Obj) of
+                undefined -> not_found;
+                {ok, _} -> {ok, Obj}
+            end;
+        E ->
+            E
+    end;
 
 get(State = #state{path = [Vm, <<"snapshots">>, Snap]}) ->
     case wiggle_vm_handler:get(State#state{path=[Vm]}) of
@@ -105,6 +131,9 @@ permission_required(#state{method = <<"GET">>, path = [Vm]}) ->
 permission_required(#state{method = <<"DELETE">>, path = [Vm]}) ->
     {ok, [<<"vms">>, Vm, <<"delete">>]};
 
+permission_required(#state{method = <<"DELETE">>, path = [Vm, <<"hypervisor">>]}) ->
+    {ok, [<<"vms">>, Vm, <<"delete">>]};
+
 permission_required(#state{method = <<"POST">>, path = [Vm, <<"nics">>]}) ->
     {ok, [<<"vms">>, Vm, <<"edit">>]};
 
@@ -120,8 +149,36 @@ permission_required(#state{method = <<"GET">>, path = [Vm, <<"snapshots">>]}) ->
 permission_required(#state{method = <<"POST">>, path = [Vm, <<"snapshots">>]}) ->
     {ok, [<<"vms">>, Vm, <<"snapshot">>]};
 
+permission_required(#state{method = <<"GET">>, path = [Vm, <<"services">>]}) ->
+    {ok, [<<"vms">>, Vm, <<"get">>]};
+
+permission_required(#state{method = <<"PUT">>, path = [Vm, <<"services">>]}) ->
+    {ok, [<<"vms">>, Vm, <<"edit">>]};
+
 permission_required(#state{method = <<"GET">>, path = [Vm, <<"snapshots">>, _Snap]}) ->
     {ok, [<<"vms">>, Vm, <<"get">>]};
+
+permission_required(#state{method = <<"GET">>, path = [Vm, <<"backups">>]}) ->
+    {ok, [<<"vms">>, Vm, <<"get">>]};
+
+permission_required(#state{method = <<"POST">>, path = [Vm, <<"backups">>]}) ->
+    {ok, [<<"vms">>, Vm, <<"backup">>]};
+
+permission_required(#state{method = <<"GET">>, path = [Vm, <<"backups">>, _Snap]}) ->
+    {ok, [<<"vms">>, Vm, <<"get">>]};
+
+permission_required(#state{method = <<"PUT">>, path = [_Vm, <<"owner">>], body = undefiend}) ->
+    {error, needs_decode};
+
+permission_required(#state{method = <<"PUT">>, path = [Vm, <<"owner">>], body = Decoded}) ->
+    case Decoded of
+        [{<<"org">>, Owner}] ->
+            {multiple,
+             [[<<"vms">>, Vm, <<"edit">>],
+              [<<"orgs">>, Owner, <<"edit">>]]};
+        _ ->
+            {ok, [<<"vms">>, Vm, <<"edit">>]}
+    end;
 
 permission_required(#state{method = <<"PUT">>, body = undefiend}) ->
     {error, needs_decode};
@@ -143,12 +200,24 @@ permission_required(#state{method = <<"PUT">>, body = Decoded,
             {ok, [<<"vms">>, Vm, <<"edit">>]}
     end;
 
+permission_required(#state{method = <<"DELETE">>, path = [Vm, <<"snapshots">>, _Snap]}) ->
+    {ok, [<<"vms">>, Vm, <<"snapshot_delete">>]};
+
+permission_required(#state{method = <<"PUT">>, body = Decoded,
+                           path = [Vm, <<"backups">>, _Snap]}) ->
+    case Decoded of
+        [{<<"action">>, <<"rollback">>}|_] ->
+            {ok, [<<"vms">>, Vm, <<"rollback">>]};
+        _ ->
+            {ok, [<<"vms">>, Vm, <<"edit">>]}
+    end;
+
+permission_required(#state{method = <<"DELETE">>, path = [Vm, <<"backups">>, _Snap]}) ->
+    {ok, [<<"vms">>, Vm, <<"backup_delete">>]};
+
 permission_required(#state{method = <<"PUT">>,
                            path = [Vm, <<"metadata">> | _]}) ->
     {ok, [<<"vms">>, Vm, <<"edit">>]};
-
-permission_required(#state{method = <<"DELETE">>, path = [Vm, <<"snapshots">>, _Snap]}) ->
-    {ok, [<<"vms">>, Vm, <<"snapshot_delete">>]};
 
 permission_required(#state{method = <<"DELETE">>, path = [Vm, <<"metadata">> | _]}) ->
     {ok, [<<"vms">>, Vm, <<"edit">>]};
@@ -160,14 +229,22 @@ permission_required(_State) ->
 %% GET
 %%--------------------------------------------------------------------
 
-read(Req, State = #state{token = Token, path = []}) ->
+read(Req, State = #state{token = Token, path = [], full_list=FullList, full_list_fields=Filter}) ->
     Start = now(),
-    {ok, Permissions} = libsnarl:user_cache({token, Token}),
+    {ok, Permissions} = libsnarl:user_cache(Token),
     ?MSnarl(?P(State), Start),
     Start1 = now(),
-    {ok, Res} = libsniffle:vm_list([{must, 'allowed', [<<"vms">>, {<<"res">>, <<"uuid">>}, <<"get">>], Permissions}]),
+    {ok, Res} = libsniffle:vm_list([{must, 'allowed', [<<"vms">>, {<<"res">>, <<"uuid">>}, <<"get">>], Permissions}], FullList),
     ?MSniffle(?P(State), Start1),
-    {[ID || {_, ID} <- Res], Req, State};
+    Res1 = case {Filter, FullList} of
+               {_, false} ->
+                   [ID || {_, ID} <- Res];
+               {[], _} ->
+                   [ID || {_, ID} <- Res];
+               _ ->
+                   [jsxd:select(Filter, ID) || {_, ID} <- Res]
+           end,
+    {Res1, Req, State};
 
 read(Req, State = #state{path = [_Vm, <<"snapshots">>], obj = Obj}) ->
     Snaps = jsxd:fold(fun(UUID, Snap, Acc) ->
@@ -175,8 +252,34 @@ read(Req, State = #state{path = [_Vm, <<"snapshots">>], obj = Obj}) ->
                       end, [], jsxd:get(<<"snapshots">>, [], Obj)),
     {Snaps, Req, State};
 
-read(Req, State = #state{path = [_Vm, <<"snapshots">>, Snap], obj = Obj}) ->
-    {jsxd:get([<<"snapshots">>, Snap], null, Obj), Req, State};
+read(Req, State = #state{path = [_Vm, <<"snapshots">>, SnapID], obj = Obj}) ->
+    {ok, Snap} = jsxd:get([<<"snapshots">>, SnapID], Obj),
+    {jsxd:set(<<"uuid">>, SnapID, Snap), Req, State};
+
+read(Req, State = #state{path = [_Vm, <<"services">>], obj = Obj}) ->
+    Snaps = jsxd:fold(fun(UUID, Snap, Acc) ->
+                              [jsxd:set(<<"uuid">>, UUID, Snap) | Acc]
+                      end, [], jsxd:get(<<"services">>, [], Obj)),
+    {Snaps, Req, State};
+
+
+read(Req, State = #state{path = [_Vm, <<"backups">>], obj = Obj}) ->
+    Snaps = jsxd:fold(fun(UUID, Snap, Acc) ->
+                              [jsxd:set(<<"uuid">>, UUID, Snap) | Acc]
+                      end, [], jsxd:get(<<"backups">>, [], Obj)),
+    {Snaps, Req, State};
+
+read(Req, State = #state{path = [_Vm, <<"backups">>, Snap], obj = Obj}) ->
+    case jsxd:get([<<"backups">>, Snap], null, Obj) of
+        null ->
+            {null, Req, State};
+        SnapObj ->
+            {jsxd:set(<<"uuid">>, Snap, SnapObj), Req, State}
+    end;
+
+read(Req, State = #state{path = [_Vm, <<"services">>, Service],
+                         obj = Obj = [{_,_}|_]}) when is_binary(Service) ->
+    {jsxd:get([<<"services">>, Service], [{}], Obj), Req, State};
 
 read(Req, State = #state{path = [_Vm], obj = Obj}) ->
     {Obj, Req, State}.
@@ -190,11 +293,22 @@ create(Req, State = #state{path = [], version = Version, token = Token}, Decoded
         {ok, Dataset} = jsxd:get(<<"dataset">>, Decoded),
         {ok, Package} = jsxd:get(<<"package">>, Decoded),
         {ok, Config} = jsxd:get(<<"config">>, Decoded),
+        %% If the creating user has advanced_create permissions they can pass
+        %% 'requirements' as part of the config, if they lack the permission
+        %% it simply gets removed.
+        Config1 = case libsnarl:allowed(
+                         Token,
+                         [<<"cloud">>, <<"vms">>, <<"advanced_create">>]) of
+                      true ->
+                          Config;
+                      _ ->
+                          jsxd:set(<<"requirements">>, [], Config)
+                  end,
         try
-            {ok, User} = libsnarl:user_get({token, Token}),
+            {ok, User} = libsnarl:user_get(Token),
             {ok, Owner} = jsxd:get(<<"uuid">>, User),
             Start = now(),
-            {ok, UUID} = libsniffle:create(Package, Dataset, jsxd:set(<<"owner">>, Owner, Config)),
+            {ok, UUID} = libsniffle:create(Package, Dataset, jsxd:set(<<"owner">>, Owner, Config1)),
             ?MSniffle(?P(State), Start),
             {{true, <<"/api/", Version/binary, "/vms/", UUID/binary>>}, Req, State#state{body = Decoded}}
         catch
@@ -217,6 +331,37 @@ create(Req, State = #state{path = [Vm, <<"snapshots">>], version = Version}, Dec
     ?MSniffle(?P(State), Start),
     {{true, <<"/api/", Version/binary, "/vms/", Vm/binary, "/snapshots/", UUID/binary>>}, Req, State#state{body = Decoded}};
 
+create(Req, State = #state{path = [Vm, <<"backups">>], version = Version}, Decoded) ->
+    Comment = jsxd:get(<<"comment">>, <<"">>, Decoded),
+    Opts = case jsxd:get(<<"xml">>, true, Decoded) of
+               true ->
+                   [xml];
+               false ->
+                   []
+           end,
+    Start = now(),
+    {ok, UUID} = case jsxd:get(<<"parent">>, Decoded) of
+                     {ok, Parent} ->
+                         Opts1 = case jsxd:get(<<"delete">>, false, Decoded) of
+                                     true ->
+                                         [{delete, parent} | Opts];
+                                     false ->
+                                         Opts
+                                 end,
+                         libsniffle:vm_incremental_backup(Vm, Parent, Comment,
+                                                          Opts1);
+                     _ ->
+                         Opts1 = case jsxd:get(<<"delete">>, false, Decoded) of
+                                     true ->
+                                         [delete | Opts];
+                                     false ->
+                                         Opts
+                                 end,
+                         libsniffle:vm_full_backup(Vm, Comment, Opts1)
+                 end,
+    ?MSniffle(?P(State), Start),
+    {{true, <<"/api/", Version/binary, "/vms/", Vm/binary, "/backups/", UUID/binary>>}, Req, State#state{body = Decoded}};
+
 create(Req, State = #state{path = [Vm, <<"nics">>], version = Version}, Decoded) ->
     {ok, Network} = jsxd:get(<<"network">>, Decoded),
     Start = now(),
@@ -233,9 +378,43 @@ create(Req, State = #state{path = [Vm, <<"nics">>], version = Version}, Decoded)
             {halt, Req1, State}
     end.
 
+write(Req, State = #state{path = [Vm, <<"services">>]},
+      [{<<"action">>, <<"enable">>},
+       {<<"service">>, Service}]) ->
+    libsniffle:vm_service_enable(Vm, Service),
+    {true, Req, State};
+
+write(Req, State = #state{path = [Vm, <<"services">>]},
+      [{<<"action">>, <<"disable">>},
+       {<<"service">>, Service}]) ->
+    libsniffle:vm_service_disable(Vm, Service),
+    {true, Req, State};
+
+write(Req, State = #state{path = [Vm, <<"services">>]},
+      [{<<"action">>, <<"clear">>},
+       {<<"service">>, Service}]) ->
+    libsniffle:vm_service_clear(Vm, Service),
+    {true, Req, State};
+
 
 write(Req, State = #state{path = [_, <<"nics">>]}, _Body) ->
     {true, Req, State};
+
+write(Req, State = #state{path = [Vm, <<"owner">>]}, [{<<"org">>, Org}]) ->
+    Start = now(),
+    case libsnarl:org_get(Org) of
+        {ok, _} ->
+            R = libsniffle:vm_owner(Vm, Org),
+            ?MSniffle(?P(State), Start),
+            {R =:= ok, Req, State};
+        _ ->
+            ?MSniffle(?P(State), Start),
+            lager:error("Error trying to assign org ~p since it does not "
+                        "seem to exist", [Org]),
+            {ok, Req1} = cowboy_req:reply(500, Req),
+            lager:error("Could not add nic: ~P"),
+            {halt, Req1, State}
+    end;
 
 write(Req, State = #state{path = [Vm, <<"nics">>, Mac]}, [{<<"primary">>, true}]) ->
     ?LIB(libsniffle:vm_primary_nic(Vm, Mac));
@@ -282,6 +461,17 @@ write(Req, State = #state{path = [Vm, <<"snapshots">>, UUID]},
       [{<<"action">>, <<"rollback">>}]) ->
     ?LIB(libsniffle:vm_rollback_snapshot(Vm, UUID));
 
+write(Req, State = #state{path = [_Vm, <<"backups">>]}, _Body) ->
+    {true, Req, State};
+
+write(Req, State = #state{path = [Vm, <<"backups">>, UUID]},
+      [{<<"action">>, <<"rollback">>},
+       {<<"hypervisor">>, Hypervisor}]) ->
+    ?LIB(libsniffle:vm_restore_backup(Vm, UUID, Hypervisor));
+write(Req, State = #state{path = [Vm, <<"backups">>, UUID]},
+      [{<<"action">>, <<"rollback">>}]) ->
+    ?LIB(libsniffle:vm_restore_backup(Vm, UUID));
+
 write(Req, State, _Body) ->
     lager:error("Unknown PUT request: ~p~n.", [State]),
     {false, Req, State}.
@@ -296,9 +486,35 @@ delete(Req, State = #state{path = [Vm, <<"snapshots">>, UUID]}) ->
     ?MSniffle(?P(State), Start),
     {true, Req, State};
 
+delete(Req, State = #state{path = [Vm, <<"backups">>, UUID],
+                           body=[{<<"location">>, <<"hypervisor">>}]}) ->
+    Start = now(),
+    ok = libsniffle:vm_delete_backup(Vm, UUID, hypervisor),
+    ?MSniffle(?P(State), Start),
+    {true, Req, State};
+
+delete(Req, State = #state{path = [Vm, <<"backups">>, UUID]}) ->
+    Start = now(),
+    ok = libsniffle:vm_delete_backup(Vm, UUID, cloud),
+    ?MSniffle(?P(State), Start),
+    {true, Req, State};
+
 delete(Req, State = #state{path = [Vm, <<"nics">>, Mac]}) ->
     Start = now(),
     ok = libsniffle:vm_remove_nic(Vm, Mac),
+    ?MSniffle(?P(State), Start),
+    {true, Req, State};
+
+delete(Req, State = #state{path = [Vm],
+                           body=[{<<"location">>, <<"hypervisor">>}]}) ->
+    Start = now(),
+    ok = libsniffle:vm_store(Vm),
+    ?MSniffle(?P(State), Start),
+    {true, Req, State};
+
+delete(Req, State = #state{path = [Vm, <<"hypervisor">>]}) ->
+    Start = now(),
+    ok = libsniffle:vm_store(Vm),
     ?MSniffle(?P(State), Start),
     {true, Req, State};
 

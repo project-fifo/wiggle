@@ -1,11 +1,13 @@
 {application, wiggle,
  [
   {description, ""},
-  {vsn, "0.5.1"},
+  {vsn, "0.5.2"},
   {registered, []},
   {applications, [
                   kernel,
                   stdlib,
+                  ensq,
+                  ensq_rpc,
                   libsnarl,
                   libsniffle,
                   libhowl,
@@ -16,6 +18,7 @@
                   newrelic,
                   snmp,
                   mnesia,
+                  uuid,
                   eplugin,
                   cowboy
                  ]},
