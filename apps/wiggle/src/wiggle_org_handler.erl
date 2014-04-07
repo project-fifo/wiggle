@@ -67,12 +67,12 @@ permission_required(#state{method = <<"POST">>,
 
 permission_required(#state{method = <<"POST">>,
                            path = [Org, <<"triggers">> | _],
-                           body = [{<<"action">>, <<"group_grant">>},
+                           body = [{<<"action">>, <<"role_grant">>},
                                    {<<"base">>, _},
                                    {<<"permission">>, _},
-                                   {<<"target">>, Group}]}) ->
+                                   {<<"target">>, Role}]}) ->
     {multiple, [[<<"orgs">>, Org, <<"edit">>],
-                [<<"groups">>, Group, <<"grant">>]]};
+                [<<"roles">>, Role, <<"grant">>]]};
 
 permission_required(#state{method = <<"POST">>,
                            path = [Org, <<"triggers">> | _],
@@ -85,10 +85,10 @@ permission_required(#state{method = <<"POST">>,
 
 permission_required(#state{method = <<"POST">>,
                            path = [Org, <<"triggers">> | _],
-                           body = [{<<"action">>, <<"join_group">>},
-                                   {<<"target">>, Group}]}) ->
+                           body = [{<<"action">>, <<"join_role">>},
+                                   {<<"target">>, Role}]}) ->
     {multiple, [[<<"orgs">>, Org, <<"edit">>],
-                [<<"groups">>, Group, <<"join">>]]};
+                [<<"roles">>, Role, <<"join">>]]};
 
 permission_required(#state{
                        method = <<"POST">>,
@@ -217,19 +217,19 @@ erlangify_trigger(<<"vm_create">>, Event) ->
     {vm_create,
      erlangify_trigger(Event)}.
 
-erlangify_trigger([{<<"action">>, <<"join_group">>},
-                   {<<"target">>, Group}]) ->
-    {join, group, Group};
+erlangify_trigger([{<<"action">>, <<"join_role">>},
+                   {<<"target">>, Role}]) ->
+    {join, role, Role};
 
 erlangify_trigger([{<<"action">>, <<"join_org">>},
                    {<<"target">>, Org}]) ->
     {join, org, Org};
 
-erlangify_trigger([{<<"action">>, <<"group_grant">>},
+erlangify_trigger([{<<"action">>, <<"role_grant">>},
                    {<<"base">>, Base},
                    {<<"permission">>, Permission},
                    {<<"target">>, Target}]) ->
-    {grant, group, Target,
+    {grant, role, Target,
      [Base, placeholder | Permission]};
 
 erlangify_trigger([{<<"action">>, <<"user_grant">>},

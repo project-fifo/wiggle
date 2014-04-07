@@ -23,16 +23,16 @@
 {sessionsMean, {wiggle_snmp_handler, mean, [<<"/api/0.1.0/sessions">>]}}.
 {sessionsMax, {wiggle_snmp_handler, max, [<<"/api/0.1.0/sessions">>]}}.
 
-{groupsP999, {wiggle_snmp_handler, p999, [<<"/api/0.1.0/groups">>]}}.
-{groupsP99, {wiggle_snmp_handler, p99, [<<"/api/0.1.0/groups">>]}}.
-{groupsP95, {wiggle_snmp_handler, p95, [<<"/api/0.1.0/groups">>]}}.
-{groupsP75, {wiggle_snmp_handler, p75, [<<"/api/0.1.0/groups">>]}}.
-{groupsP25, {wiggle_snmp_handler, p25, [<<"/api/0.1.0/groups">>]}}.
-{groupsCount, {wiggle_snmp_handler, count, [<<"/api/0.1.0/groups">>]}}.
-{groupsMin, {wiggle_snmp_handler, min, [<<"/api/0.1.0/groups">>]}}.
-{groupsMedian, {wiggle_snmp_handler, median, [<<"/api/0.1.0/groups">>]}}.
-{groupsMean, {wiggle_snmp_handler, mean, [<<"/api/0.1.0/groups">>]}}.
-{groupsMax, {wiggle_snmp_handler, max, [<<"/api/0.1.0/groups">>]}}.
+{rolesP999, {wiggle_snmp_handler, p999, [<<"/api/0.1.0/roles">>]}}.
+{rolesP99, {wiggle_snmp_handler, p99, [<<"/api/0.1.0/roles">>]}}.
+{rolesP95, {wiggle_snmp_handler, p95, [<<"/api/0.1.0/roles">>]}}.
+{rolesP75, {wiggle_snmp_handler, p75, [<<"/api/0.1.0/roles">>]}}.
+{rolesP25, {wiggle_snmp_handler, p25, [<<"/api/0.1.0/roles">>]}}.
+{rolesCount, {wiggle_snmp_handler, count, [<<"/api/0.1.0/roles">>]}}.
+{rolesMin, {wiggle_snmp_handler, min, [<<"/api/0.1.0/roles">>]}}.
+{rolesMedian, {wiggle_snmp_handler, median, [<<"/api/0.1.0/roles">>]}}.
+{rolesMean, {wiggle_snmp_handler, mean, [<<"/api/0.1.0/roles">>]}}.
+{rolesMax, {wiggle_snmp_handler, max, [<<"/api/0.1.0/roles">>]}}.
 
 {cloudP999, {wiggle_snmp_handler, p999, [<<"/api/0.1.0/cloud">>]}}.
 {cloudP99, {wiggle_snmp_handler, p99, [<<"/api/0.1.0/cloud">>]}}.
