@@ -59,27 +59,31 @@ read(Req, State = #state{path = [Session], obj = Obj}) ->
 %%--------------------------------------------------------------------
 
 create(Req, State = #state{path = [], version = Version}, Decoded) ->
-    {ok, User} = jsxd:get(<<"user">>, Decoded),
-    {ok, Pass} = jsxd:get(<<"password">>, Decoded),
-    R = case jsxd:get(<<"otp">>, Decoded) of
-            {ok, OTP} ->
-                libsnarl:auth(User, Pass, OTP);
-            _ ->
-                libsnarl:auth(User, Pass)
-        end,
-    case R of
-        {ok, {token, UUID}} ->
-            OneYear = 364*24*60*60,
-            Req1 = cowboy_req:set_resp_cookie(<<"x-snarl-token">>, UUID,
-                                              [{max_age, OneYear}], Req),
-            Req2 = cowboy_req:set_resp_header(<<"x-snarl-token">>, UUID, Req1),
-            {{true, <<"/api/", Version/binary, "/sessions/", UUID/binary>>},
-             Req2, State#state{body = Decoded}};
-        key_required ->
-            {ok, Req1} = cowboy_req:reply(449, [], <<"Retry with valid parameters: user, password, otp.">>, Req),
-            {halt, Req1, State};
+    case {jsxd:get(<<"user">>, Decoded), jsxd:get(<<"password">>, Decoded)} of
+        {{ok, User}, {ok, Pass}} ->
+            R = case jsxd:get(<<"otp">>, Decoded) of
+                    {ok, OTP} ->
+                        libsnarl:auth(User, Pass, OTP);
+                    _ ->
+                        libsnarl:auth(User, Pass)
+                end,
+            case R of
+                {ok, {token, UUID}} ->
+                    OneYear = 364*24*60*60,
+                    Req1 = cowboy_req:set_resp_cookie(<<"x-snarl-token">>, UUID,
+                                                      [{max_age, OneYear}], Req),
+                    Req2 = cowboy_req:set_resp_header(<<"x-snarl-token">>, UUID, Req1),
+                    {{true, <<"/api/", Version/binary, "/sessions/", UUID/binary>>},
+                     Req2, State#state{body = Decoded}};
+                key_required ->
+                    {ok, Req1} = cowboy_req:reply(449, [], <<"Retry with valid parameters: user, password, otp.">>, Req),
+                    {halt, Req1, State};
+                _ ->
+                    {ok, Req1} = cowboy_req:reply(401, [], <<"Forbidden!">>, Req),
+                    {halt, Req1, State}
+            end;
         _ ->
-            {ok, Req1} = cowboy_req:reply(401, [], <<"Forbidden!">>, Req),
+            {ok, Req1} = cowboy_req:reply(400, [], <<"Missing JSON keys: user, password required.">>, Req),
             {halt, Req1, State}
     end.
 
