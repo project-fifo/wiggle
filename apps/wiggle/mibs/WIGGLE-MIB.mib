@@ -10,12 +10,12 @@ WIGGLE-MIB DEFINITIONS ::= BEGIN
         ;
 
     fifo         OBJECT IDENTIFIER ::= { enterprises 41822 }
--- Group section
+-- Role section
     wiggle       OBJECT IDENTIFIER ::= { fifo 1 }
 
     users        OBJECT IDENTIFIER ::= { wiggle  3 }
     sessions     OBJECT IDENTIFIER ::= { wiggle  4 }
-    groups       OBJECT IDENTIFIER ::= { wiggle  5 }
+    roles       OBJECT IDENTIFIER ::= { wiggle  5 }
 
     cloud        OBJECT IDENTIFIER ::= { wiggle  6 }
     hypervisors  OBJECT IDENTIFIER ::= { wiggle  7 }
@@ -206,86 +206,86 @@ WIGGLE-MIB DEFINITIONS ::= BEGIN
             "number of events"
         ::= { sessions 10 }
 
--- Groups Section
-    groupsP999 OBJECT-TYPE
+-- Roles Section
+    rolesP999 OBJECT-TYPE
         SYNTAX  INTEGER
         ACCESS  read-only
         STATUS  mandatory
         DESCRIPTION
             "99.9 percertile"
-        ::= { groups 1 }
+        ::= { roles 1 }
 
-    groupsP99 OBJECT-TYPE
+    rolesP99 OBJECT-TYPE
         SYNTAX  INTEGER
         ACCESS  read-only
         STATUS  mandatory
         DESCRIPTION
             "99 percertile"
-        ::= { groups 2 }
+        ::= { roles 2 }
 
-    groupsP95 OBJECT-TYPE
+    rolesP95 OBJECT-TYPE
         SYNTAX  INTEGER
         ACCESS  read-only
         STATUS  mandatory
         DESCRIPTION
             "95 percertile"
-        ::= { groups 3 }
+        ::= { roles 3 }
 
-    groupsP75 OBJECT-TYPE
+    rolesP75 OBJECT-TYPE
         SYNTAX  INTEGER
         ACCESS  read-only
         STATUS  mandatory
         DESCRIPTION
             "75 percertile"
-        ::= { groups 4 }
+        ::= { roles 4 }
 
-    groupsP25 OBJECT-TYPE
+    rolesP25 OBJECT-TYPE
         SYNTAX  INTEGER
         ACCESS  read-only
         STATUS  mandatory
         DESCRIPTION
             "25 percertile"
-        ::= { groups 5 }
+        ::= { roles 5 }
 
-    groupsCount OBJECT-TYPE
+    rolesCount OBJECT-TYPE
         SYNTAX  INTEGER
         ACCESS  read-only
         STATUS  mandatory
         DESCRIPTION
             "number of events"
-        ::= { groups 6 }
+        ::= { roles 6 }
 
-    groupsMin OBJECT-TYPE
+    rolesMin OBJECT-TYPE
         SYNTAX  INTEGER
         ACCESS  read-only
         STATUS  mandatory
         DESCRIPTION
             "number of events"
-        ::= { groups 7 }
+        ::= { roles 7 }
 
-    groupsMedian OBJECT-TYPE
+    rolesMedian OBJECT-TYPE
         SYNTAX  INTEGER
         ACCESS  read-only
         STATUS  mandatory
         DESCRIPTION
             "number of events"
-        ::= { groups 8 }
+        ::= { roles 8 }
 
-    groupsMean OBJECT-TYPE
+    rolesMean OBJECT-TYPE
         SYNTAX  INTEGER
         ACCESS  read-only
         STATUS  mandatory
         DESCRIPTION
             "number of events"
-        ::= { groups 9 }
+        ::= { roles 9 }
 
-    groupsMax OBJECT-TYPE
+    rolesMax OBJECT-TYPE
         SYNTAX  INTEGER
         ACCESS  read-only
         STATUS  mandatory
         DESCRIPTION
             "number of events"
-        ::= { groups 10 }
+        ::= { roles 10 }
 
 -- Cloud Section
     cloudP999 OBJECT-TYPE

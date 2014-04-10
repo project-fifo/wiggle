@@ -1,4 +1,4 @@
--module(wiggle_group_handler).
+-module(wiggle_role_handler).
 -include("wiggle.hrl").
 
 -ifdef(TEST).
@@ -24,20 +24,20 @@
 allowed_methods(_Version, _Token, []) ->
     [<<"GET">>, <<"POST">>];
 
-allowed_methods(_Version, _Token, [_Group]) ->
+allowed_methods(_Version, _Token, [_Role]) ->
     [<<"GET">>, <<"PUT">>, <<"DELETE">>];
 
-allowed_methods(_Version, _Token, [_Group, <<"permissions">>]) ->
+allowed_methods(_Version, _Token, [_Role, <<"permissions">>]) ->
     [<<"GET">>];
 
-allowed_methods(_Version, _Token, [_Group, <<"metadata">> | _]) ->
+allowed_methods(_Version, _Token, [_Role, <<"metadata">> | _]) ->
     [<<"PUT">>, <<"DELETE">>];
 
-allowed_methods(_Version, _Token, [_Group, <<"permissions">> | _Permission]) ->
+allowed_methods(_Version, _Token, [_Role, <<"permissions">> | _Permission]) ->
     [<<"PUT">>, <<"DELETE">>].
 
-get(State = #state{path = [Group, <<"permissions">> | Permission]}) ->
-    case {erlangify_permission(Permission), wiggle_group_handler:get(State#state{path = [Group]})} of
+get(State = #state{path = [Role, <<"permissions">> | Permission]}) ->
+    case {erlangify_permission(Permission), wiggle_role_handler:get(State#state{path = [Role]})} of
         {_, not_found} ->
             not_found;
         {[], {ok, Obj}} ->
@@ -50,45 +50,45 @@ get(State = #state{path = [Group, <<"permissions">> | Permission]}) ->
             end
     end;
 
-get(State = #state{path = [Group | _]}) ->
+get(State = #state{path = [Role | _]}) ->
     Start = now(),
-    R = libsnarl:group_get(Group),
+    R = libsnarl:role_get(Role),
     ?MSnarl(?P(State), Start),
     R.
 
 permission_required(#state{method = <<"GET">>, path = []}) ->
-    {ok, [<<"cloud">>, <<"groups">>, <<"list">>]};
+    {ok, [<<"cloud">>, <<"roles">>, <<"list">>]};
 
 permission_required(#state{method = <<"POST">>, path = []}) ->
-    {ok, [<<"cloud">>, <<"groups">>, <<"create">>]};
+    {ok, [<<"cloud">>, <<"roles">>, <<"create">>]};
 
-permission_required(#state{method = <<"GET">>, path = [Group]}) ->
-    {ok, [<<"groups">>, Group, <<"get">>]};
+permission_required(#state{method = <<"GET">>, path = [Role]}) ->
+    {ok, [<<"roles">>, Role, <<"get">>]};
 
-permission_required(#state{method = <<"PUT">>, path = [Group]}) ->
-    {ok, [<<"groups">>, Group, <<"create">>]};
+permission_required(#state{method = <<"PUT">>, path = [Role]}) ->
+    {ok, [<<"roles">>, Role, <<"create">>]};
 
-permission_required(#state{method = <<"DELETE">>, path = [Group]}) ->
-    {ok, [<<"groups">>, Group, <<"delete">>]};
+permission_required(#state{method = <<"DELETE">>, path = [Role]}) ->
+    {ok, [<<"roles">>, Role, <<"delete">>]};
 
-permission_required(#state{method = <<"GET">>, path = [Group, <<"permissions">>]}) ->
-    {ok, [<<"groups">>, Group, <<"get">>]};
+permission_required(#state{method = <<"GET">>, path = [Role, <<"permissions">>]}) ->
+    {ok, [<<"roles">>, Role, <<"get">>]};
 
-permission_required(#state{method = <<"PUT">>, path = [Group, <<"permissions">> | Permission]}) ->
+permission_required(#state{method = <<"PUT">>, path = [Role, <<"permissions">> | Permission]}) ->
     P = erlangify_permission(Permission),
-    {multiple, [[<<"groups">>, Group, <<"grant">>],
+    {multiple, [[<<"roles">>, Role, <<"grant">>],
                 [<<"permissions">>, P, <<"grant">>]]};
 
-permission_required(#state{method = <<"DELETE">>, path = [Group, <<"permissions">> | Permission]}) ->
+permission_required(#state{method = <<"DELETE">>, path = [Role, <<"permissions">> | Permission]}) ->
     P = erlangify_permission(Permission),
-    {multiple, [[<<"groups">>, Group, <<"revoke">>],
+    {multiple, [[<<"roles">>, Role, <<"revoke">>],
                 [<<"permissions">>, P, <<"revoke">>]]};
 
-permission_required(#state{method = <<"PUT">>, path = [Group, <<"metadata">> | _]}) ->
-    {ok, [<<"groups">>, Group, <<"edit">>]};
+permission_required(#state{method = <<"PUT">>, path = [Role, <<"metadata">> | _]}) ->
+    {ok, [<<"roles">>, Role, <<"edit">>]};
 
-permission_required(#state{method = <<"DELETE">>, path = [Group, <<"metadata">> | _]}) ->
-    {ok, [<<"groups">>, Group, <<"edit">>]};
+permission_required(#state{method = <<"DELETE">>, path = [Role, <<"metadata">> | _]}) ->
+    {ok, [<<"roles">>, Role, <<"edit">>]};
 
 permission_required(_State) ->
     undefined.
@@ -103,9 +103,9 @@ read(Req, State = #state{token = Token, path = [], full_list=FullList, full_list
     {ok, Permissions} = libsnarl:user_cache(Token),
     ?MSnarl(?P(State), Start),
     Start1 = now(),
-    {ok, Res} = libsnarl:group_list(
+    {ok, Res} = libsnarl:role_list(
                   [{must, 'allowed',
-                    [<<"groups">>, {<<"res">>, <<"uuid">>}, <<"get">>],
+                    [<<"roles">>, {<<"res">>, <<"uuid">>}, <<"get">>],
                     Permissions}], FullList),
     ?MSniffle(?P(State), Start1),
     Res1 = case {Filter, FullList} of
@@ -118,47 +118,47 @@ read(Req, State = #state{token = Token, path = [], full_list=FullList, full_list
            end,
     {Res1, Req, State};
 
-read(Req, State = #state{path = [_Group], obj = GroupObj}) ->
-    GroupObj1 = jsxd:update(<<"permissions">>,
+read(Req, State = #state{path = [_Role], obj = RoleObj}) ->
+    RoleObj1 = jsxd:update(<<"permissions">>,
                             fun (Permissions) ->
                                     lists:map(fun jsonify_permissions/1, Permissions)
-                            end, [], GroupObj),
-    {GroupObj1, Req, State};
+                            end, [], RoleObj),
+    {RoleObj1, Req, State};
 
-read(Req, State = #state{path = [_Group, <<"permissions">>], obj = GroupObj}) ->
-    {lists:map(fun jsonify_permissions/1, jsxd:get(<<"permissions">>, [], GroupObj)), Req, State}.
+read(Req, State = #state{path = [_Role, <<"permissions">>], obj = RoleObj}) ->
+    {lists:map(fun jsonify_permissions/1, jsxd:get(<<"permissions">>, [], RoleObj)), Req, State}.
 
 %%--------------------------------------------------------------------
 %% PUT
 %%--------------------------------------------------------------------
 
 create(Req, State = #state{path = [], version = Version}, Decoded) ->
-    {ok, Group} = jsxd:get(<<"name">>, Decoded),
+    {ok, Role} = jsxd:get(<<"name">>, Decoded),
     Start = now(),
-    {ok, UUID} = libsnarl:group_add(Group),
+    {ok, UUID} = libsnarl:role_add(Role),
     ?MSnarl(?P(State), Start),
-    {{true, <<"/api/", Version/binary, "/groups/", UUID/binary>>}, Req, State#state{body = Decoded}}.
+    {{true, <<"/api/", Version/binary, "/roles/", UUID/binary>>}, Req, State#state{body = Decoded}}.
 
 %% TODO : This is a icky case it is called after post.
 write(Req, State = #state{method = <<"POST">>, path = []}, _) ->
     {true, Req, State};
 
-write(Req, State = #state{path = [Group, <<"metadata">> | Path]}, [{K, V}]) when is_binary(Group) ->
+write(Req, State = #state{path = [Role, <<"metadata">> | Path]}, [{K, V}]) when is_binary(Role) ->
     Start = now(),
-    libsnarl:group_set(Group, Path ++ [K], jsxd:from_list(V)),
+    libsnarl:role_set(Role, Path ++ [K], jsxd:from_list(V)),
     ?MSnarl(?P(State), Start),
     {true, Req, State};
 
-write(Req, State = #state{path = [Group]}, _Body) ->
+write(Req, State = #state{path = [Role]}, _Body) ->
     Start = now(),
-    ok = libsnarl:group_add(Group),
+    ok = libsnarl:role_add(Role),
     ?MSnarl(?P(State), Start),
     {true, Req, State};
 
-write(Req, State = #state{path = [Group, <<"permissions">> | Permission]}, _Body) ->
+write(Req, State = #state{path = [Role, <<"permissions">> | Permission]}, _Body) ->
     P = erlangify_permission(Permission),
     Start = now(),
-    ok = libsnarl:group_grant(Group, P),
+    ok = libsnarl:role_grant(Role, P),
     ?MSnarl(?P(State), Start),
     {true, Req, State}.
 
@@ -166,22 +166,22 @@ write(Req, State = #state{path = [Group, <<"permissions">> | Permission]}, _Body
 %% DEETE
 %%--------------------------------------------------------------------
 
-delete(Req, State = #state{path = [Group, <<"metadata">> | Path]}) ->
+delete(Req, State = #state{path = [Role, <<"metadata">> | Path]}) ->
     Start = now(),
-    libsnarl:group_set(Group, Path, delete),
+    libsnarl:role_set(Role, Path, delete),
     ?MSnarl(?P(State), Start),
     {true, Req, State};
 
-delete(Req, State = #state{path = [Group, <<"permissions">> | Permission]}) ->
+delete(Req, State = #state{path = [Role, <<"permissions">> | Permission]}) ->
     P = erlangify_permission(Permission),
     Start = now(),
-    ok = libsnarl:group_revoke(Group, P),
+    ok = libsnarl:role_revoke(Role, P),
     ?MSnarl(?P(State), Start),
     {true, Req, State};
 
-delete(Req, State = #state{path = [Group]}) ->
+delete(Req, State = #state{path = [Role]}) ->
     Start = now(),
-    ok = libsnarl:group_delete(Group),
+    ok = libsnarl:role_delete(Role),
     ?MSnarl(?P(State), Start),
     {true, Req, State}.
 
