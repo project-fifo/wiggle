@@ -51,10 +51,10 @@ allowed_methods(_Version, _Token, [_Login, <<"permissions">>]) ->
 allowed_methods(_Version, _Token, [_Login, <<"permissions">> | _Permission]) ->
     [<<"PUT">>, <<"DELETE">>];
 
-allowed_methods(_Version, _Token, [_Login, <<"groups">>]) ->
+allowed_methods(_Version, _Token, [_Login, <<"roles">>]) ->
     [<<"GET">>];
 
-allowed_methods(_Version, _Token, [_Login, <<"groups">>, _Group]) ->
+allowed_methods(_Version, _Token, [_Login, <<"roles">>, _Role]) ->
     [<<"PUT">>, <<"DELETE">>];
 
 allowed_methods(_Version, _Token, [_Login, <<"orgs">>]) ->
@@ -79,12 +79,12 @@ get(State = #state{path = [User, <<"permissions">> | Permission]}) ->
     end;
 
 get(State = #state{method = <<"DELETE">>,
-                   path = [User, <<"groups">>, Group]}) ->
+                   path = [User, <<"roles">>, Role]}) ->
     case wiggle_user_handler:get(State#state{path = [User]}) of
         not_found ->
             not_found;
         {ok, Obj} ->
-            case lists:member(Group, jsxd:get(<<"groups">>, [], Obj)) of
+            case lists:member(Role, jsxd:get(<<"roles">>, [], Obj)) of
                 true ->
                     {ok, Obj};
                 _ ->
@@ -92,13 +92,13 @@ get(State = #state{method = <<"DELETE">>,
             end
     end;
 
-get(State = #state{method = <<"PUT">>, path = [User, <<"groups">>, Group]}) ->
+get(State = #state{method = <<"PUT">>, path = [User, <<"roles">>, Role]}) ->
     case wiggle_user_handler:get(State#state{path = [User]}) of
         not_found ->
             not_found;
         {ok, Obj} ->
             Start1 = now(),
-            case libsnarl:group_get(Group) of
+            case libsnarl:role_get(Role) of
                 not_found ->
                     ?MSnarl(?P(State), Start1),
                     not_found;
@@ -144,18 +144,18 @@ permission_required(#state{method = <<"DELETE">>,
     {multiple, [[<<"users">>, User, <<"revoke">>], P]};
 
 permission_required(#state{method = <<"GET">>,
-                           path = [User, <<"groups">>]}) ->
+                           path = [User, <<"roles">>]}) ->
     {ok, [<<"users">>, User, <<"get">>]};
 
 permission_required(#state{method = <<"PUT">>,
-                           path = [User, <<"groups">>, Group]}) ->
+                           path = [User, <<"roles">>, Role]}) ->
     {multiple, [[<<"users">>, User, <<"join">>],
-                [<<"groups">>, Group, <<"join">>]]};
+                [<<"roles">>, Role, <<"join">>]]};
 
 permission_required(#state{method = <<"DELETE">>,
-                           path = [User, <<"groups">>, Group]}) ->
+                           path = [User, <<"roles">>, Role]}) ->
     {multiple, [[<<"users">>, User, <<"leave">>],
-                [<<"groups">>, Group, <<"leave">>]]};
+                [<<"roles">>, Role, <<"leave">>]]};
 
 permission_required(#state{method = <<"GET">>,
                            path = [User, <<"orgs">>]}) ->
@@ -241,8 +241,8 @@ read(Req, State = #state{path = [_User], obj = UserObj}) ->
 read(Req, State = #state{path = [_User, <<"permissions">>], obj = UserObj}) ->
     {lists:map(fun jsonify_permissions/1, jsxd:get(<<"permissions">>, [], UserObj)), Req, State};
 
-read(Req, State = #state{path = [_User, <<"groups">>], obj = UserObj}) ->
-    {jsxd:get(<<"groups">>, [], UserObj), Req, State};
+read(Req, State = #state{path = [_User, <<"roles">>], obj = UserObj}) ->
+    {jsxd:get(<<"roles">>, [], UserObj), Req, State};
 
 read(Req, State = #state{path = [_User, <<"orgs">>], obj = UserObj}) ->
     {jsxd:get(<<"orgs">>, [], UserObj), Req, State};
@@ -309,9 +309,9 @@ write(Req, State = #state{path = [User, <<"yubikeys">>]}, [{<<"otp">>, OTP}]) ->
     ?MSnarl(?P(State), Start),
     {true, Req, State};
 
-write(Req, State = #state{path = [User, <<"groups">>, Group]}, _) ->
+write(Req, State = #state{path = [User, <<"roles">>, Role]}, _) ->
     Start = now(),
-    ok = libsnarl:user_join(User, Group),
+    ok = libsnarl:user_join(User, Role),
     ?MSnarl(?P(State), Start),
     {true, Req, State};
 
@@ -388,9 +388,9 @@ delete(Req, State = #state{path = [User, <<"orgs">>, Org]}) ->
     ?MSnarl(?P(State), Start),
     {true, Req, State};
 
-delete(Req, State = #state{path = [User, <<"groups">>, Group]}) ->
+delete(Req, State = #state{path = [User, <<"roles">>, Role]}) ->
     Start = now(),
-    ok = libsnarl:user_leave(User, Group),
+    ok = libsnarl:user_leave(User, Role),
     ?MSnarl(?P(State), Start),
     {true, Req, State}.
 
