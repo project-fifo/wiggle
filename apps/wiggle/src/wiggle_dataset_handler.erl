@@ -5,6 +5,10 @@
 
 -include("wiggle.hrl").
 
+-ifdef(TEST).
+-include_lib("eunit/include/eunit.hrl").
+-endif.
+
 -export([allowed_methods/3,
          get/1,
          permission_required/1,
