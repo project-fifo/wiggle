@@ -303,11 +303,15 @@ write(Req, State = #state{path = [User, <<"keys">>]}, [{KeyID, Key}]) ->
             {false, Req, State}
     end;
 
-write(Req, State = #state{path = [User, <<"yubikeys">>]}, [{<<"otp">>, OTP}]) ->
+write(Req, State = #state{path = [User, <<"yubikeys">>]},
+      [{<<"otp">>, <<_:33/binary, _/binary >>= OTP}]) ->
     Start = now(),
     libsnarl:user_yubikey_add(User, OTP),
     ?MSnarl(?P(State), Start),
     {true, Req, State};
+
+write(Req, State = #state{path = [_, <<"yubikeys">>]}, _) ->
+    {false, Req, State};
 
 write(Req, State = #state{path = [User, <<"roles">>, Role]}, _) ->
     Start = now(),
