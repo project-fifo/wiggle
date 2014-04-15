@@ -34,12 +34,22 @@ case $2 in
         ;;
     POST-INSTALL)
         svccfg import /opt/local/fifo-wiggle/share/wiggle.xml
-        if [ ! -f /opt/local/fifo-wiggle/etc/wiggle.conf ]
+        CONFFILE=/opt/local/fifo-wiggle/etc/wiggle.conf
+
+        if [ ! -f "${CONFFILE}" ]
         then
-            echo Trying to guess configuration ...
-            IP=`ifconfig net0 | grep inet | awk -e '{print $2}'`
-            cp /opt/local/fifo-wiggle/etc/wiggle.conf.example /opt/local/fifo-wiggle/etc/wiggle.conf
-            sed --in-place -e "s/127.0.0.1/${IP}/g" /opt/local/fifo-wiggle/etc/wiggle.conf
+            cp ${CONFFILE}.example ${CONFFILE}
+            sed --in-place -e "s/127.0.0.1/${IP}/g" ${CONFFILE}
+            md5sum ${CONFFILE} > ${CONFFILE}.md5
+        elif [ -f ${CONFFILE}.md5 ]
+        then
+            if md5sum --quiet --strict -c ${CONFFILE}.md5 2&> /dev/null
+            then
+                echo "The config was not adjusted we'll regenerate it."
+                cp ${CONFFILE}.example ${CONFFILE}
+                sed --in-place -e "s/127.0.0.1/${IP}/g" ${CONFFILE}
+                md5sum ${CONFFILE} > ${CONFFILE}.md5
+            fi
         fi
         ;;
 esac
