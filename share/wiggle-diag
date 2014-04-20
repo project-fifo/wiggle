@@ -1,0 +1,50 @@
+#!/usr/bin/bash
+date=$(date +%F-%H-%M-%S)
+base=/var/tmp/wiggle-diag
+dir=$base/$date
+mkdir -p $dir
+log_file=$dir/wiggle-diag.log
+echo '========================================' > $log_file
+echo "Wiggle Diagnostics ${date}" >> $log_file
+echo '========================================' >> $log_file
+function log_run(){
+  echo >> $log_file
+  echo >> $log_file
+  echo '----------------------------------------' >> $log_file
+  echo $* >> $log_file
+  echo '----------------------------------------' >> $log_file
+  $* >> $log_file
+}
+echo "Gathering System information."
+log_run ifconfig
+echo >> $log_file >> $log_file
+echo >> $log_file
+echo '----------------------------------------' >> $log_file
+echo 'pkgin list | grep fifo-wiggle' >> $log_file
+echo '----------------------------------------' >> $log_file
+pkgin list | grep fifo-wiggle >> $log_file
+log_run svcs svc:/network/wiggle:default
+log_run df -h
+log_run zonememstat
+log_run prstat 1 1
+log_run sysinfo
+
+pid=$(pgrep -f /opt/local/fifo-wiggle/*/bin/beam.smp)
+log_run lsof -P $pid
+log_run lsof -F $pid
+
+echo "Copying Logfiles"
+cp -r /var/log/wiggle $dir/logs
+cp /var/svc/log/network-wiggle:default.log $dir/logs
+
+echo "Copying config files"
+mkdir $dir/config
+cp /opt/local/fifo-wiggle/etc/wiggle.conf* $dir/config
+cp -r /var/db/wiggle/generated.configs/ $dir/config
+
+echo "Compressing data"
+(cd $base; tar cfz wiggle-diag-$date.tgz $date)
+
+echo
+echo
+echo Diagnostics run complete the the file can be found in $base/wiggle-diag-$date.tgz the data provided can be inspected in $base/$date.
