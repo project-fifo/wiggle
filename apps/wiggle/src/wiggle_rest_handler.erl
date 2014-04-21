@@ -44,8 +44,6 @@ rest_init(Req, [Module]) ->
     {ok, Req1, State#state{module = Module}}.
 
 rest_terminate(_Req, _State) ->
-    %%statman_histogram:record_value({State#state.path_bin, total},
-    %%State#state.start)
     ok.
 
 service_available(Req, State) ->

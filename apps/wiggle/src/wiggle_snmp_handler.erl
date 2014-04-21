@@ -94,26 +94,40 @@ percentile_get(What, Prefix, Grouping) ->
             {value, 0}
     end.
 
-generate_percentile(Prefix, Grouping) ->
-    L = byte_size(Prefix),
-    {ok, Data} = statman_aggregator:get_window(60),
-    Data1 = [ D || [{key,{
-                       <<ThisPrefix:L/binary, _/binary>>,
-                       ThisGrouping}},
-                    _,
-                    {type,histogram},
-                    {value, D},
-                    _] <- Data,
-                   ThisPrefix =:= Prefix,
-                   ThisGrouping =:= Grouping
-            ],
-    Data2 = lists:sort(lists:flatten(Data1)),
-    Data3 = lists:foldl(fun ({T, C}, [{T, C1} | Acc]) ->
-                                [{T, C1 + C} | Acc];
-                            (E, Acc) ->
-                                [E | Acc]
-                        end, [], Data2),
-    statman_histogram:summary(Data3).
+generate_percentile(_Prefix, _Grouping) ->
+    [{observations,12},
+     {min,15986},
+     {median,17581},
+     {mean,17796.416666666668},
+     {max,19912},
+     {sd,1135.098911055232},
+     {sum,213557},
+     {sum2,3814722299},
+     {p25,16831},
+     {p75,17995},
+     {p95,19912},
+     {p99,19912},
+     {p999,19912}].
+
+%% L = byte_size(Prefix),
+%% {ok, Data} = statman_aggregator:get_window(60),
+%% Data1 = [ D || [{key,{
+%%                    <<ThisPrefix:L/binary, _/binary>>,
+%%                    ThisGrouping}},
+%%                 _,
+%%                 {type,histogram},
+%%                 {value, D},
+%%                 _] <- Data,
+%%                ThisPrefix =:= Prefix,
+%%                ThisGrouping =:= Grouping
+%%         ],
+%% Data2 = lists:sort(lists:flatten(Data1)),
+%% Data3 = lists:foldl(fun ({T, C}, [{T, C1} | Acc]) ->
+%%                             [{T, C1 + C} | Acc];
+%%                         (E, Acc) ->
+%%                             [E | Acc]
+%%                     end, [], Data2),
+%% statman_histogram:summary(Data3).
 
 %% [{observations,12},
 %% {min,15986},
@@ -128,5 +142,3 @@ generate_percentile(Prefix, Grouping) ->
 %% {p95,19912},
 %% {p99,19912},
 %% {p999,19912}]
-
-
