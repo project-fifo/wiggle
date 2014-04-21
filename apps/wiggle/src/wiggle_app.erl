@@ -90,7 +90,6 @@ start(_StartType, _StartArgs) ->
             ok
     end,
     R = wiggle_sup:start_link(),
-    statman_server:add_subscriber(statman_aggregator),
     wiggle_snmp_handler:start(),
     R.
 
