@@ -80,8 +80,30 @@ ERTS_PATH=$RUNNER_BASE_DIR/erts-$ERTS_VSN/bin
 # Setup command to control the node
 NODETOOL="$ERTS_PATH/escript $ERTS_PATH/nodetool $NAME_ARG $COOKIE_ARG"
 
+run()
+{
+    mod=$1
+    shift
+    cmd=$1
+    shift
+
+    # Make sure the local node IS running
+    RES=`$NODETOOL ping`
+    if [ "$RES" != "pong" ]; then
+        echo "Node is not running!"
+        exit 1
+    fi
+
+    $NODETOOL rpc $mod $cmd $@
+}
+
 # Check the first argument for instructions
 case "$1" in
+    connections)
+        shift
+        run wiggle_console connections $@
+        ;;
+
     start)
         # Make sure there is not already a node running
         RES=`$NODETOOL ping`
@@ -227,7 +249,7 @@ case "$1" in
         ;;
 
     *)
-        echo "Usage: $SCRIPT {start|stop|restart|reboot|ping|console|console_clean|attach}"
+        echo "Usage: $SCRIPT {start|stop|restart|reboot|ping|console|console_clean|attach|connections}"
         exit 1
         ;;
 esac
