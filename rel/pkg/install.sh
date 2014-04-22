@@ -34,6 +34,7 @@ case $2 in
         ;;
     POST-INSTALL)
         svccfg import /opt/local/fifo-wiggle/share/wiggle.xml
+        IP=`ifconfig net0 | grep inet | awk -e '{print $2}'`
         CONFFILE=/opt/local/fifo-wiggle/etc/wiggle.conf
 
         if [ ! -f "${CONFFILE}" ]
