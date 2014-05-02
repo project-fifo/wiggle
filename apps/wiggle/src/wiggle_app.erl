@@ -28,8 +28,8 @@ start(_StartType, _StartArgs) ->
                           wiggle_rest_handler, [wiggle_user_handler]},
                          {<<"/api/:version/sessions/[...]">>,
                           wiggle_rest_handler, [wiggle_session_handler]},
-                         {<<"/api/:version/groups/[...]">>,
-                          wiggle_rest_handler, [wiggle_group_handler]},
+                         {<<"/api/:version/roles/[...]">>,
+                          wiggle_rest_handler, [wiggle_role_handler]},
                          {<<"/api/:version/orgs/[...]">>,
                           wiggle_rest_handler, [wiggle_org_handler]},
                          {<<"/api/:version/cloud/[...]">>,
@@ -90,14 +90,7 @@ start(_StartType, _StartArgs) ->
             ok
     end,
     R = wiggle_sup:start_link(),
-    statman_server:add_subscriber(statman_aggregator),
     wiggle_snmp_handler:start(),
-    case application:get_env(newrelic,license_key) of
-        undefined ->
-            ok;
-        _ ->
-            newrelic_poller:start_link(fun newrelic_statman:poll/0)
-    end,
     R.
 
 stop(_State) ->

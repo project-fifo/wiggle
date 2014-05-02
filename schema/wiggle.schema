@@ -11,7 +11,7 @@
 {translation,
  "wiggle.compression",
  fun(Conf) ->
-         case cuttlefish_util:conf_get_value("compression", Conf) of
+         case cuttlefish:conf_get("compression", Conf) of
              on ->
                  true;
              _ ->
@@ -33,7 +33,7 @@
 {translation,
  "wiggle.ssl",
  fun(Conf) ->
-         case cuttlefish_util:conf_get_value("ssl", Conf) of
+         case cuttlefish:conf_get("ssl", Conf) of
              on ->
                  true;
              spdy ->
@@ -77,7 +77,7 @@
 {translation,
  "mdns_client_lib.interface",
  fun(Conf) ->
-         IP = cuttlefish_util:conf_get_value("listening_ip", Conf), 
+         IP = cuttlefish:conf_get("listening_ip", Conf), 
          [A, B, C, D] = [list_to_integer(O) ||
                             O <- re:split(IP, "\\.", [{return, list}])],
          {ok, {A, B, C, D}}

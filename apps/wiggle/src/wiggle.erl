@@ -19,7 +19,6 @@ start() ->
     application:start(crypto),
     application:start(ranch),
     application:start(cowboy),
-    application:start(newrelic),
     application:start(mnesia),
     application:start(snmp),
     application:start(wiggle).
