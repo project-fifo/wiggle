@@ -14,7 +14,7 @@ quick-test:
 	$(REBAR) skip_deps=true eunit
 
 version:
-	echo "$(shell git symbolic-ref HEAD 2> /dev/null | cut -b 12-)-$(shell git log --pretty=format:'%h, %ad' -1)" > wiggle.version
+	git describe > wiggle.version
 
 version_header: version
 	echo "-define(VERSION, <<\"$(shell cat wiggle.version)\">>)." > apps/wiggle/src/wiggle_version.hrl
