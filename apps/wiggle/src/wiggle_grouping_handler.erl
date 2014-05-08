@@ -105,7 +105,7 @@ read(Req, State = #state{path = [_Grouping], obj = Obj}) ->
 %% PUT
 %%--------------------------------------------------------------------
 
-create(Req, State = #state{path = [], version = Version},
+create(Req, State = #state{path = [], version = Version, token=Token},
        [{<<"name">>, Name}, {<<"type">>, TypeS}] = Data) ->
     Type = case TypeS of
                <<"cluster">> ->
@@ -118,6 +118,12 @@ create(Req, State = #state{path = [], version = Version},
     Start = now(),
     case libsniffle:grouping_add(Name, Type) of
         {ok, UUID} ->
+            case libsnarl:user_active_org(Token) of
+                {ok, Org} ->
+                    libsnarl:org_execute_trigger(Org, grouping_create, UUID);
+                _ ->
+                    ok
+            end,
             ?MSniffle(?P(State), Start),
             {{true, <<"/api/", Version/binary, "/groupings/", UUID/binary>>}, Req, State#state{body = Data}};
         duplicate ->
