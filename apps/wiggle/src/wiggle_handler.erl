@@ -12,7 +12,8 @@
          allowed/2,
          options/3,
          service_available/0,
-         encode/2
+         encode/2,
+         get_persmissions/1
         ]).
 
 initial_state(Req) ->
@@ -175,7 +176,7 @@ allowed(State = #state{token = Token}, Perm) ->
                 lager:warning("[auth] unknown Token for allowed: ~p", [Token]),
                 true;
             {ok, Ps} ->
-                libsnarl:test(Perm, Ps)
+                not libsnarl:test(Perm, Ps)
         end,
     ?MSnarl(?P(State), Start),
     R.
