@@ -5,6 +5,7 @@
 
 -include("wiggle.hrl").
 -define(CACHE, dataset).
+-define(LIST_CACHE, dataset_list).
 
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
@@ -116,16 +117,23 @@ read(Req, State = #state{token = Token, path = [], full_list=FullList, full_list
     {ok, Permissions} = wiggle_handler:get_persmissions(Token),
     ?MSnarl(?P(State), Start),
     Start1 = now(),
-    {ok, Res} = libsniffle:dataset_list([{must, 'allowed', [<<"datasets">>, {<<"res">>, <<"dataset">>}, <<"get">>], Permissions}], FullList),
+
     ?MSniffle(?P(State), Start1),
-    Res1 = case {Filter, FullList} of
-               {_, false} ->
-                   [ID || {_, ID} <- Res];
-               {[], _} ->
-                   [ID || {_, ID} <- Res];
-               _ ->
-                   [jsxd:select(Filter, ID) || {_, ID} <- Res]
-           end,
+    TTL = application:get_env(wiggle, dataset_ttl, 60*1000*1000)*
+        application:get_env(wiggle, cache_list_percentage, 0.5),
+    Fun = fun() ->
+                  {ok, Res} = libsniffle:dataset_list([{must, 'allowed', [<<"datasets">>, {<<"res">>, <<"dataset">>}, <<"get">>], Permissions}], FullList),
+                  case {Filter, FullList} of
+                      {_, false} ->
+                          [ID || {_, ID} <- Res];
+                      {[], _} ->
+                          [ID || {_, ID} <- Res];
+                      _ ->
+                          [jsxd:select(Filter, ID) || {_, ID} <- Res]
+                  end
+          end,
+    Res1 = wiggle_handler:timeout_cache(
+             ?LIST_CACHE, {Token, FullList, Filter}, TTL, Fun),
     {Res1, Req, State};
 
 read(Req, State = #state{path = [_Dataset], obj = Obj}) ->
@@ -154,6 +162,7 @@ create(Req, State = #state{path = [UUID], version = Version}, Decoded) ->
         duplicate ->
             {false, Req, State};
         _ ->
+            e2qc:teardown(?LIST_CACHE),
             D1 = transform_dataset(Decoded),
             libsniffle:dataset_set(UUID, [{<<"imported">>, 0},
                                           {<<"status">>, <<"pending">>}| D1]),
@@ -162,6 +171,7 @@ create(Req, State = #state{path = [UUID], version = Version}, Decoded) ->
     end;
 
 create(Req, State = #state{path = [], version = Version}, Decoded) ->
+    e2qc:teardown(?LIST_CACHE),
     case jsxd:from_list(Decoded) of
         [{<<"url">>, URL}] ->
             Start = now(),
@@ -229,6 +239,7 @@ delete(Req, State = #state{path = [Dataset]}) ->
                     {409, Req, State};
                 _ ->
                     e2qc:evict(?CACHE, Dataset),
+                    e2qc:teardown(?LIST_CACHE),
                     ok = libsniffle:dataset_delete(Dataset),
                     ?MSniffle(?P(State), Start),
                     {true, Req, State}

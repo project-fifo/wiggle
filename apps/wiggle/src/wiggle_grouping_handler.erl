@@ -4,6 +4,8 @@
 -module(wiggle_grouping_handler).
 -include("wiggle.hrl").
 
+-define(CACHE, grouping).
+
 -export([allowed_methods/3,
          get/1,
          permission_required/1,
@@ -37,7 +39,10 @@ allowed_methods(_Version, _Token, [_Grouping]) ->
 
 get(State = #state{path = [Grouping | _]}) ->
     Start = now(),
-    R = libsniffle:grouping_get(Grouping),
+    TTL = application:get_env(wiggle, grouping_ttl, 10*1000*1000),
+    R = wiggle_handler:timeout_cache_with_invalid(
+          ?CACHE, Grouping, TTL, not_found,
+          fun() -> libsniffle:grouping_get(Grouping) end),
     ?MSniffle(?P(State), Start),
     R.
 
@@ -137,6 +142,7 @@ write(Req, State = #state{
     Start = now(),
     case libsniffle:grouping_add_element(Grouping, IPrange) of
         ok ->
+            e2qc:evict(?CACHE, Grouping),
             ?MSniffle(?P(State), Start),
             {true, Req, State};
         _ ->
@@ -149,6 +155,7 @@ write(Req, State = #state{
     Start = now(),
     case libsniffle:grouping_add_grouping(Grouping, IPrange) of
         ok ->
+            e2qc:evict(?CACHE, Grouping),
             ?MSniffle(?P(State), Start),
             {true, Req, State};
         _ ->
@@ -161,6 +168,7 @@ write(Req, State = #state{method = <<"POST">>, path = []}, _) ->
 
 write(Req, State = #state{path = [Grouping, <<"metadata">> | Path]}, [{K, V}]) ->
     Start = now(),
+    e2qc:evict(?CACHE, Grouping),
     libsniffle:grouping_metadata_set(Grouping, Path ++ [K], jsxd:from_list(V)),
     ?MSniffle(?P(State), Start),
     {true, Req, State};
@@ -174,24 +182,28 @@ write(Req, State, _Body) ->
 
 delete(Req, State = #state{path = [Grouping, <<"metadata">> | Path]}) ->
     Start = now(),
+    e2qc:evict(?CACHE, Grouping),
     libsniffle:grouping_metadata_set(Grouping, Path, delete),
     ?MSniffle(?P(State), Start),
     {true, Req, State};
 
 delete(Req, State = #state{path = [Grouping, <<"elements">>, Element]}) ->
     Start = now(),
+    e2qc:evict(?CACHE, Grouping),
     libsniffle:grouping_remove_element(Grouping, Element),
     ?MSniffle(?P(State), Start),
     {true, Req, State};
 
 delete(Req, State = #state{path = [Grouping, <<"groupings">>, Element]}) ->
     Start = now(),
+    e2qc:evict(?CACHE, Grouping),
     libsniffle:grouping_remove_element(Grouping, Element),
     ?MSniffle(?P(State), Start),
     {true, Req, State};
 
 delete(Req, State = #state{path = [Grouping]}) ->
     Start = now(),
+    e2qc:evict(?CACHE, Grouping),
     ok = libsniffle:grouping_delete(Grouping),
     ?MSniffle(?P(State), Start),
     {true, Req, State}.
