@@ -13,6 +13,11 @@
 %% that means when someone changes a setting it should be directy reflectd.
 
 
+%% @doc Enable or disable caching in global.
+{mapping, "caching", "wiggle.caching",
+ [{default, off},
+  {datatype, {flag, on, off}}]}.
+
 %% @doc The list will likely change more often then a single entry
 %% so we adjust the TTL by a percentage.
 %%

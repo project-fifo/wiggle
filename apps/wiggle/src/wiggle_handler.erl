@@ -196,10 +196,18 @@ service_available() ->
 %% Cache user permissions for up to 1s.
 get_persmissions(Token) ->
     TTL = application:get_env(wiggle, token_ttl, 1000*1000),
-    timeout_cache(permissions, Token, TTL,
-                  fun () -> libsnarl:user_cache(Token) end).
+    timeout_cache_(permissions, Token, TTL,
+                   fun () -> libsnarl:user_cache(Token) end).
 
 timeout_cache(Cache, Value, Timeout, Fun) ->
+    case application:get_env(wiggle, caching) of
+        on ->
+            timeout_cache_(Cache, Value, Timeout, Fun);
+        off ->
+            Fun()
+    end.
+
+timeout_cache_(Cache, Value, Timeout, Fun) ->
     {T0, R} = e2qc:cache(
                 Cache, Value,
                 fun() ->
