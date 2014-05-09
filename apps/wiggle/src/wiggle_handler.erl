@@ -170,15 +170,12 @@ options(Req, State, Methods) ->
 
 allowed(State = #state{token = Token}, Perm) ->
     Start = now(),
-    R = case libsnarl:allowed(Token, Perm) of
+    R = case get_persmissions(Token) of
             not_found ->
                 lager:warning("[auth] unknown Token for allowed: ~p", [Token]),
                 true;
-            true ->
-                false;
-            false ->
-                lager:warning("[auth] ~p is not allowed for: ~p", [Perm, Token]),
-                true
+            {ok, Ps} ->
+                libsnarl:test(Perm, Ps)
         end,
     ?MSnarl(?P(State), Start),
     R.
@@ -191,4 +188,19 @@ service_available() ->
             false;
         _ ->
             true
+    end.
+
+%% Cache user permissions for up to 1s.
+get_persmissions(Token) ->
+    {T0, R} = e2qc:cache(
+                permissions, Token,
+                fun() ->
+                        {now(), libsnarl:user_cache(Token)}
+                end),
+    case timer:now_diff(now(), T0) of
+        Diff when Diff < 1000*1000 ->
+            R;
+        _ ->
+            e2qc:evict(permissions, Token),
+            get_persmissions(Token)
     end.
