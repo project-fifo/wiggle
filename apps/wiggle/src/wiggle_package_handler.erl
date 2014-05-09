@@ -4,6 +4,8 @@
 -module(wiggle_package_handler).
 -include("wiggle.hrl").
 
+-define(CACHE, package).
+
 -export([allowed_methods/3,
          get/1,
          permission_required/1,
@@ -32,7 +34,7 @@ allowed_methods(_Version, _Token, [_Package]) ->
 get(State = #state{path = [Package | _]}) ->
     Start = now(),
     R = wiggle_handler:timeout_cache_with_invalid(
-          package, Package, 60, not_found,
+          ?CACHE, Package, 60, not_found,
           fun() -> libsniffle:package_get(Package) end),
     ?MSniffle(?P(State), Start),
     R;
@@ -114,6 +116,7 @@ write(Req, State = #state{method = <<"POST">>, path = []}, _) ->
     {true, Req, State};
 
 write(Req, State = #state{path = [Package, <<"metadata">> | Path]}, [{K, V}]) ->
+    e2qc:evict(?CACHE, Package),
     libsniffle:package_set(Package, [<<"metadata">> | Path] ++ [K], jsxd:from_list(V)),
     {true, Req, State};
 
@@ -125,9 +128,11 @@ write(Req, State, _Body) ->
 %%--------------------------------------------------------------------
 
 delete(Req, State = #state{path = [Package, <<"metadata">> | Path]}) ->
+    e2qc:evict(?CACHE, Package),
     libsniffle:package_set(Package, [<<"metadata">> | Path], delete),
     {true, Req, State};
 
 delete(Req, State = #state{path = [Package]}) ->
+    e2qc:evict(?CACHE, Package),
     ok = libsniffle:package_delete(Package),
     {true, Req, State}.

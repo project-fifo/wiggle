@@ -4,6 +4,7 @@
 -module(wiggle_dataset_handler).
 
 -include("wiggle.hrl").
+-define(CACHE, dataset).
 
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
@@ -48,7 +49,9 @@ allowed_methods(_Version, _Token, [_Dataset, <<"metadata">>|_]) ->
 
 get(State = #state{path = [Dataset | _]}) ->
     Start = now(),
-    R = libsniffle:dataset_get(Dataset),
+    R = wiggle_handler:timeout_cache_with_invalid(
+          ?CACHE, Dataset, 60, not_found,
+          fun() -> libsniffle:dataset_get(Dataset) end),
     ?MSniffle(?P(State), Start),
     R.
 
@@ -183,14 +186,17 @@ write(Req, State = #state{path = [UUID, <<"dataset.gz">>]}, _) ->
         _ ->
             {false, Req, State}
     end;
+
 write(Req, State = #state{path = [Dataset, <<"metadata">> | Path]}, [{K, V}]) ->
     Start = now(),
+    e2qc:evict(?CACHE, Dataset),
     libsniffle:dataset_set(Dataset, [<<"metadata">> | Path] ++ [K], jsxd:from_list(V)),
     ?MSniffle(?P(State), Start),
     {true, Req, State};
 
 write(Req, State = #state{path = [Dataset]}, [{K, V}]) ->
     Start = now(),
+    e2qc:evict(?CACHE, Dataset),
     libsniffle:dataset_set(Dataset, [K], jsxd:from_list(V)),
     ?MSniffle(?P(State), Start),
     {true, Req, State};
@@ -207,6 +213,7 @@ write(Req, State, _Body) ->
 
 delete(Req, State = #state{path = [Dataset, <<"metadata">> | Path]}) ->
     Start = now(),
+    e2qc:evict(?CACHE, Dataset),
     libsniffle:dataset_set(Dataset, [<<"metadata">> | Path], delete),
     ?MSniffle(?P(State), Start),
     {true, Req, State};
@@ -220,6 +227,7 @@ delete(Req, State = #state{path = [Dataset]}) ->
                     ?MSniffle(?P(State), Start),
                     {409, Req, State};
                 _ ->
+                    e2qc:evict(?CACHE, Dataset),
                     ok = libsniffle:dataset_delete(Dataset),
                     ?MSniffle(?P(State), Start),
                     {true, Req, State}
@@ -260,6 +268,7 @@ transform_dataset(D1) ->
     end.
 
 import_dataset(UUID, Idx, TotalSize, Req, WReq) ->
+    e2qc:evict(?CACHE, UUID),
     case cowboy_req:stream_body(1024*1024, Req) of
         {ok, Data, Req1} ->
             case do_write(UUID, Idx, Data, WReq, 0) of
