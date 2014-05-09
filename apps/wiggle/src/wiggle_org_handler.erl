@@ -5,6 +5,8 @@
 -include_lib("eunit/include/eunit.hrl").
 -endif.
 
+-define(CACHE, org).
+
 -export([allowed_methods/3,
          get/1,
          permission_required/1,
@@ -38,7 +40,10 @@ allowed_methods(_Version, _Token, [_Org, <<"metadata">> | _]) ->
 
 get(State = #state{path = [Org | _]}) ->
     Start = now(),
-    R = libsnarl:org_get(Org),
+    TTL = application:get_env(wiggle, org_ttl, 60*1000*1000),
+    R = wiggle_handler:timeout_cache_with_invalid(
+          ?CACHE, Org, TTL, not_found,
+          fun() -> libsnarl:org_get(Org) end),
     ?MSnarl(?P(State), Start),
     R.
 
@@ -120,7 +125,7 @@ permission_required(State) ->
 
 read(Req, State = #state{token = Token, path = [], full_list=FullList, full_list_fields=Filter}) ->
     Start = now(),
-    {ok, Permissions} = libsnarl:user_cache(Token),
+    {ok, Permissions} = wiggle_handler:get_persmissions(Token),
     ?MSnarl(?P(State), Start),
     Start1 = now(),
     {ok, Res} = libsnarl:org_list(

@@ -4,6 +4,8 @@
 -module(wiggle_iprange_handler).
 -include("wiggle.hrl").
 
+-define(CACHE, iprange).
+
 -export([allowed_methods/3,
          get/1,
          permission_required/1,
@@ -31,7 +33,10 @@ allowed_methods(_Version, _Token, [_Iprange]) ->
 
 get(State = #state{path = [Iprange | _]}) ->
     Start = now(),
-    R = libsniffle:iprange_get(Iprange),
+    TTL = application:get_env(wiggle, iprange_ttl, 10*1000*1000),
+    R = wiggle_handler:timeout_cache_with_invalid(
+          ?CACHE, Iprange, TTL, not_found,
+          fun() -> libsniffle:iprange_get(Iprange) end),
     ?MSniffle(?P(State), Start),
     R.
 
@@ -65,7 +70,7 @@ permission_required(_State) ->
 
 read(Req, State = #state{token = Token, path = [], full_list=FullList, full_list_fields=Filter}) ->
     Start = now(),
-    {ok, Permissions} = libsnarl:user_cache(Token),
+    {ok, Permissions} = wiggle_handler:get_persmissions(Token),
     ?MSnarl(?P(State), Start),
     Start1 = now(),
     {ok, Res} = libsniffle:iprange_list([{must, 'allowed', [<<"ipranges">>, {<<"res">>, <<"uuid">>}, <<"get">>], Permissions}], FullList),
@@ -124,6 +129,7 @@ write(Req, State = #state{method = <<"POST">>, path = []}, _) ->
 
 write(Req, State = #state{path = [Iprange, <<"metadata">> | Path]}, [{K, V}]) ->
     Start = now(),
+    e2qc:evict(?CACHE, Iprange),
     libsniffle:iprange_set(Iprange, [<<"metadata">> | Path] ++ [K], jsxd:from_list(V)),
     ?MSniffle(?P(State), Start),
     {true, Req, State};
@@ -137,12 +143,14 @@ write(Req, State, _Body) ->
 
 delete(Req, State = #state{path = [Iprange, <<"metadata">> | Path]}) ->
     Start = now(),
+    e2qc:evict(?CACHE, Iprange),
     libsniffle:iprange_set(Iprange, [<<"metadata">> | Path], delete),
     ?MSniffle(?P(State), Start),
     {true, Req, State};
 
 delete(Req, State = #state{path = [Iprange]}) ->
     Start = now(),
+    e2qc:evict(?CACHE, Iprange),
     ok = libsniffle:iprange_delete(Iprange),
     ?MSniffle(?P(State), Start),
     {true, Req, State}.

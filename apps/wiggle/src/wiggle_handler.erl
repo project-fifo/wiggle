@@ -12,7 +12,10 @@
          allowed/2,
          options/3,
          service_available/0,
-         encode/2
+         encode/2,
+         get_persmissions/1,
+         timeout_cache_with_invalid/5,
+         timeout_cache/4
         ]).
 
 initial_state(Req) ->
@@ -170,15 +173,12 @@ options(Req, State, Methods) ->
 
 allowed(State = #state{token = Token}, Perm) ->
     Start = now(),
-    R = case libsnarl:allowed(Token, Perm) of
+    R = case get_persmissions(Token) of
             not_found ->
                 lager:warning("[auth] unknown Token for allowed: ~p", [Token]),
                 true;
-            true ->
-                false;
-            false ->
-                lager:warning("[auth] ~p is not allowed for: ~p", [Perm, Token]),
-                true
+            {ok, Ps} ->
+                not libsnarl:test(Perm, Ps)
         end,
     ?MSnarl(?P(State), Start),
     R.
@@ -191,4 +191,41 @@ service_available() ->
             false;
         _ ->
             true
+    end.
+
+%% Cache user permissions for up to 1s.
+get_persmissions(Token) ->
+    TTL = application:get_env(wiggle, token_ttl, 1000*1000),
+    timeout_cache(permissions, Token, TTL,
+                  fun () -> libsnarl:user_cache(Token) end).
+
+timeout_cache(Cache, Value, Timeout, Fun) ->
+    {T0, R} = e2qc:cache(
+                Cache, Value,
+                fun() ->
+                        {now(), Fun()}
+                end),
+    GracePercentage =application:get_env(wiggle, cache_grace_period, 0.5),
+    GraceTimeout = Timeout + Timeout*GracePercentage,
+    case timer:now_diff(now(), T0) of
+        Diff when Diff < Timeout ->
+            R;
+        Diff when Diff < GraceTimeout ->
+            e2qc:evict(Cache, Value),
+            spawn(wiggle_handler, timeout_cache, [Cache, Value, Timeout, Fun]),
+            R;
+        _ ->
+            e2qc:evict(Cache, Value),
+            timeout_cache(Cache, Value, Timeout, Fun)
+    end.
+
+%% This function lets us define a timedout cache with a invalid value
+%% this is helpful since we don't want to cache not_found's.
+timeout_cache_with_invalid(Cache, Value, Timeout, Invalid, Fun) ->
+    case timeout_cache(Cache, Value, Timeout, Fun) of
+        R when R =:= Invalid ->
+            e2qc:evict(Cache, Value),
+            R;
+        R ->
+            R
     end.

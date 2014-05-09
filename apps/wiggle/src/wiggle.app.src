@@ -19,6 +19,7 @@
                   mnesia,
                   uuid,
                   eplugin,
+                  e2qc,
                   cowboy
                  ]},
   {mod, { wiggle_app, []}},
