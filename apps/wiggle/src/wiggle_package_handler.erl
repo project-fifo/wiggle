@@ -5,6 +5,7 @@
 -include("wiggle.hrl").
 
 -define(CACHE, package).
+-define(LIST_CACHE, package_list).
 
 -export([allowed_methods/3,
          get/1,
@@ -75,17 +76,25 @@ read(Req, State = #state{token = Token, path = [], full_list=FullList, full_list
     Start = now(),
     {ok, Permissions} = wiggle_handler:get_persmissions(Token),
     ?MSnarl(?P(State), Start),
+    TTL = application:get_env(wiggle, package_ttl, 60*1000*1000)*
+        application:get_env(wiggle, cache_list_percentage, 0.5),
     Start1 = now(),
-    {ok, Res} = libsniffle:package_list([{must, 'allowed', [<<"packages">>, {<<"res">>, <<"uuid">>}, <<"get">>], Permissions}], FullList),
+    Fun = fun() ->
+                  Perm = [{must, 'allowed', [<<"packages">>, {<<"res">>, <<"uuid">>}, <<"get">>], Permissions}],
+                  {ok, Res} = libsniffle:package_list(Perm, FullList),
+                  case {Filter, FullList} of
+                      {_, false} ->
+                          [ID || {_, ID} <- Res];
+                      {[], _} ->
+                          [ID || {_, ID} <- Res];
+                      _ ->
+                          [jsxd:select(Filter, ID) || {_, ID} <- Res]
+                  end
+          end,
+    Res1 = wiggle_handler:timeout_cache_with_invalid(
+             ?LIST_CACHE, {Token, FullList, Filter}, TTL, not_found, Fun),
+
     ?MSniffle(?P(State), Start1),
-    Res1 = case {Filter, FullList} of
-               {_, false} ->
-                   [ID || {_, ID} <- Res];
-               {[], _} ->
-                   [ID || {_, ID} <- Res];
-               _ ->
-                   [jsxd:select(Filter, ID) || {_, ID} <- Res]
-           end,
     {Res1, Req, State};
 
 read(Req, State = #state{path = [_Package], obj = Obj}) ->
@@ -135,5 +144,6 @@ delete(Req, State = #state{path = [Package, <<"metadata">> | Path]}) ->
 
 delete(Req, State = #state{path = [Package]}) ->
     e2qc:evict(?CACHE, Package),
+    e2qc:teardown(?LIST_CACHE),
     ok = libsniffle:package_delete(Package),
     {true, Req, State}.

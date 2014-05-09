@@ -12,6 +12,16 @@
 %% Wiggle will automatically invalidate the cache when a action is taken
 %% that means when someone changes a setting it should be directy reflectd.
 
+
+%% @doc The list will likely change more often then a single entry
+%% so we adjust the TTL by a percentage.
+%%
+%% A value of 50% would mean the half the TTL.
+%% List caching is never enabeld for vm's!
+{mapping, "ttl.list_percentage", "wiggle.cache_list_percentage",
+ [{default, 0.5},
+  {datatype, {percent, float}}]}.
+
 %% @doc Grace period for cache, within this period the original value will
 %% will returnd but teh value evicted and read again asyncronously.
 %%
