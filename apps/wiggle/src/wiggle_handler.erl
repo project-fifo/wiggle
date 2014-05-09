@@ -200,10 +200,10 @@ get_persmissions(Token) ->
                    fun () -> libsnarl:user_cache(Token) end).
 
 timeout_cache(Cache, Value, Timeout, Fun) ->
-    case application:get_env(wiggle, caching) of
-        on ->
+    case application:get_env(wiggle, caching, true) of
+        true ->
             timeout_cache_(Cache, Value, Timeout, Fun);
-        off ->
+        false ->
             Fun()
     end.
 
