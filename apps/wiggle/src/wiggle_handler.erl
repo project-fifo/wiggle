@@ -207,7 +207,7 @@ timeout_cache(Cache, Value, Timeout, Fun) ->
                 end),
     GracePercentage =application:get_env(wiggle, cache_grace_period, 0.5),
     GraceTimeout = Timeout + Timeout*GracePercentage,
-    case timer:now_diff(now(), T0) of
+    case timer:now_diff(now(), T0)/1000 of
         Diff when Diff < Timeout ->
             R;
         Diff when Diff < GraceTimeout ->
