@@ -17,7 +17,7 @@
 %%
 %% A value of 100% would mean the grace period is twice the timeout.
 {mapping, "ttl.grace_period", "wiggle.cache_grace_period",
- [{default, "50%"},
+ [{default, 0.5},
   {datatype, {percent, float}}]}.
 
 %% @doc The time how long permissions for a token are cached,
@@ -75,7 +75,7 @@
 
 %% @doc VMs can change rather frequently so we don't cache them by default
 {mapping, "ttl.vm", "wiggle.vm_ttl",
- [{default, "0s"},
+ [{default, "0.1s"},
   {datatype, {duration, ms}}]}.
 
 
