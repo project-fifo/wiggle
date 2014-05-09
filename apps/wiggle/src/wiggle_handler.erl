@@ -13,7 +13,8 @@
          options/3,
          service_available/0,
          encode/2,
-         get_persmissions/1
+         get_persmissions/1,
+         timeout_cache_with_invalid/5
         ]).
 
 initial_state(Req) ->
@@ -193,15 +194,30 @@ service_available() ->
 
 %% Cache user permissions for up to 1s.
 get_persmissions(Token) ->
+    timeout_cache(permissions, Token, 1,
+                  fun () -> libsnarl:user_cache(Token) end).
+
+timeout_cache(Cache, Value, Timeout, Fun) ->
     {T0, R} = e2qc:cache(
-                permissions, Token,
+                Cache, Value,
                 fun() ->
-                        {now(), libsnarl:user_cache(Token)}
+                        {now(), Fun()}
                 end),
     case timer:now_diff(now(), T0) of
-        Diff when Diff < 1000*1000 ->
+        Diff when Diff < 1000*1000*Timeout ->
             R;
         _ ->
-            e2qc:evict(permissions, Token),
-            get_persmissions(Token)
+            e2qc:evict(Cache, Value),
+            timeout_cache(Cache, Value, Timeout, Fun)
+    end.
+
+%% This function lets us define a timedout cache with a invalid value
+%% this is helpful since we don't want to cache not_found's.
+timeout_cache_with_invalid(Cache, Value, Timeout, Invalid, Fun) ->
+    case timeout_cache(Cache, Value, Timeout, Fun) of
+        R when R =:= Invalid ->
+            e2qc:evict(Cache, Value),
+            R;
+        R ->
+            R
     end.
