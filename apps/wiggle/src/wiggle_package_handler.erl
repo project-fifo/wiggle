@@ -91,8 +91,8 @@ read(Req, State = #state{token = Token, path = [], full_list=FullList, full_list
                           [jsxd:select(Filter, ID) || {_, ID} <- Res]
                   end
           end,
-    Res1 = wiggle_handler:timeout_cache_with_invalid(
-             ?LIST_CACHE, {Token, FullList, Filter}, TTL, not_found, Fun),
+    Res1 = wiggle_handler:timeout_cache(
+             ?LIST_CACHE, {Token, FullList, Filter}, TTL, Fun),
 
     ?MSniffle(?P(State), Start1),
     {Res1, Req, State};
@@ -113,6 +113,7 @@ create(Req, State = #state{path = [], version = Version}, Data) ->
     {ok, Package} = jsxd:get(<<"name">>, Data),
     case libsniffle:package_create(Package) of
         {ok, UUID} ->
+            e2qc:teardown(?LIST_CACHE),
             ok = libsniffle:package_set(UUID, Data1),
             {{true, <<"/api/", Version/binary, "/packages/", UUID/binary>>}, Req, State#state{body = Data1}};
         duplicate ->

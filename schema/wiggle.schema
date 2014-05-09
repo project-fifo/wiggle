@@ -17,7 +17,11 @@
 %% so we adjust the TTL by a percentage.
 %%
 %% A value of 50% would mean the half the TTL.
-%% List caching is never enabeld for vm's!
+%% List caching currently is only available for:
+%% * datasets
+%% * packages
+%% * networks
+%% * groupings
 {mapping, "ttl.list_percentage", "wiggle.cache_list_percentage",
  [{default, 0.5},
   {datatype, {percent, float}}]}.
@@ -86,6 +90,11 @@
 %% @doc VMs can change rather frequently so we don't cache them by default
 {mapping, "ttl.vm", "wiggle.vm_ttl",
  [{default, "0.1s"},
+  {datatype, {duration, ms}}]}.
+
+%% @doc Groupings change sometimes so we can't have a long TTL
+{mapping, "ttl.grouping", "wiggle.grouping_ttl",
+ [{default, "10s"},
   {datatype, {duration, ms}}]}.
 
 

@@ -5,6 +5,7 @@
 -include("wiggle.hrl").
 
 -define(CACHE, network).
+-define(LIST_CACHE, network_list).
 
 -export([allowed_methods/3,
          get/1,
@@ -85,19 +86,25 @@ read(Req, State = #state{token = Token, path = [], full_list=FullList, full_list
     Start = now(),
     {ok, Permissions} = wiggle_handler:get_persmissions(Token),
     ?MSnarl(?P(State), Start),
+    TTL = application:get_env(wiggle, package_ttl, 60*1000*1000)*
+        application:get_env(wiggle, cache_list_percentage, 0.5),
     Start1 = now(),
-    {ok, Res} =
-        libsniffle:network_list(
-          [{must, 'allowed', [<<"networks">>, {<<"res">>, <<"uuid">>}, <<"get">>], Permissions}], FullList),
+    Fun = fun() ->
+                  {ok, Res} =
+                      libsniffle:network_list(
+                        [{must, 'allowed', [<<"networks">>, {<<"res">>, <<"uuid">>}, <<"get">>], Permissions}], FullList),
+                  case {Filter, FullList} of
+                      {_, false} ->
+                          [ID || {_, ID} <- Res];
+                      {[], _} ->
+                          [ID || {_, ID} <- Res];
+                      _ ->
+                          [jsxd:select(Filter, ID) || {_, ID} <- Res]
+                  end
+          end,
+    Res1 = wiggle_handler:timeout_cache(
+             ?LIST_CACHE, {Token, FullList, Filter}, TTL, Fun),
     ?MSniffle(?P(State), Start1),
-    Res1 = case {Filter, FullList} of
-               {_, false} ->
-                   [ID || {_, ID} <- Res];
-               {[], _} ->
-                   [ID || {_, ID} <- Res];
-               _ ->
-                   [jsxd:select(Filter, ID) || {_, ID} <- Res]
-           end,
     {Res1, Req, State};
 
 read(Req, State = #state{path = [_Network], obj = Obj}) ->
@@ -113,6 +120,7 @@ create(Req, State = #state{path = [], version = Version}, Data) ->
     case libsniffle:network_create(Network) of
         {ok, UUID} ->
             ?MSniffle(?P(State), Start),
+            e2qc:teardown(?LIST_CACHE),
             {{true, <<"/api/", Version/binary, "/networks/", UUID/binary>>}, Req, State#state{body = Data}};
         duplicate ->
             ?MSniffle(?P(State), Start),
@@ -167,6 +175,7 @@ delete(Req, State = #state{path = [Network, <<"ipranges">>, IPRange]}) ->
 delete(Req, State = #state{path = [Network]}) ->
     Start = now(),
     e2qc:evict(?CACHE, Network),
+    e2qc:teardown(?LIST_CACHE),
     ok = libsniffle:network_delete(Network),
     ?MSniffle(?P(State), Start),
     {true, Req, State}.
