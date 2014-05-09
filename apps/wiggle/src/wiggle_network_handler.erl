@@ -4,6 +4,8 @@
 -module(wiggle_network_handler).
 -include("wiggle.hrl").
 
+-define(CACHE, network).
+
 -export([allowed_methods/3,
          get/1,
          permission_required/1,
@@ -34,7 +36,10 @@ allowed_methods(_Version, _Token, [_Network]) ->
 
 get(State = #state{path = [Network | _]}) ->
     Start = now(),
-    R = libsniffle:network_get(Network),
+    TTL = application:get_env(wiggle, network_ttl, 60*1000*1000),
+    R = wiggle_handler:timeout_cache_with_invalid(
+          ?CACHE, Network, TTL, not_found,
+          fun() -> libsniffle:network_get(Network) end),
     ?MSniffle(?P(State), Start),
     R.
 
@@ -115,10 +120,10 @@ create(Req, State = #state{path = [], version = Version}, Data) ->
             {halt, Req1, State}
     end.
 
-%% TODO : This is a icky case it is called after post.
 write(Req, State = #state{
                       path = [Network, <<"ipranges">>, IPrange]}, _Data) ->
     Start = now(),
+    e2qc:evict(?CACHE, Network),
     case libsniffle:network_add_iprange(Network, IPrange) of
         ok ->
             ?MSniffle(?P(State), Start),
@@ -133,6 +138,7 @@ write(Req, State = #state{method = <<"POST">>, path = []}, _) ->
 
 write(Req, State = #state{path = [Network, <<"metadata">> | Path]}, [{K, V}]) ->
     Start = now(),
+    e2qc:evict(?CACHE, Network),
     libsniffle:network_set(Network, Path ++ [K], jsxd:from_list(V)),
     ?MSniffle(?P(State), Start),
     {true, Req, State};
@@ -146,18 +152,21 @@ write(Req, State, _Body) ->
 
 delete(Req, State = #state{path = [Network, <<"metadata">> | Path]}) ->
     Start = now(),
+    e2qc:evict(?CACHE, Network),
     libsniffle:network_set(Network, Path, delete),
     ?MSniffle(?P(State), Start),
     {true, Req, State};
 
 delete(Req, State = #state{path = [Network, <<"ipranges">>, IPRange]}) ->
     Start = now(),
+    e2qc:evict(?CACHE, Network),
     libsniffle:network_remove_iprange(Network, IPRange),
     ?MSniffle(?P(State), Start),
     {true, Req, State};
 
 delete(Req, State = #state{path = [Network]}) ->
     Start = now(),
+    e2qc:evict(?CACHE, Network),
     ok = libsniffle:network_delete(Network),
     ?MSniffle(?P(State), Start),
     {true, Req, State}.

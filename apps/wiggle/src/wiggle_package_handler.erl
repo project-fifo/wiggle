@@ -33,8 +33,9 @@ allowed_methods(_Version, _Token, [_Package]) ->
 
 get(State = #state{path = [Package | _]}) ->
     Start = now(),
+    TTL = application:get_env(wiggle, package_ttl, 60*1000*1000),
     R = wiggle_handler:timeout_cache_with_invalid(
-          ?CACHE, Package, 60, not_found,
+          ?CACHE, Package, TTL, not_found,
           fun() -> libsniffle:package_get(Package) end),
     ?MSniffle(?P(State), Start),
     R;

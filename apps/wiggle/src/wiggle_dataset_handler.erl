@@ -49,8 +49,9 @@ allowed_methods(_Version, _Token, [_Dataset, <<"metadata">>|_]) ->
 
 get(State = #state{path = [Dataset | _]}) ->
     Start = now(),
+    TTL = application:get_env(wiggle, dataset_ttl, 60*1000*1000),
     R = wiggle_handler:timeout_cache_with_invalid(
-          ?CACHE, Dataset, 60, not_found,
+          ?CACHE, Dataset, TTL, not_found,
           fun() -> libsniffle:dataset_get(Dataset) end),
     ?MSniffle(?P(State), Start),
     R.

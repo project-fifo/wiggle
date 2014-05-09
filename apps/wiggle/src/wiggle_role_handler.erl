@@ -5,6 +5,8 @@
 -include_lib("eunit/include/eunit.hrl").
 -endif.
 
+-define(CACHE, role).
+
 -export([allowed_methods/3,
          get/1,
          permission_required/1,
@@ -52,7 +54,10 @@ get(State = #state{path = [Role, <<"permissions">> | Permission]}) ->
 
 get(State = #state{path = [Role | _]}) ->
     Start = now(),
-    R = libsnarl:role_get(Role),
+    TTL = application:get_env(wiggle, role_ttl, 60*1000*1000),
+    R = wiggle_handler:timeout_cache_with_invalid(
+          ?CACHE, Role, TTL, not_found,
+          fun() -> libsnarl:role_get(Role) end),
     ?MSnarl(?P(State), Start),
     R.
 
@@ -145,12 +150,14 @@ write(Req, State = #state{method = <<"POST">>, path = []}, _) ->
 
 write(Req, State = #state{path = [Role, <<"metadata">> | Path]}, [{K, V}]) when is_binary(Role) ->
     Start = now(),
+    e2qc:evict(?CACHE, Role),
     libsnarl:role_set(Role, Path ++ [K], jsxd:from_list(V)),
     ?MSnarl(?P(State), Start),
     {true, Req, State};
 
 write(Req, State = #state{path = [Role]}, _Body) ->
     Start = now(),
+    e2qc:evict(?CACHE, Role),
     ok = libsnarl:role_add(Role),
     ?MSnarl(?P(State), Start),
     {true, Req, State};
@@ -158,6 +165,7 @@ write(Req, State = #state{path = [Role]}, _Body) ->
 write(Req, State = #state{path = [Role, <<"permissions">> | Permission]}, _Body) ->
     P = erlangify_permission(Permission),
     Start = now(),
+    e2qc:evict(?CACHE, Role),
     ok = libsnarl:role_grant(Role, P),
     ?MSnarl(?P(State), Start),
     {true, Req, State}.
@@ -168,6 +176,7 @@ write(Req, State = #state{path = [Role, <<"permissions">> | Permission]}, _Body)
 
 delete(Req, State = #state{path = [Role, <<"metadata">> | Path]}) ->
     Start = now(),
+    e2qc:evict(?CACHE, Role),
     libsnarl:role_set(Role, Path, delete),
     ?MSnarl(?P(State), Start),
     {true, Req, State};
@@ -175,12 +184,14 @@ delete(Req, State = #state{path = [Role, <<"metadata">> | Path]}) ->
 delete(Req, State = #state{path = [Role, <<"permissions">> | Permission]}) ->
     P = erlangify_permission(Permission),
     Start = now(),
+    e2qc:evict(?CACHE, Role),
     ok = libsnarl:role_revoke(Role, P),
     ?MSnarl(?P(State), Start),
     {true, Req, State};
 
 delete(Req, State = #state{path = [Role]}) ->
     Start = now(),
+    e2qc:evict(?CACHE, Role),
     ok = libsnarl:role_delete(Role),
     ?MSnarl(?P(State), Start),
     {true, Req, State}.

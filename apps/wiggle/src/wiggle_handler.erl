@@ -14,7 +14,8 @@
          service_available/0,
          encode/2,
          get_persmissions/1,
-         timeout_cache_with_invalid/5
+         timeout_cache_with_invalid/5,
+         timeout_cache/4
         ]).
 
 initial_state(Req) ->
@@ -194,7 +195,8 @@ service_available() ->
 
 %% Cache user permissions for up to 1s.
 get_persmissions(Token) ->
-    timeout_cache(permissions, Token, 1,
+    TTL = application:get_env(wiggle, token_ttl, 1000*1000),
+    timeout_cache(permissions, Token, TTL,
                   fun () -> libsnarl:user_cache(Token) end).
 
 timeout_cache(Cache, Value, Timeout, Fun) ->
@@ -203,8 +205,14 @@ timeout_cache(Cache, Value, Timeout, Fun) ->
                 fun() ->
                         {now(), Fun()}
                 end),
+    GracePercentage =application:get_env(wiggle, cache_grace_period, 0.5),
+    GraceTimeout = Timeout + Timeout*GracePercentage,
     case timer:now_diff(now(), T0) of
-        Diff when Diff < 1000*1000*Timeout ->
+        Diff when Diff < Timeout ->
+            R;
+        Diff when Diff < GraceTimeout ->
+            e2qc:evict(Cache, Value),
+            spawn(wiggle_handler, timeout_cache, [Cache, Value, Timeout, Fun]),
             R;
         _ ->
             e2qc:evict(Cache, Value),

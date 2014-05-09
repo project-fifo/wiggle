@@ -1,6 +1,82 @@
 %% -*- erlang -*-
 
+%% @doc Wiggle allows caching of objects, please be aware
+%% that caching data will increase the chacne of stale data.
+%% However it can increase performance significantly. Different
+%% objects have different 'lifetimes' so different timeouts
+%% apply. Setting the timeout to 0 will disable caching.
+%%
+%% However stale data served by wiggle does NOT mean stale data
+%% within FiFo.
+%%
+%% Wiggle will automatically invalidate the cache when a action is taken
+%% that means when someone changes a setting it should be directy reflectd.
 
+%% @doc Grace period for cache, within this period the original value will
+%% will returnd but teh value evicted and read again asyncronously.
+%%
+%% A value of 100% would mean the grace period is twice the timeout.
+{mapping, "ttl.grace_period", "wiggle.cache_grace_period",
+ [{default, "50%"},
+  {datatype, {percent, float}}]}.
+
+%% @doc The time how long permissions for a token are cached,
+%% this seriously improves quick successive requests.
+{mapping, "ttl.token", "wiggle.token_ttl",
+ [{default, "1s"},
+  {datatype, {duration, ms}}]}.
+
+%% @doc Packages pretty much never change so a high TTL is possible.
+{mapping, "ttl.package", "wiggle.package_ttl",
+ [{default, "1m"},
+  {datatype, {duration, ms}}]}.
+
+%% @doc Datasets pretty much never change so a high TTL is possible.
+{mapping, "ttl.dataset", "wiggle.dataset_ttl",
+ [{default, "1m"},
+  {datatype, {duration, ms}}]}.
+
+%% @doc DTrace Scripts pretty much never change so a high TTL is possible.
+{mapping, "ttl.dtrace", "wiggle.dtrace_ttl",
+ [{default, "1m"},
+  {datatype, {duration, ms}}]}.
+
+%% @doc Chunter updates services every 10s by default setting the TTL
+%% to X means stale service state will be 10s+X (i.e. 20s)
+{mapping, "ttl.hypervisor", "wiggle.hypervisor_ttl",
+ [{default, "10s"},
+  {datatype, {duration, ms}}]}.
+
+%% @doc IPranges only change when a Ip was claimed some delay is accaptable here
+{mapping, "ttl.iprange", "wiggle.iprange_ttl",
+ [{default, "10s"},
+  {datatype, {duration, ms}}]}.
+
+%% @doc Networks barely ever change
+{mapping, "ttl.network", "wiggle.networks_ttl",
+ [{default, "1m"},
+  {datatype, {duration, ms}}]}.
+
+%% @doc Orgs barely ever change too
+
+{mapping, "ttl.org", "wiggle.org_ttl",
+ [{default, "1m"},
+  {datatype, {duration, ms}}]}.
+
+%% @doc Roles barely ever change too
+{mapping, "ttl.role", "wiggle.role_ttl",
+ [{default, "1m"},
+  {datatype, {duration, ms}}]}.
+
+%% @doc Users barely change either
+{mapping, "ttl.user", "wiggle.user_ttl",
+ [{default, "1m"},
+  {datatype, {duration, ms}}]}.
+
+%% @doc VMs can change rather frequently so we don't cache them by default
+{mapping, "ttl.vm", "wiggle.vm_ttl",
+ [{default, "0s"},
+  {datatype, {duration, ms}}]}.
 
 
 %% @doc Enable or disable compression

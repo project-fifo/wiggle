@@ -8,6 +8,8 @@
 -include_lib("eunit/include/eunit.hrl").
 -endif.
 
+-define(CACHE, user).
+
 -export([allowed_methods/3,
          get/1,
          permission_required/1,
@@ -110,7 +112,10 @@ get(State = #state{method = <<"PUT">>, path = [User, <<"roles">>, Role]}) ->
 
 get(State = #state{path = [User | _]}) ->
     Start = now(),
-    R = libsnarl:user_get(User),
+    TTL = application:get_env(wiggle, user_ttl, 60*1000*1000),
+    R = wiggle_handler:timeout_cache_with_invalid(
+          ?CACHE, User, TTL, not_found,
+          fun() -> libsnarl:user_get(User) end),
     ?MSnarl(?P(State), Start),
     R.
 
@@ -272,6 +277,7 @@ create(Req, State = #state{token = Token, path = [], version = Version}, Decoded
 
 write(Req, State = #state{path =  [User]}, [{<<"password">>, Password}]) ->
     Start = now(),
+    e2qc:evict(?CACHE, User),
     ok = libsnarl:user_passwd(User, Password),
     ?MSnarl(?P(State), Start),
     {true, Req, State};
@@ -282,6 +288,7 @@ write(Req, State = #state{method = <<"POST">>, path = []}, _) ->
 
 write(Req, State = #state{path = [User, <<"metadata">> | Path]}, [{K, V}]) ->
     Start = now(),
+    e2qc:evict(?CACHE, User),
     libsnarl:user_set(User, Path ++ [K], jsxd:from_list(V)),
     ?MSnarl(?P(State), Start),
     {true, Req, State};
@@ -292,6 +299,7 @@ write(Req, State = #state{path = [User, <<"keys">>]}, [{KeyID, Key}]) ->
             try
                 base64:decode(ID),
                 Start = now(),
+                e2qc:evict(?CACHE, User),
                 libsnarl:user_key_add(User, KeyID, Key),
                 ?MSnarl(?P(State), Start),
                 {true, Req, State}
@@ -306,6 +314,7 @@ write(Req, State = #state{path = [User, <<"keys">>]}, [{KeyID, Key}]) ->
 write(Req, State = #state{path = [User, <<"yubikeys">>]},
       [{<<"otp">>, <<_:33/binary, _/binary >>= OTP}]) ->
     Start = now(),
+    e2qc:evict(?CACHE, User),
     libsnarl:user_yubikey_add(User, OTP),
     ?MSnarl(?P(State), Start),
     {true, Req, State};
@@ -315,18 +324,21 @@ write(Req, State = #state{path = [_, <<"yubikeys">>]}, _) ->
 
 write(Req, State = #state{path = [User, <<"roles">>, Role]}, _) ->
     Start = now(),
+    e2qc:evict(?CACHE, User),
     ok = libsnarl:user_join(User, Role),
     ?MSnarl(?P(State), Start),
     {true, Req, State};
 
 write(Req, State = #state{path = [User, <<"orgs">>, Org]}, []) ->
     Start = now(),
+    e2qc:evict(?CACHE, User),
     ok = libsnarl:user_join_org(User, Org),
     ?MSnarl(?P(State), Start),
     {true, Req, State};
 
 write(Req, State = #state{path = [User, <<"orgs">>, Org]}, [{}]) ->
     Start = now(),
+    e2qc:evict(?CACHE, User),
     ok = libsnarl:user_join_org(User, Org),
     ?MSnarl(?P(State), Start),
     {true, Req, State};
@@ -334,6 +346,7 @@ write(Req, State = #state{path = [User, <<"orgs">>, Org]}, [{}]) ->
 write(Req, State = #state{path = [User, <<"orgs">>, Org]},
       [{<<"active">>, true}]) ->
     Start = now(),
+    e2qc:evict(?CACHE, User),
     ok = libsnarl:user_join_org(User, Org),
     ok = libsnarl:user_select_org(User, Org),
     ?MSnarl(?P(State), Start),
@@ -342,6 +355,7 @@ write(Req, State = #state{path = [User, <<"orgs">>, Org]},
 write(Req, State = #state{path = [User, <<"permissions">> | Permission]}, _) ->
     P = erlangify_permission(Permission),
     Start = now(),
+    e2qc:evict(?CACHE, User),
     ok = libsnarl:user_grant(User, P),
     ?MSnarl(?P(State), Start),
     {true, Req, State}.
@@ -353,18 +367,21 @@ write(Req, State = #state{path = [User, <<"permissions">> | Permission]}, _) ->
 
 delete(Req, State = #state{path = [User, <<"metadata">> | Path]}) ->
     Start = now(),
+    e2qc:evict(?CACHE, User),
     libsnarl:user_set(User, Path, delete),
     ?MSnarl(?P(State), Start),
     {true, Req, State};
 
 delete(Req, State = #state{path = [User, <<"keys">>, KeyID]}) ->
     Start = now(),
+    e2qc:evict(?CACHE, User),
     libsnarl:user_key_revoke(User, KeyID),
     ?MSnarl(?P(State), Start),
     {true, Req, State};
 
 delete(Req, State = #state{path = [User, <<"yubikeys">>, KeyID]}) ->
     Start = now(),
+    e2qc:evict(?CACHE, User),
     libsnarl:user_yubikey_remove(User, KeyID),
     ?MSnarl(?P(State), Start),
     {true, Req, State};
@@ -376,24 +393,28 @@ delete(Req, State = #state{path = [_User, <<"sessions">>]}) ->
 delete(Req, State = #state{path = [User, <<"permissions">> | Permission]}) ->
     P = erlangify_permission(Permission),
     Start = now(),
+    e2qc:evict(?CACHE, User),
     ok = libsnarl:user_revoke(User, P),
     ?MSnarl(?P(State), Start),
     {true, Req, State};
 
 delete(Req, State = #state{path = [User]}) ->
     Start = now(),
+    e2qc:evict(?CACHE, User),
     ok = libsnarl:user_delete(User),
     ?MSnarl(?P(State), Start),
     {true, Req, State};
 
 delete(Req, State = #state{path = [User, <<"orgs">>, Org]}) ->
     Start = now(),
+    e2qc:evict(?CACHE, User),
     ok = libsnarl:user_leave_org(User, Org),
     ?MSnarl(?P(State), Start),
     {true, Req, State};
 
 delete(Req, State = #state{path = [User, <<"roles">>, Role]}) ->
     Start = now(),
+    e2qc:evict(?CACHE, User),
     ok = libsnarl:user_leave(User, Role),
     ?MSnarl(?P(State), Start),
     {true, Req, State}.

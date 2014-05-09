@@ -1,6 +1,8 @@
 -module(wiggle_hypervisor_handler).
 -include("wiggle.hrl").
 
+-define(CACHE, hypervisor).
+
 -export([allowed_methods/3,
          permission_required/1,
          get/1,
@@ -35,7 +37,10 @@ allowed_methods(_Version, _Token, [_Hypervisor, <<"services">>]) ->
 
 get(State = #state{path = [Hypervisor | _]}) ->
     Start = now(),
-    R = libsniffle:hypervisor_get(Hypervisor),
+    TTL = application:get_env(wiggle, hypervisor_ttl, 10*1000*1000),
+    R = wiggle_handler:timeout_cache_with_invalid(
+          ?CACHE, Hypervisor, TTL, not_found,
+          fun() -> libsniffle:hypervisor_get(Hypervisor) end),
     ?MSniffle(?P(State), Start),
     R.
 
@@ -111,18 +116,21 @@ read(Req, State = #state{path = [_Hypervisor], obj = Obj}) ->
 write(Req, State = #state{path = [Hypervisor, <<"config">>]},
       [{<<"alias">>, V}]) when is_binary(V)->
     Start = now(),
+    e2qc:evict(?CACHE, Hypervisor),
     libsniffle:hypervisor_set(Hypervisor, [<<"alias">>], V),
     ?MSniffle(?P(State), Start),
     {true, Req, State};
 
 write(Req, State = #state{path = [Hypervisor, <<"characteristics">> | Path]}, [{K, V}]) ->
     Start = now(),
+    e2qc:evict(?CACHE, Hypervisor),
     libsniffle:hypervisor_set(Hypervisor, [<<"characteristics">> | Path] ++ [K], jsxd:from_list(V)),
     ?MSniffle(?P(State), Start),
     {true, Req, State};
 
 write(Req, State = #state{path = [Hypervisor, <<"metadata">> | Path]}, [{K, V}]) ->
     Start = now(),
+    e2qc:evict(?CACHE, Hypervisor),
     libsniffle:hypervisor_set(Hypervisor, [<<"metadata">> | Path] ++ [K], jsxd:from_list(V)),
     ?MSniffle(?P(State), Start),
     {true, Req, State};
@@ -130,18 +138,21 @@ write(Req, State = #state{path = [Hypervisor, <<"metadata">> | Path]}, [{K, V}])
 write(Req, State = #state{path = [Hypervisor, <<"services">>]},
       [{<<"action">>, <<"enable">>},
        {<<"service">>, Service}]) ->
+    e2qc:evict(?CACHE, Hypervisor),
     libsniffle:hypervisor_service_action(Hypervisor, enable, Service),
     {true, Req, State};
 
 write(Req, State = #state{path = [Hypervisor, <<"services">>]},
       [{<<"action">>, <<"disable">>},
        {<<"service">>, Service}]) ->
+    e2qc:evict(?CACHE, Hypervisor),
     libsniffle:hypervisor_service_action(Hypervisor, disable, Service),
     {true, Req, State};
 
 write(Req, State = #state{path = [Hypervisor, <<"services">>]},
       [{<<"action">>, <<"clear">>},
        {<<"service">>, Service}]) ->
+    e2qc:evict(?CACHE, Hypervisor),
     libsniffle:hypervisor_service_action(Hypervisor, clear, Service),
     {true, Req, State};
 
@@ -155,12 +166,14 @@ write(Req, State, _Body) ->
 
 delete(Req, State = #state{path = [Hypervisor, <<"characteristics">> | Path]}) ->
     Start = now(),
+    e2qc:evict(?CACHE, Hypervisor),
     libsniffle:hypervisor_set(Hypervisor, [<<"characteristics">> | Path], delete),
     ?MSniffle(?P(State), Start),
     {true, Req, State};
 
 delete(Req, State = #state{path = [Hypervisor, <<"metadata">> | Path]}) ->
     Start = now(),
+    e2qc:evict(?CACHE, Hypervisor),
     libsniffle:hypervisor_set(Hypervisor, [<<"metadata">> | Path], delete),
     ?MSniffle(?P(State), Start),
     {true, Req, State}.
