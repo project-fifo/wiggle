@@ -62,7 +62,7 @@ permission_required(_State) ->
 
 read(Req, State = #state{token = Token, path = [], full_list=FullList, full_list_fields=Filter}) ->
     Start = now(),
-    {ok, Permissions} = libsnarl:user_cache(Token),
+    {ok, Permissions} = wiggle_handler:get_persmissions(Token),
     ?MSnarl(?P(State), Start),
     Start1 = now(),
     {ok, Res} = libsniffle:dtrace_list([{must, 'allowed', [<<"dtraces">>, {<<"res">>, <<"uuid">>}, <<"get">>], Permissions}], FullList),
