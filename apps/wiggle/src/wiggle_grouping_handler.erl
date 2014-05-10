@@ -131,9 +131,8 @@ create(Req, State = #state{path = [], version = Version, token=Token},
         {ok, UUID} ->
             e2qc:teardown(?LIST_CACHE),
             {ok, User} = libsnarl:user_get(Token),
-            {ok, UserUUID} = jsxd:get(<<"uuid">>, User),
-            case libsnarl:user_active_org(UserUUID) of
-                {ok, Org} ->
+            case jsxd:get(<<"org">>, User) of
+                {ok, <<Org:36/binary>>} ->
                     libsnarl:org_execute_trigger(Org, grouping_create, UUID);
                 _ ->
                     ok
