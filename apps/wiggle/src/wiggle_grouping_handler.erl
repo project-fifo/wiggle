@@ -75,6 +75,14 @@ permission_required(#state{method = <<"DELETE">>,
     {ok, [<<"groupings">>, Grouping, <<"edit">>]};
 
 permission_required(#state{method = <<"PUT">>,
+                           path = [Grouping, <<"groupings">>,  _]}) ->
+    {ok, [<<"groupings">>, Grouping, <<"edit">>]};
+
+permission_required(#state{method = <<"DELETE">>,
+                           path = [Grouping, <<"groupings">>, _]}) ->
+    {ok, [<<"groupings">>, Grouping, <<"edit">>]};
+
+permission_required(#state{method = <<"PUT">>,
                            path = [Grouping, <<"metadata">> | _]}) ->
     {ok, [<<"groupings">>, Grouping, <<"edit">>]};
 
