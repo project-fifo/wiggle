@@ -130,7 +130,9 @@ create(Req, State = #state{path = [], version = Version, token=Token},
     case libsniffle:grouping_add(Name, Type) of
         {ok, UUID} ->
             e2qc:teardown(?LIST_CACHE),
-            case libsnarl:user_active_org(Token) of
+            {ok, User} = libsnarl:user_get(Token),
+            {ok, UserUUID} = jsxd:get(<<"uuid">>, User),
+            case libsnarl:user_active_org(UserUUID) of
                 {ok, Org} ->
                     libsnarl:org_execute_trigger(Org, grouping_create, UUID);
                 _ ->
