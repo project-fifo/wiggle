@@ -332,43 +332,6 @@
  end
 }.
 
-
-%% @doc Users barely change either
-{mapping, "ttl.element.user.l1", "wiggle.user_ttl",
- [{default, "1m"},
-  {datatype, {duration, ms}}]}.
-
-{mapping, "ttl.element.user.l2", "wiggle.user_ttl",
- [{default, "10m"},
-  {datatype, {duration, ms}}]}.
-
-{translation,
- "wiggle.user_ttl",
- fun(Conf) ->
-         L1 = cuttlefish:conf_get("ttl.element.user.l1", Conf),
-         L2 = cuttlefish:conf_get("ttl.element.user.l2", Conf),
-         {L1, L2}
- end
-}.
-
-{mapping, "ttl.list.role.l1", "wiggle.role_list_ttl",
- [{default, "10s"},
-  {datatype, {duration, ms}}]}.
-
-{mapping, "ttl.list.role.l2", "wiggle.role_list_ttl",
- [{default, "1m"},
-  {datatype, {duration, ms}}]}.
-
-{translation,
- "wiggle.role_list_ttl",
- fun(Conf) ->
-         L1 = cuttlefish:conf_get("ttl.list.role.l1", Conf),
-         L2 = cuttlefish:conf_get("ttl.list.role.l2", Conf),
-         {L1, L2}
- end
-}.
-
-
 %% @doc Users barely change either
 {mapping, "ttl.element.user.l1", "wiggle.user_ttl",
  [{default, "1m"},
