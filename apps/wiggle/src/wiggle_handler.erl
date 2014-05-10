@@ -16,7 +16,7 @@
          get_persmissions/1,
          timeout_cache_with_invalid/6,
          timeout_cache/5,
-         list_fn/4
+         list/8
         ]).
 
 initial_state(Req) ->
@@ -234,6 +234,20 @@ timeout_cache_with_invalid(Cache, Value, TTL1, TTL2, Invalid, Fun) ->
             R;
         R ->
             R
+    end.
+
+list(ListFn, Token, Permission, FullList, Filter, TTLEntry, FullCache, ListCache) ->
+    Fun = list_fn(ListFn, Permission, FullList, Filter),
+    case application:get_env(wiggle, TTLEntry) of
+        {ok, {TTL1, TTL2}} ->
+            case FullList of
+                true ->
+                    timeout_cache(FullCache, {Token, Filter}, TTL1, TTL2, Fun);
+                _ ->
+                    timeout_cache(ListCache, Token, TTL1, TTL2, Fun)
+            end;
+        _ ->
+            Fun()
     end.
 
 list_fn(ListFn, Permission, FullList, Filter) ->

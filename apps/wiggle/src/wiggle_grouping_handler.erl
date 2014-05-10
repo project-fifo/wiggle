@@ -6,6 +6,7 @@
 
 -define(CACHE, grouping).
 -define(LIST_CACHE, grouping_list).
+-define(FULL_CACHE, grouping_full_list).
 
 -export([allowed_methods/3,
          get/1,
@@ -105,17 +106,11 @@ read(Req, State = #state{token = Token, path = [], full_list=FullList, full_list
     Permission = [{must, 'allowed',
                    [<<"groupings">>, {<<"res">>, <<"uuid">>}, <<"get">>],
                    Permissions}],
-    Fun = wiggle_handler:list_fn(fun libsniffle:grouping_list/2, Permission,
-                                  FullList, Filter),
-    Res1 = case application:get_env(wiggle, grouping_list_ttl) of
-               {ok, {TTL1, TTL2}} ->
-                   wiggle_handler:timeout_cache(
-                     ?LIST_CACHE, {Token, FullList, Filter}, TTL1, TTL2, Fun);
-               _ ->
-                   Fun()
-           end,
+    Res = wiggle_handler:list(fun libsniffle:grouping_list/2, Token, Permission,
+                              FullList, Filter, grouping_list_ttl, ?FULL_CACHE,
+                              ?LIST_CACHE),
     ?MSniffle(?P(State), Start1),
-    {Res1, Req, State};
+    {Res, Req, State};
 
 read(Req, State = #state{path = [_Grouping], obj = Obj}) ->
     {Obj, Req, State}.
@@ -138,6 +133,7 @@ create(Req, State = #state{path = [], version = Version, token=Token},
     case libsniffle:grouping_add(Name, Type) of
         {ok, UUID} ->
             e2qc:teardown(?LIST_CACHE),
+            e2qc:teardown(?FULL_CACHE),
             {ok, User} = libsnarl:user_get(Token),
             case jsxd:get(<<"org">>, User) of
                 {ok, <<Org:36/binary>>} ->
@@ -159,7 +155,7 @@ write(Req, State = #state{
     case libsniffle:grouping_add_element(Grouping, IPrange) of
         ok ->
             e2qc:evict(?CACHE, Grouping),
-            e2qc:teardown(?LIST_CACHE),
+            e2qc:teardown(?FULL_CACHE),
             ?MSniffle(?P(State), Start),
             {true, Req, State};
         _ ->
@@ -173,7 +169,7 @@ write(Req, State = #state{
     case libsniffle:grouping_add_grouping(Grouping, IPrange) of
         ok ->
             e2qc:evict(?CACHE, Grouping),
-            e2qc:teardown(?LIST_CACHE),
+            e2qc:teardown(?FULL_CACHE),
             ?MSniffle(?P(State), Start),
             {true, Req, State};
         _ ->
@@ -186,9 +182,9 @@ write(Req, State = #state{method = <<"POST">>, path = []}, _) ->
 
 write(Req, State = #state{path = [Grouping, <<"metadata">> | Path]}, [{K, V}]) ->
     Start = now(),
+    ok = libsniffle:grouping_metadata_set(Grouping, Path ++ [K], jsxd:from_list(V)),
     e2qc:evict(?CACHE, Grouping),
-    e2qc:teardown(?LIST_CACHE),
-    libsniffle:grouping_metadata_set(Grouping, Path ++ [K], jsxd:from_list(V)),
+    e2qc:teardown(?FULL_CACHE),
     ?MSniffle(?P(State), Start),
     {true, Req, State};
 
@@ -201,32 +197,33 @@ write(Req, State, _Body) ->
 
 delete(Req, State = #state{path = [Grouping, <<"metadata">> | Path]}) ->
     Start = now(),
+    ok = libsniffle:grouping_metadata_set(Grouping, Path, delete),
     e2qc:evict(?CACHE, Grouping),
-    e2qc:teardown(?LIST_CACHE),
-    libsniffle:grouping_metadata_set(Grouping, Path, delete),
+    e2qc:teardown(?FULL_CACHE),
     ?MSniffle(?P(State), Start),
     {true, Req, State};
 
 delete(Req, State = #state{path = [Grouping, <<"elements">>, Element]}) ->
     Start = now(),
+    ok = libsniffle:grouping_remove_element(Grouping, Element),
     e2qc:evict(?CACHE, Grouping),
-    e2qc:teardown(?LIST_CACHE),
-    libsniffle:grouping_remove_element(Grouping, Element),
+    e2qc:teardown(?FULL_CACHE),
     ?MSniffle(?P(State), Start),
     {true, Req, State};
 
 delete(Req, State = #state{path = [Grouping, <<"groupings">>, Element]}) ->
     Start = now(),
+    ok = libsniffle:grouping_remove_grouping(Grouping, Element),
     e2qc:evict(?CACHE, Grouping),
-    e2qc:teardown(?LIST_CACHE),
-    libsniffle:grouping_remove_grouping(Grouping, Element),
+    e2qc:teardown(?FULL_CACHE),
     ?MSniffle(?P(State), Start),
     {true, Req, State};
 
 delete(Req, State = #state{path = [Grouping]}) ->
     Start = now(),
+    ok = libsniffle:grouping_delete(Grouping),
     e2qc:evict(?CACHE, Grouping),
     e2qc:teardown(?LIST_CACHE),
-    ok = libsniffle:grouping_delete(Grouping),
+    e2qc:teardown(?FULL_CACHE),
     ?MSniffle(?P(State), Start),
     {true, Req, State}.

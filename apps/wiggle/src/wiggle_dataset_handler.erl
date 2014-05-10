@@ -6,6 +6,7 @@
 -include("wiggle.hrl").
 -define(CACHE, dataset).
 -define(LIST_CACHE, dataset_list).
+-define(FULL_CACHE, dataset_full_list).
 
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
@@ -124,17 +125,12 @@ read(Req, State = #state{token = Token, path = [], full_list=FullList, full_list
     Permission = [{must, 'allowed',
                    [<<"datasets">>, {<<"res">>, <<"dataset">>}, <<"get">>],
                    Permissions}],
-    Fun = wiggle_handler:list_fn(fun libsniffle:dataset_list/2, Permission,
-                                 FullList, Filter),
-    Res1 = case application:get_env(wiggle, dataset_list_ttl) of
-               {ok, {TTL1, TTL2}} ->
-                   wiggle_handler:timeout_cache(
-                     ?LIST_CACHE, {Token, FullList, Filter}, TTL1, TTL2, Fun);
-               _ ->
-                   Fun()
-           end,
+    Res = wiggle_handler:list(fun libsniffle:dataset_list/2, Token, Permission,
+                              FullList, Filter, dataset_list_ttl, ?FULL_CACHE,
+                              ?LIST_CACHE),
+
     ?MSniffle(?P(State), Start1),
-    {Res1, Req, State};
+    {Res, Req, State};
 
 read(Req, State = #state{path = [_Dataset], obj = Obj}) ->
     {Obj, Req, State};
@@ -163,6 +159,7 @@ create(Req, State = #state{path = [UUID], version = Version}, Decoded) ->
             {false, Req, State};
         _ ->
             e2qc:teardown(?LIST_CACHE),
+            e2qc:teardown(?FULL_CACHE),
             D1 = transform_dataset(Decoded),
             libsniffle:dataset_set(UUID, [{<<"imported">>, 0},
                                           {<<"status">>, <<"pending">>}| D1]),
@@ -172,6 +169,7 @@ create(Req, State = #state{path = [UUID], version = Version}, Decoded) ->
 
 create(Req, State = #state{path = [], version = Version}, Decoded) ->
     e2qc:teardown(?LIST_CACHE),
+    e2qc:teardown(?FULL_CACHE),
     case jsxd:from_list(Decoded) of
         [{<<"url">>, URL}] ->
             Start = now(),
@@ -200,17 +198,17 @@ write(Req, State = #state{path = [UUID, <<"dataset.gz">>]}, _) ->
 
 write(Req, State = #state{path = [Dataset, <<"metadata">> | Path]}, [{K, V}]) ->
     Start = now(),
+    ok = libsniffle:dataset_set(Dataset, [<<"metadata">> | Path] ++ [K], jsxd:from_list(V)),
     e2qc:evict(?CACHE, Dataset),
-    e2qc:teardown(?LIST_CACHE),
-    libsniffle:dataset_set(Dataset, [<<"metadata">> | Path] ++ [K], jsxd:from_list(V)),
+    e2qc:teardown(?FULL_CACHE),
     ?MSniffle(?P(State), Start),
     {true, Req, State};
 
 write(Req, State = #state{path = [Dataset]}, [{K, V}]) ->
     Start = now(),
+    ok = libsniffle:dataset_set(Dataset, [K], jsxd:from_list(V)),
     e2qc:evict(?CACHE, Dataset),
-    e2qc:teardown(?LIST_CACHE),
-    libsniffle:dataset_set(Dataset, [K], jsxd:from_list(V)),
+    e2qc:teardown(?FULL_CACHE),
     ?MSniffle(?P(State), Start),
     {true, Req, State};
 
@@ -226,8 +224,9 @@ write(Req, State, _Body) ->
 
 delete(Req, State = #state{path = [Dataset, <<"metadata">> | Path]}) ->
     Start = now(),
+    ok = libsniffle:dataset_set(Dataset, [<<"metadata">> | Path], delete),
     e2qc:evict(?CACHE, Dataset),
-    libsniffle:dataset_set(Dataset, [<<"metadata">> | Path], delete),
+    e2qc:teardown(?FULL_CACHE),
     ?MSniffle(?P(State), Start),
     {true, Req, State};
 
@@ -240,9 +239,10 @@ delete(Req, State = #state{path = [Dataset]}) ->
                     ?MSniffle(?P(State), Start),
                     {409, Req, State};
                 _ ->
+                    ok = libsniffle:dataset_delete(Dataset),
                     e2qc:evict(?CACHE, Dataset),
                     e2qc:teardown(?LIST_CACHE),
-                    ok = libsniffle:dataset_delete(Dataset),
+                    e2qc:teardown(?FULL_CACHE),
                     ?MSniffle(?P(State), Start),
                     {true, Req, State}
             end;
@@ -282,8 +282,6 @@ transform_dataset(D1) ->
     end.
 
 import_dataset(UUID, Idx, TotalSize, Req, WReq) ->
-    e2qc:evict(?CACHE, UUID),
-    e2qc:teardown(?LIST_CACHE),
     case cowboy_req:stream_body(1024*1024, Req) of
         {ok, Data, Req1} ->
             case do_write(UUID, Idx, Data, WReq, 0) of
@@ -291,6 +289,8 @@ import_dataset(UUID, Idx, TotalSize, Req, WReq) ->
                     Idx1 = Idx + 1,
                     Done = (Idx1 * 1024*1024) / TotalSize,
                     libsniffle:dataset_set(UUID, <<"imported">>, Done),
+                    e2qc:evict(?CACHE, UUID),
+                    e2qc:teardown(?FULL_CACHE),
                     libhowl:send(UUID,
                                  [{<<"event">>, <<"progress">>},
                                   {<<"data">>, [{<<"imported">>, Done}]}]),
