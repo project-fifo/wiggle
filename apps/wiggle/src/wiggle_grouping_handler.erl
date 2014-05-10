@@ -219,7 +219,7 @@ delete(Req, State = #state{path = [Grouping, <<"groupings">>, Element]}) ->
     Start = now(),
     e2qc:evict(?CACHE, Grouping),
     e2qc:teardown(?LIST_CACHE),
-    libsniffle:grouping_remove_element(Grouping, Element),
+    libsniffle:grouping_remove_grouping(Grouping, Element),
     ?MSniffle(?P(State), Start),
     {true, Req, State};
 
