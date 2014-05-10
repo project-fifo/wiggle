@@ -73,5 +73,5 @@ print_endpoint([{{Hostname, [{port,Port},{ip,IP}]}, _, Fails}]) ->
 
 print_cache(Cache) ->
     [{hits,H},{misses,M},{q1size,Q1},{q2size,Q2}] = e2qc:stats(Cache),
-    io:format("~20p ~-19b ~-19b ~-19b ~-19b~n", [Cache, H, M, Q1, Q2]).
+    io:format("~20s ~-19b ~-19b ~-19b ~-19b~n", [Cache, H, M, Q1, Q2]).
 
