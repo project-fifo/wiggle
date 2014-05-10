@@ -7,6 +7,7 @@
 
 -define(CACHE, role).
 -define(LIST_CACHE, role_list).
+-define(FULL_CACHE, role_full_list).
 
 -export([allowed_methods/3,
          get/1,
@@ -116,17 +117,11 @@ read(Req, State = #state{token = Token, path = [], full_list=FullList, full_list
     Permission = [{must, 'allowed',
                    [<<"roles">>, {<<"res">>, <<"uuid">>}, <<"get">>],
                    Permissions}],
-    Fun = wiggle_handler:list_fn(fun libsnarl:role_list/2, Permission,
-                                 FullList, Filter),
-    Res1 = case application:get_env(wiggle, role_list_ttl) of
-               {ok, {TTL1, TTL2}} ->
-                   wiggle_handler:timeout_cache(
-                     ?LIST_CACHE, {Token, FullList, Filter}, TTL1, TTL2, Fun);
-               _ ->
-                   Fun()
-           end,
+    Res = wiggle_handler:list(fun libsnarl:role_list/2, Token, Permission,
+                              FullList, Filter, role_list_ttl, ?FULL_CACHE,
+                              ?LIST_CACHE),
     ?MSniffle(?P(State), Start1),
-    {Res1, Req, State};
+    {Res, Req, State};
 
 read(Req, State = #state{path = [_Role], obj = RoleObj}) ->
     RoleObj1 = jsxd:update(<<"permissions">>,

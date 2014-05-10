@@ -6,6 +6,7 @@
 
 -define(CACHE, network).
 -define(LIST_CACHE, network_list).
+-define(FULL_CACHE, network_full_list).
 
 -export([allowed_methods/3,
          get/1,
@@ -94,17 +95,11 @@ read(Req, State = #state{token = Token, path = [], full_list=FullList, full_list
     Permission = [{must, 'allowed',
                    [<<"networks">>, {<<"res">>, <<"uuid">>}, <<"get">>],
                    Permissions}],
-    Fun = wiggle_handler:list_fn(fun libsniffle:network_list/2, Permission,
-                                 FullList, Filter),
-    Res1 = case application:get_env(wiggle, network_list_ttl) of
-               {ok, {TTL1, TTL2}} ->
-                   wiggle_handler:timeout_cache(
-                     ?LIST_CACHE, {Token, FullList, Filter}, TTL1, TTL2, Fun);
-               _ ->
-                   Fun()
-           end,
+    Res = wiggle_handler:list(fun libsniffle:network_list/2, Token, Permission,
+                              FullList, Filter, network_list_ttl, ?FULL_CACHE,
+                              ?LIST_CACHE),
     ?MSniffle(?P(State), Start1),
-    {Res1, Req, State};
+    {Res, Req, State};
 
 read(Req, State = #state{path = [_Network], obj = Obj}) ->
     {Obj, Req, State}.
@@ -120,6 +115,7 @@ create(Req, State = #state{path = [], version = Version}, Data) ->
         {ok, UUID} ->
             ?MSniffle(?P(State), Start),
             e2qc:teardown(?LIST_CACHE),
+            e2qc:teardown(?FULL_CACHE),
             {{true, <<"/api/", Version/binary, "/networks/", UUID/binary>>}, Req, State#state{body = Data}};
         duplicate ->
             ?MSniffle(?P(State), Start),
@@ -130,10 +126,11 @@ create(Req, State = #state{path = [], version = Version}, Data) ->
 write(Req, State = #state{
                       path = [Network, <<"ipranges">>, IPrange]}, _Data) ->
     Start = now(),
-    e2qc:evict(?CACHE, Network),
     case libsniffle:network_add_iprange(Network, IPrange) of
         ok ->
             ?MSniffle(?P(State), Start),
+            e2qc:evict(?CACHE, Network),
+            e2qc:teardown(?FULL_CACHE),
             {true, Req, State};
         _ ->
             ?MSniffle(?P(State), Start),
@@ -145,9 +142,9 @@ write(Req, State = #state{method = <<"POST">>, path = []}, _) ->
 
 write(Req, State = #state{path = [Network, <<"metadata">> | Path]}, [{K, V}]) ->
     Start = now(),
+    ok = libsniffle:network_set(Network, Path ++ [K], jsxd:from_list(V)),
     e2qc:evict(?CACHE, Network),
-    e2qc:teardown(?LIST_CACHE),
-    libsniffle:network_set(Network, Path ++ [K], jsxd:from_list(V)),
+    e2qc:teardown(?FULL_CACHE),
     ?MSniffle(?P(State), Start),
     {true, Req, State};
 
@@ -160,24 +157,25 @@ write(Req, State, _Body) ->
 
 delete(Req, State = #state{path = [Network, <<"metadata">> | Path]}) ->
     Start = now(),
+    ok = libsniffle:network_set(Network, Path, delete),
     e2qc:evict(?CACHE, Network),
-    e2qc:teardown(?LIST_CACHE),
-    libsniffle:network_set(Network, Path, delete),
+    e2qc:teardown(?FULL_CACHE),
     ?MSniffle(?P(State), Start),
     {true, Req, State};
 
 delete(Req, State = #state{path = [Network, <<"ipranges">>, IPRange]}) ->
     Start = now(),
+    ok = libsniffle:network_remove_iprange(Network, IPRange),
     e2qc:evict(?CACHE, Network),
-    e2qc:teardown(?LIST_CACHE),
-    libsniffle:network_remove_iprange(Network, IPRange),
+    e2qc:teardown(?FULL_CACHE),
     ?MSniffle(?P(State), Start),
     {true, Req, State};
 
 delete(Req, State = #state{path = [Network]}) ->
     Start = now(),
+    ok = libsniffle:network_delete(Network),
     e2qc:evict(?CACHE, Network),
     e2qc:teardown(?LIST_CACHE),
-    ok = libsniffle:network_delete(Network),
+    e2qc:teardown(?FULL_CACHE),
     ?MSniffle(?P(State), Start),
     {true, Req, State}.

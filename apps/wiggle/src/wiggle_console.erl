@@ -34,7 +34,8 @@ cache_stats(Caches) ->
     print_cache(permissions),
     [begin
          print_cache(list_to_atom(Cache)),
-         print_cache(list_to_atom(Cache ++ "_list"))
+         print_cache(list_to_atom(Cache ++ "_list")),
+         print_cache(list_to_atom(Cache ++ "_full_list"))
      end || Cache <- Caches].
 
 

@@ -6,6 +6,7 @@
 
 -define(CACHE, package).
 -define(LIST_CACHE, package_list).
+-define(FULL_CACHE, package_full_list).
 
 -export([allowed_methods/3,
          get/1,
@@ -84,17 +85,11 @@ read(Req, State = #state{token = Token, path = [], full_list=FullList, full_list
     Permission = [{must, 'allowed',
                    [<<"packages">>, {<<"res">>, <<"uuid">>}, <<"get">>],
                    Permissions}],
-    Fun = wiggle_handler:list_fn(fun libsniffle:package_list/2, Permission,
-                                 FullList, Filter),
-    Res1 = case application:get_env(wiggle, package_list_ttl) of
-               {ok, {TTL1, TTL2}} ->
-                   wiggle_handler:timeout_cache(
-                     ?LIST_CACHE, {Token, FullList, Filter}, TTL1, TTL2, Fun);
-               _ ->
-                   Fun()
-           end,
+    Res = wiggle_handler:list(fun libsniffle:package_list/2, Token, Permission,
+                              FullList, Filter, package_list_ttl, ?FULL_CACHE,
+                              ?LIST_CACHE),
     ?MSniffle(?P(State), Start1),
-    {Res1, Req, State};
+    {Res, Req, State};
 
 read(Req, State = #state{path = [_Package], obj = Obj}) ->
     {Obj, Req, State}.
@@ -113,6 +108,7 @@ create(Req, State = #state{path = [], version = Version}, Data) ->
     case libsniffle:package_create(Package) of
         {ok, UUID} ->
             e2qc:teardown(?LIST_CACHE),
+            e2qc:teardown(?FULL_CACHE),
             ok = libsniffle:package_set(UUID, Data1),
             {{true, <<"/api/", Version/binary, "/packages/", UUID/binary>>}, Req, State#state{body = Data1}};
         duplicate ->
@@ -126,9 +122,9 @@ write(Req, State = #state{method = <<"POST">>, path = []}, _) ->
     {true, Req, State};
 
 write(Req, State = #state{path = [Package, <<"metadata">> | Path]}, [{K, V}]) ->
+    ok = libsniffle:package_set(Package, [<<"metadata">> | Path] ++ [K], jsxd:from_list(V)),
     e2qc:evict(?CACHE, Package),
-    e2qc:teardown(?LIST_CACHE),
-    libsniffle:package_set(Package, [<<"metadata">> | Path] ++ [K], jsxd:from_list(V)),
+    e2qc:teardown(?FULL_CACHE),
     {true, Req, State};
 
 write(Req, State, _Body) ->
@@ -139,13 +135,14 @@ write(Req, State, _Body) ->
 %%--------------------------------------------------------------------
 
 delete(Req, State = #state{path = [Package, <<"metadata">> | Path]}) ->
+    ok = libsniffle:package_set(Package, [<<"metadata">> | Path], delete),
     e2qc:evict(?CACHE, Package),
-    e2qc:teardown(?LIST_CACHE),
-    libsniffle:package_set(Package, [<<"metadata">> | Path], delete),
+    e2qc:teardown(?FULL_CACHE),
     {true, Req, State};
 
 delete(Req, State = #state{path = [Package]}) ->
+    ok = libsniffle:package_delete(Package),
     e2qc:evict(?CACHE, Package),
     e2qc:teardown(?LIST_CACHE),
-    ok = libsniffle:package_delete(Package),
+    e2qc:teardown(?FULL_CACHE),
     {true, Req, State}.
