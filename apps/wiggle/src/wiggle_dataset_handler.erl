@@ -50,10 +50,14 @@ allowed_methods(_Version, _Token, [_Dataset, <<"metadata">>|_]) ->
 
 get(State = #state{path = [Dataset | _]}) ->
     Start = now(),
-    TTL = application:get_env(wiggle, dataset_ttl, 60*1000*1000),
-    R = wiggle_handler:timeout_cache_with_invalid(
-          ?CACHE, Dataset, TTL, not_found,
-          fun() -> libsniffle:dataset_get(Dataset) end),
+    R = case application:get_env(wiggle, dataset_ttl) of
+            {ok, {TTL1, TTL2}} ->
+                wiggle_handler:timeout_cache_with_invalid(
+                  ?CACHE, Dataset, TTL1, TTL2, not_found,
+                  fun() -> libsniffle:dataset_get(Dataset) end);
+            _ ->
+                libsniffle:dataset_get(Dataset)
+        end,
     ?MSniffle(?P(State), Start),
     R.
 
@@ -117,23 +121,19 @@ read(Req, State = #state{token = Token, path = [], full_list=FullList, full_list
     {ok, Permissions} = wiggle_handler:get_persmissions(Token),
     ?MSnarl(?P(State), Start),
     Start1 = now(),
-
+    Permission = [{must, 'allowed',
+                   [<<"datasets">>, {<<"res">>, <<"dataset">>}, <<"get">>],
+                   Permissions}],
+    Fun = wiggle_handler:list_fn(fun libsniffle:dataset_list/2, Permission,
+                                 FullList, Filter),
+    Res1 = case application:get_env(wiggle, dataset_list_ttl) of
+               {ok, {TTL1, TTL2}} ->
+                   wiggle_handler:timeout_cache(
+                     ?LIST_CACHE, {Token, FullList, Filter}, TTL1, TTL2, Fun);
+               _ ->
+                   Fun()
+           end,
     ?MSniffle(?P(State), Start1),
-    TTL = application:get_env(wiggle, dataset_ttl, 60*1000*1000)*
-        application:get_env(wiggle, cache_list_percentage, 0.5),
-    Fun = fun() ->
-                  {ok, Res} = libsniffle:dataset_list([{must, 'allowed', [<<"datasets">>, {<<"res">>, <<"dataset">>}, <<"get">>], Permissions}], FullList),
-                  case {Filter, FullList} of
-                      {_, false} ->
-                          [ID || {_, ID} <- Res];
-                      {[], _} ->
-                          [ID || {_, ID} <- Res];
-                      _ ->
-                          [jsxd:select(Filter, ID) || {_, ID} <- Res]
-                  end
-          end,
-    Res1 = wiggle_handler:timeout_cache(
-             ?LIST_CACHE, {Token, FullList, Filter}, TTL, Fun),
     {Res1, Req, State};
 
 read(Req, State = #state{path = [_Dataset], obj = Obj}) ->
@@ -201,6 +201,7 @@ write(Req, State = #state{path = [UUID, <<"dataset.gz">>]}, _) ->
 write(Req, State = #state{path = [Dataset, <<"metadata">> | Path]}, [{K, V}]) ->
     Start = now(),
     e2qc:evict(?CACHE, Dataset),
+    e2qc:teardown(?LIST_CACHE),
     libsniffle:dataset_set(Dataset, [<<"metadata">> | Path] ++ [K], jsxd:from_list(V)),
     ?MSniffle(?P(State), Start),
     {true, Req, State};
@@ -208,6 +209,7 @@ write(Req, State = #state{path = [Dataset, <<"metadata">> | Path]}, [{K, V}]) ->
 write(Req, State = #state{path = [Dataset]}, [{K, V}]) ->
     Start = now(),
     e2qc:evict(?CACHE, Dataset),
+    e2qc:teardown(?LIST_CACHE),
     libsniffle:dataset_set(Dataset, [K], jsxd:from_list(V)),
     ?MSniffle(?P(State), Start),
     {true, Req, State};
@@ -281,6 +283,7 @@ transform_dataset(D1) ->
 
 import_dataset(UUID, Idx, TotalSize, Req, WReq) ->
     e2qc:evict(?CACHE, UUID),
+    e2qc:teardown(?LIST_CACHE),
     case cowboy_req:stream_body(1024*1024, Req) of
         {ok, Data, Req1} ->
             case do_write(UUID, Idx, Data, WReq, 0) of

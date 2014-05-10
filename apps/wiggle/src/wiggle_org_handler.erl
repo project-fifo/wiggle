@@ -6,6 +6,7 @@
 -endif.
 
 -define(CACHE, org).
+-define(LIST_CACHE, org_list).
 
 -export([allowed_methods/3,
          get/1,
@@ -40,10 +41,14 @@ allowed_methods(_Version, _Token, [_Org, <<"metadata">> | _]) ->
 
 get(State = #state{path = [Org | _]}) ->
     Start = now(),
-    TTL = application:get_env(wiggle, org_ttl, 60*1000*1000),
-    R = wiggle_handler:timeout_cache_with_invalid(
-          ?CACHE, Org, TTL, not_found,
-          fun() -> libsnarl:org_get(Org) end),
+    R = case application:get_env(wiggle, org_ttl) of
+            {ok, {TTL1, TTL2}} ->
+                wiggle_handler:timeout_cache_with_invalid(
+                  ?CACHE, Org, TTL1, TTL2, not_found,
+                  fun() -> libsnarl:org_get(Org) end);
+            _ ->
+                libsnarl:org_get(Org)
+        end,
     ?MSnarl(?P(State), Start),
     R.
 
@@ -128,19 +133,19 @@ read(Req, State = #state{token = Token, path = [], full_list=FullList, full_list
     {ok, Permissions} = wiggle_handler:get_persmissions(Token),
     ?MSnarl(?P(State), Start),
     Start1 = now(),
-    {ok, Res} = libsnarl:org_list(
-                  [{must, 'allowed',
-                    [<<"orgs">>, {<<"res">>, <<"uuid">>}, <<"get">>],
-                    Permissions}], FullList),
-    ?MSnarl(?P(State), Start1),
-    Res1 = case {Filter, FullList} of
-               {_, false} ->
-                   [ID || {_, ID} <- Res];
-               {[], _} ->
-                   [ID || {_, ID} <- Res];
+    Permission = [{must, 'allowed',
+                   [<<"orgs">>, {<<"res">>, <<"uuid">>}, <<"get">>],
+                   Permissions}],
+    Fun = wiggle_handler:list_fn(fun libsnarl:org_list/2, Permission,
+                                 FullList, Filter),
+    Res1 = case application:get_env(wiggle, org_list_ttl) of
+               {ok, {TTL1, TTL2}} ->
+                   wiggle_handler:timeout_cache(
+                     ?LIST_CACHE, {Token, FullList, Filter}, TTL1, TTL2, Fun);
                _ ->
-                   [jsxd:select(Filter, ID) || {_, ID} <- Res]
+                   Fun()
            end,
+    ?MSnarl(?P(State), Start1),
     {Res1, Req, State};
 
 read(Req, State = #state{path = [_Org], obj = OrgObj}) ->
