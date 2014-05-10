@@ -75,6 +75,14 @@ permission_required(#state{method = <<"DELETE">>,
     {ok, [<<"groupings">>, Grouping, <<"edit">>]};
 
 permission_required(#state{method = <<"PUT">>,
+                           path = [Grouping, <<"groupings">>,  _]}) ->
+    {ok, [<<"groupings">>, Grouping, <<"edit">>]};
+
+permission_required(#state{method = <<"DELETE">>,
+                           path = [Grouping, <<"groupings">>, _]}) ->
+    {ok, [<<"groupings">>, Grouping, <<"edit">>]};
+
+permission_required(#state{method = <<"PUT">>,
                            path = [Grouping, <<"metadata">> | _]}) ->
     {ok, [<<"groupings">>, Grouping, <<"edit">>]};
 
@@ -130,8 +138,9 @@ create(Req, State = #state{path = [], version = Version, token=Token},
     case libsniffle:grouping_add(Name, Type) of
         {ok, UUID} ->
             e2qc:teardown(?LIST_CACHE),
-            case libsnarl:user_active_org(Token) of
-                {ok, Org} ->
+            {ok, User} = libsnarl:user_get(Token),
+            case jsxd:get(<<"org">>, User) of
+                {ok, <<Org:36/binary>>} ->
                     libsnarl:org_execute_trigger(Org, grouping_create, UUID);
                 _ ->
                     ok
@@ -210,7 +219,7 @@ delete(Req, State = #state{path = [Grouping, <<"groupings">>, Element]}) ->
     Start = now(),
     e2qc:evict(?CACHE, Grouping),
     e2qc:teardown(?LIST_CACHE),
-    libsniffle:grouping_remove_element(Grouping, Element),
+    libsniffle:grouping_remove_grouping(Grouping, Element),
     ?MSniffle(?P(State), Start),
     {true, Req, State};
 
