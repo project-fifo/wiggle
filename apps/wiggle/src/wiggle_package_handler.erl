@@ -34,10 +34,14 @@ allowed_methods(_Version, _Token, [_Package]) ->
 
 get(State = #state{path = [Package | _]}) ->
     Start = now(),
-    TTL = application:get_env(wiggle, package_ttl, 60*1000*1000),
-    R = wiggle_handler:timeout_cache_with_invalid(
-          ?CACHE, Package, TTL, not_found,
-          fun() -> libsniffle:package_get(Package) end),
+    R = case application:get_env(wiggle, package_ttl) of
+            {ok, {TTL1, TTL2}} ->
+                wiggle_handler:timeout_cache_with_invalid(
+                  ?CACHE, Package, TTL1, TTL2, not_found,
+                  fun() -> libsniffle:package_get(Package) end);
+            _ ->
+                libsniffle:package_get(Package)
+        end,
     ?MSniffle(?P(State), Start),
     R;
 
@@ -76,24 +80,19 @@ read(Req, State = #state{token = Token, path = [], full_list=FullList, full_list
     Start = now(),
     {ok, Permissions} = wiggle_handler:get_persmissions(Token),
     ?MSnarl(?P(State), Start),
-    TTL = application:get_env(wiggle, package_ttl, 60*1000*1000)*
-        application:get_env(wiggle, cache_list_percentage, 0.5),
     Start1 = now(),
-    Fun = fun() ->
-                  Perm = [{must, 'allowed', [<<"packages">>, {<<"res">>, <<"uuid">>}, <<"get">>], Permissions}],
-                  {ok, Res} = libsniffle:package_list(Perm, FullList),
-                  case {Filter, FullList} of
-                      {_, false} ->
-                          [ID || {_, ID} <- Res];
-                      {[], _} ->
-                          [ID || {_, ID} <- Res];
-                      _ ->
-                          [jsxd:select(Filter, ID) || {_, ID} <- Res]
-                  end
-          end,
-    Res1 = wiggle_handler:timeout_cache(
-             ?LIST_CACHE, {Token, FullList, Filter}, TTL, Fun),
-
+    Permission = [{must, 'allowed',
+                   [<<"packages">>, {<<"res">>, <<"uuid">>}, <<"get">>],
+                   Permissions}],
+    Fun = wiggle_handler:list_fn(fun libsniffle:package_list/2, Permission,
+                                 FullList, Filter),
+    Res1 = case application:get_env(wiggle, package_list_ttl) of
+               {ok, {TTL1, TTL2}} ->
+                   wiggle_handler:timeout_cache(
+                     ?LIST_CACHE, {Token, FullList, Filter}, TTL1, TTL2, Fun);
+               _ ->
+                   Fun()
+           end,
     ?MSniffle(?P(State), Start1),
     {Res1, Req, State};
 
@@ -128,6 +127,7 @@ write(Req, State = #state{method = <<"POST">>, path = []}, _) ->
 
 write(Req, State = #state{path = [Package, <<"metadata">> | Path]}, [{K, V}]) ->
     e2qc:evict(?CACHE, Package),
+    e2qc:teardown(?LIST_CACHE),
     libsniffle:package_set(Package, [<<"metadata">> | Path] ++ [K], jsxd:from_list(V)),
     {true, Req, State};
 
@@ -140,6 +140,7 @@ write(Req, State, _Body) ->
 
 delete(Req, State = #state{path = [Package, <<"metadata">> | Path]}) ->
     e2qc:evict(?CACHE, Package),
+    e2qc:teardown(?LIST_CACHE),
     libsniffle:package_set(Package, [<<"metadata">> | Path], delete),
     {true, Req, State};
 

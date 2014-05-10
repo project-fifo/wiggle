@@ -11,6 +11,16 @@
 %%
 %% Wiggle will automatically invalidate the cache when a action is taken
 %% that means when someone changes a setting it should be directy reflectd.
+%%
+%% A two tier cache is used and works the following way:
+%%
+%% * Items requested within the timeframe of the L1 TTL will be served
+%%   directly from the cache.
+%% * Items requested within the timeframe of the L2 TTL are served
+%%   from the cache once but invalidated and the cache asyncrounously
+%%   updated.
+%% * Itemsrequested after the L2 TTL are invalidated emediately and fetched
+%%   anew.
 
 
 %% @doc Enable or disable caching in global.
@@ -18,90 +28,453 @@
  [{default, off},
   {datatype, {flag, on, off}}]}.
 
-%% @doc The list will likely change more often then a single entry
-%% so we adjust the TTL by a percentage.
-%%
-%% A value of 50% would mean the half the TTL.
-%% List caching currently is only available for:
-%% * datasets
-%% * packages
-%% * networks
-%% * groupings
-{mapping, "ttl.list_percentage", "wiggle.cache_list_percentage",
- [{default, 0.5},
-  {datatype, {percent, float}}]}.
-
-%% @doc Grace period for cache, within this period the original value will
-%% will returnd but teh value evicted and read again asyncronously.
-%%
-%% A value of 100% would mean the grace period is twice the timeout.
-{mapping, "ttl.grace_period", "wiggle.cache_grace_period",
- [{default, 0.5},
-  {datatype, {percent, float}}]}.
-
 %% @doc The time how long permissions for a token are cached,
 %% this seriously improves quick successive requests.
-{mapping, "ttl.token", "wiggle.token_ttl",
+{mapping, "ttl.element.token.l1", "wiggle.token_ttl",
  [{default, "1s"},
   {datatype, {duration, ms}}]}.
 
-%% @doc Packages pretty much never change so a high TTL is possible.
-{mapping, "ttl.package", "wiggle.package_ttl",
+{mapping, "ttl.element.token.l2", "wiggle.token_ttl",
  [{default, "1m"},
   {datatype, {duration, ms}}]}.
+
+{translation,
+ "wiggle.token_ttl",
+ fun(Conf) ->
+         L1 = cuttlefish:conf_get("ttl.element.token.l1", Conf),
+         L2 = cuttlefish:conf_get("ttl.element.token.l2", Conf),
+         {L1, L2}
+ end
+}.
+
+%% @doc Packages pretty much never change so a high TTL is possible.
+{mapping, "ttl.element.package.l1", "wiggle.package_ttl",
+ [{default, "1m"},
+  {datatype, {duration, ms}}]}.
+
+{mapping, "ttl.element.package.l2", "wiggle.package_ttl",
+ [{default, "10m"},
+  {datatype, {duration, ms}}]}.
+
+{translation,
+ "wiggle.package_ttl",
+ fun(Conf) ->
+         L1 = cuttlefish:conf_get("ttl.element.package.l1", Conf),
+         L2 = cuttlefish:conf_get("ttl.element.package.l2", Conf),
+         {L1, L2}
+ end
+}.
+
+{mapping, "ttl.list.package.l1", "wiggle.package_list_ttl",
+ [{default, "10s"},
+  {datatype, {duration, ms}}]}.
+
+{mapping, "ttl.list.package.l2", "wiggle.package_list_ttl",
+ [{default, "1m"},
+  {datatype, {duration, ms}}]}.
+
+{translation,
+ "wiggle.package_list_ttl",
+ fun(Conf) ->
+         L1 = cuttlefish:conf_get("ttl.list.package.l1", Conf),
+         L2 = cuttlefish:conf_get("ttl.list.package.l2", Conf),
+         {L1, L2}
+ end
+}.
 
 %% @doc Datasets pretty much never change so a high TTL is possible.
-{mapping, "ttl.dataset", "wiggle.dataset_ttl",
+{mapping, "ttl.element.dataset.l1", "wiggle.dataset_ttl",
  [{default, "1m"},
   {datatype, {duration, ms}}]}.
 
-%% @doc DTrace Scripts pretty much never change so a high TTL is possible.
-{mapping, "ttl.dtrace", "wiggle.dtrace_ttl",
+{mapping, "ttl.element.dataset.l2", "wiggle.dataset_ttl",
  [{default, "1m"},
   {datatype, {duration, ms}}]}.
+
+{translation,
+ "wiggle.dataset_ttl",
+ fun(Conf) ->
+         L1 = cuttlefish:conf_get("ttl.element.dataset.l1", Conf),
+         L2 = cuttlefish:conf_get("ttl.element.dataset.l2", Conf),
+         {L1, L2}
+ end
+}.
+
+{mapping, "ttl.list.dataset.l1", "wiggle.dataset_list_ttl",
+ [{default, "10s"},
+  {datatype, {duration, ms}}]}.
+
+{mapping, "ttl.list.dataset.l2", "wiggle.dataset_list_ttl",
+ [{default, "1m"},
+  {datatype, {duration, ms}}]}.
+
+{translation,
+ "wiggle.dataset_list_ttl",
+ fun(Conf) ->
+         L1 = cuttlefish:conf_get("ttl.list.dataset.l1", Conf),
+         L2 = cuttlefish:conf_get("ttl.list.dataset.l2", Conf),
+         {L1, L2}
+ end
+}.
+
+%% @doc DTrace Scripts pretty much never change so a high TTL is possible.
+{mapping, "ttl.element.dtrace.l1", "wiggle.dtrace_ttl",
+ [{default, "1m"},
+  {datatype, {duration, ms}}]}.
+
+{mapping, "ttl.element.dtrace.l2", "wiggle.dtrace_ttl",
+ [{default, "1m"},
+  {datatype, {duration, ms}}]}.
+
+{translation,
+ "wiggle.dtrace_ttl",
+ fun(Conf) ->
+         L1 = cuttlefish:conf_get("ttl.element.dtrace.l1", Conf),
+         L2 = cuttlefish:conf_get("ttl.element.dtrace.l2", Conf),
+         {L1, L2}
+ end
+}.
+
+{mapping, "ttl.list.dtrace.l1", "wiggle.dtrace_list_ttl",
+ [{default, "10s"},
+  {datatype, {duration, ms}}]}.
+
+{mapping, "ttl.list.dtrace.l2", "wiggle.dtrace_list_ttl",
+ [{default, "1m"},
+  {datatype, {duration, ms}}]}.
+
+{translation,
+ "wiggle.dtrace_list_ttl",
+ fun(Conf) ->
+         L1 = cuttlefish:conf_get("ttl.list.dtrace.l1", Conf),
+         L2 = cuttlefish:conf_get("ttl.list.dtrace.l2", Conf),
+         {L1, L2}
+ end
+}.
 
 %% @doc Chunter updates services every 10s by default setting the TTL
 %% to X means stale service state will be 10s+X (i.e. 20s)
-{mapping, "ttl.hypervisor", "wiggle.hypervisor_ttl",
+{mapping, "ttl.element.hypervisor.l1", "wiggle.hypervisor_ttl",
  [{default, "10s"},
   {datatype, {duration, ms}}]}.
 
-%% @doc IPranges only change when a Ip was claimed some delay is accaptable here
-{mapping, "ttl.iprange", "wiggle.iprange_ttl",
- [{default, "10s"},
-  {datatype, {duration, ms}}]}.
-
-%% @doc Networks barely ever change
-{mapping, "ttl.network", "wiggle.networks_ttl",
+{mapping, "ttl.element.hypervisor.l2", "wiggle.hypervisor_ttl",
  [{default, "1m"},
   {datatype, {duration, ms}}]}.
+
+{translation,
+ "wiggle.hypervisor_ttl",
+ fun(Conf) ->
+         L1 = cuttlefish:conf_get("ttl.element.hypervisor.l1", Conf),
+         L2 = cuttlefish:conf_get("ttl.element.hypervisor.l2", Conf),
+         {L1, L2}
+ end
+}.
+
+{mapping, "ttl.list.hypervisor.l1", "wiggle.hypervisor_list_ttl",
+ [{default, "1s"},
+  {datatype, {duration, ms}}]}.
+
+{mapping, "ttl.list.hypervisor.l2", "wiggle.hypervisor_list_ttl",
+ [{default, "10s"},
+  {datatype, {duration, ms}}]}.
+
+{translation,
+ "wiggle.hypervisor_list_ttl",
+ fun(Conf) ->
+         L1 = cuttlefish:conf_get("ttl.list.hypervisor.l1", Conf),
+         L2 = cuttlefish:conf_get("ttl.list.hypervisor.l2", Conf),
+         {L1, L2}
+ end
+}.
+
+
+%% @doc IPranges only change when a Ip was claimed some delay is accaptable here
+{mapping, "ttl.element.iprange.l1", "wiggle.iprange_ttl",
+ [{default, "10s"},
+  {datatype, {duration, ms}}]}.
+
+{mapping, "ttl.element.iprange.l2", "wiggle.iprange_ttl",
+ [{default, "1m"},
+  {datatype, {duration, ms}}]}.
+
+{translation,
+ "wiggle.iprange_ttl",
+ fun(Conf) ->
+         L1 = cuttlefish:conf_get("ttl.element.iprange.l1", Conf),
+         L2 = cuttlefish:conf_get("ttl.element.iprange.l2", Conf),
+         {L1, L2}
+ end
+}.
+
+{mapping, "ttl.list.iprange.l1", "wiggle.iprange_list_ttl",
+ [{default, "1s"},
+  {datatype, {duration, ms}}]}.
+
+{mapping, "ttl.list.iprange.l2", "wiggle.iprange_list_ttl",
+ [{default, "10s"},
+  {datatype, {duration, ms}}]}.
+
+{translation,
+ "wiggle.iprange_list_ttl",
+ fun(Conf) ->
+         L1 = cuttlefish:conf_get("ttl.list.iprange.l1", Conf),
+         L2 = cuttlefish:conf_get("ttl.list.iprange.l2", Conf),
+         {L1, L2}
+ end
+}.
+
+
+%% @doc Networks barely ever change
+{mapping, "ttl.element.network.l1", "wiggle.network_ttl",
+ [{default, "1m"},
+  {datatype, {duration, ms}}]}.
+
+{mapping, "ttl.element.network.l2", "wiggle.network_ttl",
+ [{default, "10m"},
+  {datatype, {duration, ms}}]}.
+
+{translation,
+ "wiggle.network_ttl",
+ fun(Conf) ->
+         L1 = cuttlefish:conf_get("ttl.element.network.l1", Conf),
+         L2 = cuttlefish:conf_get("ttl.element.network.l2", Conf),
+         {L1, L2}
+ end
+}.
+
+{mapping, "ttl.list.network.l1", "wiggle.network_list_ttl",
+ [{default, "10s"},
+  {datatype, {duration, ms}}]}.
+
+{mapping, "ttl.list.network.l2", "wiggle.network_list_ttl",
+ [{default, "1m"},
+  {datatype, {duration, ms}}]}.
+
+{translation,
+ "wiggle.network_list_ttl",
+ fun(Conf) ->
+         L1 = cuttlefish:conf_get("ttl.list.network.l1", Conf),
+         L2 = cuttlefish:conf_get("ttl.list.network.l2", Conf),
+         {L1, L2}
+ end
+}.
 
 %% @doc Orgs barely ever change too
 
-{mapping, "ttl.org", "wiggle.org_ttl",
+{mapping, "ttl.element.org.l1", "wiggle.org_ttl",
  [{default, "1m"},
   {datatype, {duration, ms}}]}.
 
-%% @doc Roles barely ever change too
-{mapping, "ttl.role", "wiggle.role_ttl",
- [{default, "1m"},
+{mapping, "ttl.element.org.l2", "wiggle.org_ttl",
+ [{default, "10m"},
   {datatype, {duration, ms}}]}.
 
-%% @doc Users barely change either
-{mapping, "ttl.user", "wiggle.user_ttl",
- [{default, "1m"},
-  {datatype, {duration, ms}}]}.
+{translation,
+ "wiggle.org_ttl",
+ fun(Conf) ->
+         L1 = cuttlefish:conf_get("ttl.element.org.l1", Conf),
+         L2 = cuttlefish:conf_get("ttl.element.org.l2", Conf),
+         {L1, L2}
+ end
+}.
 
-%% @doc VMs can change rather frequently so we don't cache them by default
-{mapping, "ttl.vm", "wiggle.vm_ttl",
- [{default, "0.1s"},
-  {datatype, {duration, ms}}]}.
-
-%% @doc Groupings change sometimes so we can't have a long TTL
-{mapping, "ttl.grouping", "wiggle.grouping_ttl",
+{mapping, "ttl.list.org.l1", "wiggle.org_list_ttl",
  [{default, "10s"},
   {datatype, {duration, ms}}]}.
 
+{mapping, "ttl.list.org.l2", "wiggle.org_list_ttl",
+ [{default, "1m"},
+  {datatype, {duration, ms}}]}.
+
+{translation,
+ "wiggle.org_list_ttl",
+ fun(Conf) ->
+         L1 = cuttlefish:conf_get("ttl.list.org.l1", Conf),
+         L2 = cuttlefish:conf_get("ttl.list.org.l2", Conf),
+         {L1, L2}
+ end
+}.
+
+
+%% @doc Roles barely ever change too
+{mapping, "ttl.element.role.l1", "wiggle.role_ttl",
+ [{default, "1m"},
+  {datatype, {duration, ms}}]}.
+
+{mapping, "ttl.element.role.l2", "wiggle.role_ttl",
+ [{default, "10m"},
+  {datatype, {duration, ms}}]}.
+
+{translation,
+ "wiggle.role_ttl",
+ fun(Conf) ->
+         L1 = cuttlefish:conf_get("ttl.element.role.l1", Conf),
+         L2 = cuttlefish:conf_get("ttl.element.role.l2", Conf),
+         {L1, L2}
+ end
+}.
+
+{mapping, "ttl.list.role.l1", "wiggle.role_list_ttl",
+ [{default, "10s"},
+  {datatype, {duration, ms}}]}.
+
+{mapping, "ttl.list.role.l2", "wiggle.role_list_ttl",
+ [{default, "1m"},
+  {datatype, {duration, ms}}]}.
+
+{translation,
+ "wiggle.role_list_ttl",
+ fun(Conf) ->
+         L1 = cuttlefish:conf_get("ttl.list.role.l1", Conf),
+         L2 = cuttlefish:conf_get("ttl.list.role.l2", Conf),
+         {L1, L2}
+ end
+}.
+
+
+%% @doc Users barely change either
+{mapping, "ttl.element.user.l1", "wiggle.user_ttl",
+ [{default, "1m"},
+  {datatype, {duration, ms}}]}.
+
+{mapping, "ttl.element.user.l2", "wiggle.user_ttl",
+ [{default, "10m"},
+  {datatype, {duration, ms}}]}.
+
+{translation,
+ "wiggle.user_ttl",
+ fun(Conf) ->
+         L1 = cuttlefish:conf_get("ttl.element.user.l1", Conf),
+         L2 = cuttlefish:conf_get("ttl.element.user.l2", Conf),
+         {L1, L2}
+ end
+}.
+
+{mapping, "ttl.list.role.l1", "wiggle.role_list_ttl",
+ [{default, "10s"},
+  {datatype, {duration, ms}}]}.
+
+{mapping, "ttl.list.role.l2", "wiggle.role_list_ttl",
+ [{default, "1m"},
+  {datatype, {duration, ms}}]}.
+
+{translation,
+ "wiggle.role_list_ttl",
+ fun(Conf) ->
+         L1 = cuttlefish:conf_get("ttl.list.role.l1", Conf),
+         L2 = cuttlefish:conf_get("ttl.list.role.l2", Conf),
+         {L1, L2}
+ end
+}.
+
+
+%% @doc Users barely change either
+{mapping, "ttl.element.user.l1", "wiggle.user_ttl",
+ [{default, "1m"},
+  {datatype, {duration, ms}}]}.
+
+{mapping, "ttl.element.user.l2", "wiggle.user_ttl",
+ [{default, "10m"},
+  {datatype, {duration, ms}}]}.
+
+{translation,
+ "wiggle.user_ttl",
+ fun(Conf) ->
+         L1 = cuttlefish:conf_get("ttl.element.user.l1", Conf),
+         L2 = cuttlefish:conf_get("ttl.element.user.l2", Conf),
+         {L1, L2}
+ end
+}.
+
+{mapping, "ttl.list.user.l1", "wiggle.user_list_ttl",
+ [{default, "10s"},
+  {datatype, {duration, ms}}]}.
+
+{mapping, "ttl.list.user.l2", "wiggle.user_list_ttl",
+ [{default, "1m"},
+  {datatype, {duration, ms}}]}.
+
+{translation,
+ "wiggle.user_list_ttl",
+ fun(Conf) ->
+         L1 = cuttlefish:conf_get("ttl.list.user.l1", Conf),
+         L2 = cuttlefish:conf_get("ttl.list.user.l2", Conf),
+         {L1, L2}
+ end
+}.
+
+
+
+%% @doc VMs can change rather frequently so we don't cache them by default
+{mapping, "ttl.element.vm.l1", "wiggle.vm_ttl",
+ [{default, "0.1s"},
+  {datatype, {duration, ms}}]}.
+
+{mapping, "ttl.element.vm.l2", "wiggle.vm_ttl",
+ [{default, "5s"},
+  {datatype, {duration, ms}}]}.
+
+{translation,
+ "wiggle.vm_ttl",
+ fun(Conf) ->
+         L1 = cuttlefish:conf_get("ttl.element.vm.l1", Conf),
+         L2 = cuttlefish:conf_get("ttl.element.vm.l2", Conf),
+         {L1, L2}
+ end
+}.
+
+{mapping, "ttl.list.vm.l1", "wiggle.vm_list_ttl",
+ [{default, "0.1s"},
+  {datatype, {duration, ms}}]}.
+
+{mapping, "ttl.list.vm.l2", "wiggle.vm_list_ttl",
+ [{default, "1s"},
+  {datatype, {duration, ms}}]}.
+
+{translation,
+ "wiggle.vm_list_ttl",
+ fun(Conf) ->
+         L1 = cuttlefish:conf_get("ttl.list.vm.l1", Conf),
+         L2 = cuttlefish:conf_get("ttl.list.vm.l2", Conf),
+         {L1, L2}
+ end
+}.
+
+%% @doc Groupings change sometimes so we can't have a long TTL
+{mapping, "ttl.element.grouping.l1", "wiggle.grouping_ttl",
+ [{default, "10s"},
+  {datatype, {duration, ms}}]}.
+
+{mapping, "ttl.element.grouping.l2", "wiggle.grouping_ttl",
+ [{default, "1m"},
+  {datatype, {duration, ms}}]}.
+
+{translation,
+ "wiggle.grouping_ttl",
+ fun(Conf) ->
+         L1 = cuttlefish:conf_get("ttl.element.grouping.l1", Conf),
+         L2 = cuttlefish:conf_get("ttl.element.grouping.l2", Conf),
+         {L1, L2}
+ end
+}.
+
+{mapping, "ttl.list.grouping.l1", "wiggle.grouping_list_ttl",
+ [{default, "1s"},
+  {datatype, {duration, ms}}]}.
+
+{mapping, "ttl.list.grouping.l2", "wiggle.grouping_list_ttl",
+ [{default, "10s"},
+  {datatype, {duration, ms}}]}.
+
+{translation,
+ "wiggle.grouping_list_ttl",
+ fun(Conf) ->
+         L1 = cuttlefish:conf_get("ttl.list.grouping.l1", Conf),
+         L2 = cuttlefish:conf_get("ttl.list.grouping.l2", Conf),
+         {L1, L2}
+ end
+}.
 
 %% @doc Enable or disable compression
 {mapping, "compression", "wiggle.compression",

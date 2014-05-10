@@ -37,10 +37,14 @@ allowed_methods(_Version, _Token, [_Network]) ->
 
 get(State = #state{path = [Network | _]}) ->
     Start = now(),
-    TTL = application:get_env(wiggle, network_ttl, 60*1000*1000),
-    R = wiggle_handler:timeout_cache_with_invalid(
-          ?CACHE, Network, TTL, not_found,
-          fun() -> libsniffle:network_get(Network) end),
+    R = case application:get_env(wiggle, network_ttl) of
+            {ok, {TTL1, TTL2}} ->
+                wiggle_handler:timeout_cache_with_invalid(
+                  ?CACHE, Network, TTL1, TTL2, not_found,
+                  fun() -> libsniffle:network_get(Network) end);
+            _ ->
+                libsniffle:network_get(Network)
+        end,
     ?MSniffle(?P(State), Start),
     R.
 
@@ -86,24 +90,19 @@ read(Req, State = #state{token = Token, path = [], full_list=FullList, full_list
     Start = now(),
     {ok, Permissions} = wiggle_handler:get_persmissions(Token),
     ?MSnarl(?P(State), Start),
-    TTL = application:get_env(wiggle, package_ttl, 60*1000*1000)*
-        application:get_env(wiggle, cache_list_percentage, 0.5),
     Start1 = now(),
-    Fun = fun() ->
-                  {ok, Res} =
-                      libsniffle:network_list(
-                        [{must, 'allowed', [<<"networks">>, {<<"res">>, <<"uuid">>}, <<"get">>], Permissions}], FullList),
-                  case {Filter, FullList} of
-                      {_, false} ->
-                          [ID || {_, ID} <- Res];
-                      {[], _} ->
-                          [ID || {_, ID} <- Res];
-                      _ ->
-                          [jsxd:select(Filter, ID) || {_, ID} <- Res]
-                  end
-          end,
-    Res1 = wiggle_handler:timeout_cache(
-             ?LIST_CACHE, {Token, FullList, Filter}, TTL, Fun),
+    Permission = [{must, 'allowed',
+                   [<<"networks">>, {<<"res">>, <<"uuid">>}, <<"get">>],
+                   Permissions}],
+    Fun = wiggle_handler:list_fn(fun libsniffle:network_list/2, Permission,
+                                 FullList, Filter),
+    Res1 = case application:get_env(wiggle, network_list_ttl) of
+               {ok, {TTL1, TTL2}} ->
+                   wiggle_handler:timeout_cache(
+                     ?LIST_CACHE, {Token, FullList, Filter}, TTL1, TTL2, Fun);
+               _ ->
+                   Fun()
+           end,
     ?MSniffle(?P(State), Start1),
     {Res1, Req, State};
 
@@ -147,6 +146,7 @@ write(Req, State = #state{method = <<"POST">>, path = []}, _) ->
 write(Req, State = #state{path = [Network, <<"metadata">> | Path]}, [{K, V}]) ->
     Start = now(),
     e2qc:evict(?CACHE, Network),
+    e2qc:teardown(?LIST_CACHE),
     libsniffle:network_set(Network, Path ++ [K], jsxd:from_list(V)),
     ?MSniffle(?P(State), Start),
     {true, Req, State};
@@ -161,6 +161,7 @@ write(Req, State, _Body) ->
 delete(Req, State = #state{path = [Network, <<"metadata">> | Path]}) ->
     Start = now(),
     e2qc:evict(?CACHE, Network),
+    e2qc:teardown(?LIST_CACHE),
     libsniffle:network_set(Network, Path, delete),
     ?MSniffle(?P(State), Start),
     {true, Req, State};
@@ -168,6 +169,7 @@ delete(Req, State = #state{path = [Network, <<"metadata">> | Path]}) ->
 delete(Req, State = #state{path = [Network, <<"ipranges">>, IPRange]}) ->
     Start = now(),
     e2qc:evict(?CACHE, Network),
+    e2qc:teardown(?LIST_CACHE),
     libsniffle:network_remove_iprange(Network, IPRange),
     ?MSniffle(?P(State), Start),
     {true, Req, State};

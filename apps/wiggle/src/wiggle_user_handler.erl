@@ -9,6 +9,7 @@
 -endif.
 
 -define(CACHE, user).
+-define(LIST_CACHE, user_list).
 
 -export([allowed_methods/3,
          get/1,
@@ -112,10 +113,14 @@ get(State = #state{method = <<"PUT">>, path = [User, <<"roles">>, Role]}) ->
 
 get(State = #state{path = [User | _]}) ->
     Start = now(),
-    TTL = application:get_env(wiggle, user_ttl, 60*1000*1000),
-    R = wiggle_handler:timeout_cache_with_invalid(
-          ?CACHE, User, TTL, not_found,
-          fun() -> libsnarl:user_get(User) end),
+    R = case application:get_env(wiggle, user_ttl) of
+            {ok, {TTL1, TTL2}} ->
+                wiggle_handler:timeout_cache_with_invalid(
+                  ?CACHE, User, TTL1, TTL2, not_found,
+                  fun() -> libsnarl:user_get(User) end);
+            _ ->
+                libsnarl:user_get(User)
+        end,
     ?MSnarl(?P(State), Start),
     R.
 
@@ -220,19 +225,19 @@ read(Req, State = #state{token = Token, path = [], full_list=FullList, full_list
     {ok, Permissions} = wiggle_handler:get_persmissions(Token),
     ?MSnarl(?P(State), Start),
     Start1 = now(),
-    {ok, Res} = libsnarl:user_list(
-                  [{must, 'allowed',
-                    [<<"users">>, {<<"res">>, <<"uuid">>}, <<"get">>],
-                    Permissions}], FullList),
-    ?MSnarl(?P(State), Start1),
-    Res1 = case {Filter, FullList} of
-               {_, false} ->
-                   [ID || {_, ID} <- Res];
-               {[], _} ->
-                   [ID || {_, ID} <- Res];
+    Permission = [{must, 'allowed',
+                   [<<"users">>, {<<"res">>, <<"uuid">>}, <<"get">>],
+                   Permissions}],
+    Fun = wiggle_handler:list_fn(fun libsnarl:user_list/2, Permission,
+                                 FullList, Filter),
+    Res1 = case application:get_env(wiggle, user_list_ttl) of
+               {ok, {TTL1, TTL2}} ->
+                   wiggle_handler:timeout_cache(
+                     ?LIST_CACHE, {Token, FullList, Filter}, TTL1, TTL2, Fun);
                _ ->
-                   [jsxd:select(Filter, ID) || {_, ID} <- Res]
+                   Fun()
            end,
+    ?MSnarl(?P(State), Start1),
     {Res1, Req, State};
 
 read(Req, State = #state{path = [_User], obj = UserObj}) ->
@@ -269,6 +274,7 @@ create(Req, State = #state{token = Token, path = [], version = Version}, Decoded
     {ok, Pass} = jsxd:get(<<"password">>, Decoded),
     Start = now(),
     {ok, UUID} = libsnarl:user_add(CUUID, User),
+    e2qc:teardown(?LIST_CACHE),
     ?MSnarl(?P(State), Start),
     Start1 = now(),
     ok = libsnarl:user_passwd(UUID, Pass),
@@ -278,6 +284,7 @@ create(Req, State = #state{token = Token, path = [], version = Version}, Decoded
 write(Req, State = #state{path =  [User]}, [{<<"password">>, Password}]) ->
     Start = now(),
     e2qc:evict(?CACHE, User),
+    e2qc:teardown(?LIST_CACHE),
     ok = libsnarl:user_passwd(User, Password),
     ?MSnarl(?P(State), Start),
     {true, Req, State};
@@ -289,6 +296,7 @@ write(Req, State = #state{method = <<"POST">>, path = []}, _) ->
 write(Req, State = #state{path = [User, <<"metadata">> | Path]}, [{K, V}]) ->
     Start = now(),
     e2qc:evict(?CACHE, User),
+    e2qc:teardown(?LIST_CACHE),
     libsnarl:user_set(User, Path ++ [K], jsxd:from_list(V)),
     ?MSnarl(?P(State), Start),
     {true, Req, State};
@@ -300,6 +308,7 @@ write(Req, State = #state{path = [User, <<"keys">>]}, [{KeyID, Key}]) ->
                 base64:decode(ID),
                 Start = now(),
                 e2qc:evict(?CACHE, User),
+                e2qc:teardown(?LIST_CACHE),
                 libsnarl:user_key_add(User, KeyID, Key),
                 ?MSnarl(?P(State), Start),
                 {true, Req, State}
@@ -315,6 +324,7 @@ write(Req, State = #state{path = [User, <<"yubikeys">>]},
       [{<<"otp">>, <<_:33/binary, _/binary >>= OTP}]) ->
     Start = now(),
     e2qc:evict(?CACHE, User),
+    e2qc:teardown(?LIST_CACHE),
     libsnarl:user_yubikey_add(User, OTP),
     ?MSnarl(?P(State), Start),
     {true, Req, State};
@@ -325,6 +335,7 @@ write(Req, State = #state{path = [_, <<"yubikeys">>]}, _) ->
 write(Req, State = #state{path = [User, <<"roles">>, Role]}, _) ->
     Start = now(),
     e2qc:evict(?CACHE, User),
+    e2qc:teardown(?LIST_CACHE),
     ok = libsnarl:user_join(User, Role),
     ?MSnarl(?P(State), Start),
     {true, Req, State};
@@ -332,6 +343,7 @@ write(Req, State = #state{path = [User, <<"roles">>, Role]}, _) ->
 write(Req, State = #state{path = [User, <<"orgs">>, Org]}, []) ->
     Start = now(),
     e2qc:evict(?CACHE, User),
+    e2qc:teardown(?LIST_CACHE),
     ok = libsnarl:user_join_org(User, Org),
     ?MSnarl(?P(State), Start),
     {true, Req, State};
@@ -339,6 +351,7 @@ write(Req, State = #state{path = [User, <<"orgs">>, Org]}, []) ->
 write(Req, State = #state{path = [User, <<"orgs">>, Org]}, [{}]) ->
     Start = now(),
     e2qc:evict(?CACHE, User),
+    e2qc:teardown(?LIST_CACHE),
     ok = libsnarl:user_join_org(User, Org),
     ?MSnarl(?P(State), Start),
     {true, Req, State};
@@ -347,6 +360,7 @@ write(Req, State = #state{path = [User, <<"orgs">>, Org]},
       [{<<"active">>, true}]) ->
     Start = now(),
     e2qc:evict(?CACHE, User),
+    e2qc:teardown(?LIST_CACHE),
     ok = libsnarl:user_join_org(User, Org),
     ok = libsnarl:user_select_org(User, Org),
     ?MSnarl(?P(State), Start),
@@ -356,6 +370,7 @@ write(Req, State = #state{path = [User, <<"permissions">> | Permission]}, _) ->
     P = erlangify_permission(Permission),
     Start = now(),
     e2qc:evict(?CACHE, User),
+    e2qc:teardown(?LIST_CACHE),
     ok = libsnarl:user_grant(User, P),
     ?MSnarl(?P(State), Start),
     {true, Req, State}.
@@ -368,6 +383,7 @@ write(Req, State = #state{path = [User, <<"permissions">> | Permission]}, _) ->
 delete(Req, State = #state{path = [User, <<"metadata">> | Path]}) ->
     Start = now(),
     e2qc:evict(?CACHE, User),
+    e2qc:teardown(?LIST_CACHE),
     libsnarl:user_set(User, Path, delete),
     ?MSnarl(?P(State), Start),
     {true, Req, State};
@@ -375,6 +391,7 @@ delete(Req, State = #state{path = [User, <<"metadata">> | Path]}) ->
 delete(Req, State = #state{path = [User, <<"keys">>, KeyID]}) ->
     Start = now(),
     e2qc:evict(?CACHE, User),
+    e2qc:teardown(?LIST_CACHE),
     libsnarl:user_key_revoke(User, KeyID),
     ?MSnarl(?P(State), Start),
     {true, Req, State};
@@ -382,6 +399,7 @@ delete(Req, State = #state{path = [User, <<"keys">>, KeyID]}) ->
 delete(Req, State = #state{path = [User, <<"yubikeys">>, KeyID]}) ->
     Start = now(),
     e2qc:evict(?CACHE, User),
+    e2qc:teardown(?LIST_CACHE),
     libsnarl:user_yubikey_remove(User, KeyID),
     ?MSnarl(?P(State), Start),
     {true, Req, State};
@@ -393,6 +411,7 @@ delete(Req, State = #state{path = [_User, <<"sessions">>]}) ->
 delete(Req, State = #state{path = [User, <<"permissions">> | Permission]}) ->
     P = erlangify_permission(Permission),
     Start = now(),
+    e2qc:teardown(?LIST_CACHE),
     e2qc:evict(?CACHE, User),
     ok = libsnarl:user_revoke(User, P),
     ?MSnarl(?P(State), Start),
@@ -401,6 +420,7 @@ delete(Req, State = #state{path = [User, <<"permissions">> | Permission]}) ->
 delete(Req, State = #state{path = [User]}) ->
     Start = now(),
     e2qc:evict(?CACHE, User),
+    e2qc:teardown(?LIST_CACHE),
     ok = libsnarl:user_delete(User),
     ?MSnarl(?P(State), Start),
     {true, Req, State};
@@ -408,6 +428,7 @@ delete(Req, State = #state{path = [User]}) ->
 delete(Req, State = #state{path = [User, <<"orgs">>, Org]}) ->
     Start = now(),
     e2qc:evict(?CACHE, User),
+    e2qc:teardown(?LIST_CACHE),
     ok = libsnarl:user_leave_org(User, Org),
     ?MSnarl(?P(State), Start),
     {true, Req, State};
@@ -415,6 +436,7 @@ delete(Req, State = #state{path = [User, <<"orgs">>, Org]}) ->
 delete(Req, State = #state{path = [User, <<"roles">>, Role]}) ->
     Start = now(),
     e2qc:evict(?CACHE, User),
+    e2qc:teardown(?LIST_CACHE),
     ok = libsnarl:user_leave(User, Role),
     ?MSnarl(?P(State), Start),
     {true, Req, State}.
