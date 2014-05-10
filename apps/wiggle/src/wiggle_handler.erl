@@ -236,7 +236,7 @@ timeout_cache_with_invalid(Cache, Value, TTL1, TTL2, Invalid, Fun) ->
             R
     end.
 
-list(ListFn, Permission, Token, FullList, Filter, TTLEntry, FullCache, ListCache) ->
+list(ListFn, Token, Permission, FullList, Filter, TTLEntry, FullCache, ListCache) ->
     Fun = list_fn(ListFn, Permission, FullList, Filter),
     case application:get_env(wiggle, TTLEntry) of
         {ok, {TTL1, TTL2}} ->
