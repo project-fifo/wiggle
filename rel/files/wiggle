@@ -104,6 +104,11 @@ case "$1" in
         run wiggle_console connections $@
         ;;
 
+    cache-stats)
+        shift
+        run wiggle_console cache_stats $@
+        ;;
+
     start)
         # Make sure there is not already a node running
         RES=`$NODETOOL ping`
