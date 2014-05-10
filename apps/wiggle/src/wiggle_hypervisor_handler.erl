@@ -130,6 +130,15 @@ write(Req, State = #state{path = [Hypervisor, <<"config">>]},
     ?MSniffle(?P(State), Start),
     {true, Req, State};
 
+write(Req, State = #state{path = [Hypervisor, <<"config">>]},
+      [{<<"path">>, P}]) when is_list(P)->
+    Start = now(),
+    e2qc:evict(?CACHE, Hypervisor),
+    e2qc:teardown(?LIST_CACHE),
+    libsniffle:hypervisor_set(Hypervisor, [<<"path">>], path_to_erl(P)),
+    ?MSniffle(?P(State), Start),
+    {true, Req, State};
+
 write(Req, State = #state{path = [Hypervisor, <<"characteristics">> | Path]}, [{K, V}]) ->
     Start = now(),
     e2qc:evict(?CACHE, Hypervisor),
@@ -193,3 +202,9 @@ delete(Req, State = #state{path = [Hypervisor, <<"metadata">> | Path]}) ->
     libsniffle:hypervisor_set(Hypervisor, [<<"metadata">> | Path], delete),
     ?MSniffle(?P(State), Start),
     {true, Req, State}.
+
+%%--------------------------------------------------------------------
+%% DELETE
+%%--------------------------------------------------------------------
+path_to_erl(P) ->
+    [{N, C} || [{<<"cost">>, C}, {<<"name">>, N}] <- P].
