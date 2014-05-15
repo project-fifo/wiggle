@@ -23,7 +23,7 @@ allowed_methods(_Version, _Token, []) ->
     [<<"GET">>];
 
 allowed_methods(_Version, _Token, [_Hypervisor]) ->
-    [<<"GET">>];
+    [<<"GET">>, <<"DELETE">>];
 
 allowed_methods(_Version, _Token, [_Hypervisor, <<"config">>|_]) ->
     [<<"PUT">>];
@@ -55,6 +55,9 @@ permission_required(#state{path = []}) ->
 
 permission_required(#state{method = <<"GET">>, path = [Hypervisor]}) ->
     {ok, [<<"hypervisors">>, Hypervisor, <<"get">>]};
+
+permission_required(#state{method = <<"DELETE">>, path = [Hypervisor]}) ->
+    {ok, [<<"hypervisors">>, Hypervisor, <<"edit">>]};
 
 permission_required(#state{method = <<"PUT">>, path = [Hypervisor, <<"config">> | _]}) ->
     {ok, [<<"hypervisors">>, Hypervisor, <<"edit">>]};
@@ -181,6 +184,15 @@ write(Req, State, _Body) ->
 %%--------------------------------------------------------------------
 %% DELETE
 %%--------------------------------------------------------------------
+
+delete(Req, State = #state{path = [Hypervisor]}) ->
+    Start = now(),
+    e2qc:evict(?CACHE, Hypervisor),
+    e2qc:teardown(?FULL_CACHE),
+    e2qc:teardown(?LIST_CACHE),
+    libsniffle:hypervisor_unregister(Hypervisor),
+    ?MSniffle(?P(State), Start),
+    {true, Req, State};
 
 delete(Req, State = #state{path = [Hypervisor, <<"characteristics">> | Path]}) ->
     Start = now(),
