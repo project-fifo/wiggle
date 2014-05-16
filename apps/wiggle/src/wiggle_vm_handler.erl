@@ -50,6 +50,9 @@ allowed_methods(_Version, _Token, []) ->
 allowed_methods(_Version, _Token, [_Vm]) ->
     [<<"GET">>, <<"PUT">>, <<"DELETE">>];
 
+allowed_methods(_Version, _Token, [<<"dry_run">>]) ->
+    [<<"PUT">>];
+
 allowed_methods(_Version, _Token, [_Vm, <<"hypervisor">>]) ->
     [<<"DELETE">>];
 
@@ -376,6 +379,7 @@ create(Req, State = #state{path = [Vm, <<"backups">>], version = Version}, Decod
     ?MSniffle(?P(State), Start),
     {{true, <<"/api/", Version/binary, "/vms/", Vm/binary, "/backups/", UUID/binary>>}, Req, State#state{body = Decoded}};
 
+
 create(Req, State = #state{path = [Vm, <<"nics">>], version = Version}, Decoded) ->
     {ok, Network} = jsxd:get(<<"network">>, Decoded),
     Start = now(),
@@ -393,6 +397,44 @@ create(Req, State = #state{path = [Vm, <<"nics">>], version = Version}, Decoded)
             lager:error("Could not add nic: ~P"),
             {halt, Req1, State}
     end.
+
+write(Req, State = #state{path = [<<"dry_run">>], token = Token}, Decoded) ->
+    lager:info("Starting dryrun."),
+    try
+        {ok, Dataset} = jsxd:get(<<"dataset">>, Decoded),
+        {ok, Package} = jsxd:get(<<"package">>, Decoded),
+        {ok, Config} = jsxd:get(<<"config">>, Decoded),
+        %% If the creating user has advanced_create permissions they can pass
+        %% 'requirements' as part of the config, if they lack the permission
+        %% it simply gets removed.
+        Config1 = case libsnarl:allowed(
+                         Token,
+                         [<<"cloud">>, <<"vms">>, <<"advanced_create">>]) of
+                      true ->
+                          Config;
+                      _ ->
+                          jsxd:set(<<"requirements">>, [], Config)
+                  end,
+        try
+            {ok, User} = libsnarl:user_get(Token),
+            {ok, Owner} = jsxd:get(<<"uuid">>, User),
+            Start = now(),
+            case libsniffle:dry_run(Package, Dataset,
+                                    jsxd:set(<<"owner">>, Owner, Config1)) of
+                {ok, success} ->
+                    {true, Req, State#state{body = Decoded}};
+                E ->
+                    lager:warning("Dry run failed with: ~p.", E),
+                    {false, Req, State#state{body = Decoded}}
+            end
+        catch
+            _G:_E ->
+                {false, Req, State}
+        end
+    catch
+        _G1:_E1 ->
+            {false, Req, State}
+    end;
 
 write(Req, State = #state{path = [Vm, <<"services">>]},
       [{<<"action">>, <<"enable">>},
