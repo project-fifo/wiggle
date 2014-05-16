@@ -133,6 +133,9 @@ get(State = #state{path = [Vm | _]}) ->
     ?MSniffle(?P(State), Start),
     R.
 
+permission_required(#state{method = <<"PUT">>, path = [<<"dry_run">>]}) ->
+    {ok, [<<"cloud">>, <<"vms">>, <<"create">>]};
+
 permission_required(#state{method = <<"GET">>, path = []}) ->
     {ok, [<<"cloud">>, <<"vms">>, <<"list">>]};
 
@@ -141,6 +144,7 @@ permission_required(#state{method = <<"POST">>, path = []}) ->
 
 permission_required(#state{method = <<"GET">>, path = [Vm]}) ->
     {ok, [<<"vms">>, Vm, <<"get">>]};
+
 
 permission_required(#state{method = <<"DELETE">>, path = [Vm]}) ->
     {ok, [<<"vms">>, Vm, <<"delete">>]};
