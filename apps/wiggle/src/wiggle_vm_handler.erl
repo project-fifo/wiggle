@@ -428,7 +428,7 @@ write(Req, State = #state{path = [<<"dry_run">>], token = Token}, Decoded) ->
                 {ok, success} ->
                     {true, Req, State#state{body = Decoded}};
                 E ->
-                    lager:warning("Dry run failed with: ~p.", E),
+                    lager:warning("Dry run failed with: ~p.", [E]),
                     {false, Req, State#state{body = Decoded}}
             end
         catch
@@ -477,12 +477,12 @@ write(Req, State = #state{path = [Vm, <<"owner">>]}, [{<<"org">>, Org}]) ->
             R = libsniffle:vm_owner(Vm, Org),
             ?MSniffle(?P(State), Start),
             {R =:= ok, Req, State};
-        _ ->
+        E ->
             ?MSniffle(?P(State), Start),
             lager:error("Error trying to assign org ~p since it does not "
                         "seem to exist", [Org]),
             {ok, Req1} = cowboy_req:reply(500, Req),
-            lager:error("Could not add nic: ~P"),
+            lager:error("Could not add nic: ~p", [E]),
             {halt, Req1, State}
     end;
 

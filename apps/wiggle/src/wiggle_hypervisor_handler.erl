@@ -120,7 +120,7 @@ read(Req, State = #state{path = [_Hypervisor], obj = Obj}) ->
 %%--------------------------------------------------------------------
 
 write(Req, State = #state{path = [Hypervisor, <<"config">>]},
-      [{<<"alias">>, V}]) when is_binary(V)->
+      [{<<"alias">>, V}]) when is_binary(V) ->
     Start = now(),
     e2qc:evict(?CACHE, Hypervisor),
     e2qc:teardown(?FULL_CACHE),
@@ -129,7 +129,7 @@ write(Req, State = #state{path = [Hypervisor, <<"config">>]},
     {true, Req, State};
 
 write(Req, State = #state{path = [Hypervisor, <<"config">>]},
-      [{<<"path">>, P}]) when is_list(P)->
+      [{<<"path">>, P}]) when is_list(P) ->
     Start = now(),
     e2qc:evict(?CACHE, Hypervisor),
     e2qc:teardown(?FULL_CACHE),
