@@ -124,7 +124,7 @@ write(Req, State = #state{path = [Hypervisor, <<"config">>]},
     Start = now(),
     e2qc:evict(?CACHE, Hypervisor),
     e2qc:teardown(?FULL_CACHE),
-    libsniffle:hypervisor_set(Hypervisor, [<<"alias">>], V),
+    libsniffle:hypervisor_set(Hypervisor, <<"alias">>, V),
     ?MSniffle(?P(State), Start),
     {true, Req, State};
 
@@ -133,7 +133,7 @@ write(Req, State = #state{path = [Hypervisor, <<"config">>]},
     Start = now(),
     e2qc:evict(?CACHE, Hypervisor),
     e2qc:teardown(?FULL_CACHE),
-    libsniffle:hypervisor_set(Hypervisor, [<<"path">>], path_to_erl(P)),
+    libsniffle:hypervisor_set(Hypervisor, <<"path">>, path_to_erl(P)),
     ?MSniffle(?P(State), Start),
     {true, Req, State};
 
