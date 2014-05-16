@@ -50,6 +50,9 @@ allowed_methods(_Version, _Token, []) ->
 allowed_methods(_Version, _Token, [_Vm]) ->
     [<<"GET">>, <<"PUT">>, <<"DELETE">>];
 
+allowed_methods(_Version, _Token, [<<"dry_run">>]) ->
+    [<<"PUT">>];
+
 allowed_methods(_Version, _Token, [_Vm, <<"hypervisor">>]) ->
     [<<"DELETE">>];
 
@@ -396,6 +399,7 @@ create(Req, State = #state{path = [Vm, <<"nics">>], version = Version}, Decoded)
     end.
 
 write(Req, State = #state{path = [<<"dry_run">>], token = Token}, Decoded) ->
+    lager:info("Starting dryrun."),
     try
         {ok, Dataset} = jsxd:get(<<"dataset">>, Decoded),
         {ok, Package} = jsxd:get(<<"package">>, Decoded),
@@ -419,8 +423,9 @@ write(Req, State = #state{path = [<<"dry_run">>], token = Token}, Decoded) ->
                                     jsxd:set(<<"owner">>, Owner, Config1)) of
                 {ok, success} ->
                     {true, Req, State#state{body = Decoded}};
-                _ ->
-                    {true, Req, State#state{body = Decoded}}
+                E ->
+                    lager:warning("Dry run failed with: ~p.", E),
+                    {false, Req, State#state{body = Decoded}}
             end
         catch
             _G:_E ->
