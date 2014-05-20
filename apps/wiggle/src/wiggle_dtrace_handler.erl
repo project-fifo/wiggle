@@ -1,6 +1,10 @@
 -module(wiggle_dtrace_handler).
 -include("wiggle.hrl").
 
+-define(CACHE, dtrace).
+-define(LIST_CACHE, dtrace_list).
+-define(FULL_CACHE, dtrace_full_list).
+
 -export([allowed_methods/3,
          get/1,
          permission_required/1,
@@ -28,7 +32,14 @@ allowed_methods(_Version, _Token, [_Dtrace]) ->
 
 get(State = #state{path = [Dtrace | _]}) ->
     Start = now(),
-    R = libsniffle:dtrace_get(Dtrace),
+    R = case application:get_env(wiggle, dtrace_ttl) of
+            {ok, {TTL1, TTL2}} ->
+                wiggle_handler:timeout_cache_with_invalid(
+                  ?CACHE, Dtrace, TTL1, TTL2, not_found,
+                  fun() -> libsniffle:dtrace_get(Dtrace) end);
+            _ ->
+                libsniffle:dtrace_get(Dtrace)
+        end,
     ?MSniffle(?P(State), Start),
     R.
 
@@ -62,20 +73,17 @@ permission_required(_State) ->
 
 read(Req, State = #state{token = Token, path = [], full_list=FullList, full_list_fields=Filter}) ->
     Start = now(),
-    {ok, Permissions} = libsnarl:user_cache(Token),
+    {ok, Permissions} = wiggle_handler:get_persmissions(Token),
     ?MSnarl(?P(State), Start),
     Start1 = now(),
-    {ok, Res} = libsniffle:dtrace_list([{must, 'allowed', [<<"dtraces">>, {<<"res">>, <<"uuid">>}, <<"get">>], Permissions}], FullList),
+    Permission = [{must, 'allowed',
+                   [<<"dtraces">>, {<<"res">>, <<"uuid">>}, <<"get">>],
+                   Permissions}],
+    Res = wiggle_handler:list(fun libsniffle:dtrace_list/2, Token, Permission,
+                              FullList, Filter, dtrace_list_ttl, ?FULL_CACHE,
+                              ?LIST_CACHE),
     ?MSniffle(?P(State), Start1),
-    Res1 = case {Filter, FullList} of
-               {_, false} ->
-                   [ID || {_, ID} <- Res];
-               {[], _} ->
-                   [ID || {_, ID} <- Res];
-               _ ->
-                   [jsxd:select(Filter, ID) || {_, ID} <- Res]
-           end,
-    {Res1, Req, State};
+    {Res, Req, State};
 
 read(Req, State = #state{path = [_Dtrace], obj = Obj}) ->
     Obj1 = jsxd:update(<<"script">>, fun (S) ->
@@ -94,6 +102,8 @@ create(Req, State = #state{path = [], version = Version}, Data) ->
     Start = now(),
     case libsniffle:dtrace_add(Dtrace, Script1) of
         {ok, UUID} ->
+            e2qc:teardown(?LIST_CACHE),
+            e2qc:teardown(?FULL_CACHE),
             ?MSniffle(?P(State), Start),
             case jsxd:get(<<"config">>, Data) of
                 {ok, Config} ->
@@ -115,7 +125,9 @@ write(Req, State = #state{method = <<"POST">>, path = []}, _) ->
 
 write(Req, State = #state{path = [Dtrace, <<"metadata">> | Path]}, [{K, V}]) ->
     Start = now(),
-    libsniffle:dtrace_set(Dtrace, [<<"metadata">> | Path] ++ [K], jsxd:from_list(V)),
+    ok = libsniffle:dtrace_set(Dtrace, [<<"metadata">> | Path] ++ [K], jsxd:from_list(V)),
+    e2qc:evict(?CACHE, Dtrace),
+    e2qc:teardown(?FULL_CACHE),
     ?MSniffle(?P(State), Start),
     {true, Req, State};
 
@@ -128,12 +140,17 @@ write(Req, State, _Body) ->
 
 delete(Req, State = #state{path = [Dtrace, <<"metadata">> | Path]}) ->
     Start = now(),
-    libsniffle:dtrace_set(Dtrace, [<<"metadata">> | Path], delete),
+    ok = libsniffle:dtrace_set(Dtrace, [<<"metadata">> | Path], delete),
+    e2qc:evict(?CACHE, Dtrace),
+    e2qc:teardown(?FULL_CACHE),
     ?MSniffle(?P(State), Start),
     {true, Req, State};
 
 delete(Req, State = #state{path = [Dtrace]}) ->
     Start = now(),
     ok = libsniffle:dtrace_delete(Dtrace),
+    e2qc:evict(?CACHE, Dtrace),
+    e2qc:teardown(?LIST_CACHE),
+    e2qc:teardown(?FULL_CACHE),
     ?MSniffle(?P(State), Start),
     {true, Req, State}.

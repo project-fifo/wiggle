@@ -1,7 +1,7 @@
 {application, wiggle,
  [
   {description, ""},
-  {vsn, "0.5.3p1"},
+  {vsn, "0.5.4"},
   {registered, []},
   {applications, [
                   kernel,
@@ -19,6 +19,7 @@
                   mnesia,
                   uuid,
                   eplugin,
+                  e2qc,
                   cowboy
                  ]},
   {mod, { wiggle_app, []}},

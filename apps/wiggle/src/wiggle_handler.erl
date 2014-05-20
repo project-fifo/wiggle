@@ -12,7 +12,11 @@
          allowed/2,
          options/3,
          service_available/0,
-         encode/2
+         encode/2,
+         get_persmissions/1,
+         timeout_cache_with_invalid/6,
+         timeout_cache/5,
+         list/8
         ]).
 
 initial_state(Req) ->
@@ -170,15 +174,12 @@ options(Req, State, Methods) ->
 
 allowed(State = #state{token = Token}, Perm) ->
     Start = now(),
-    R = case libsnarl:allowed(Token, Perm) of
+    R = case get_persmissions(Token) of
             not_found ->
                 lager:warning("[auth] unknown Token for allowed: ~p", [Token]),
                 true;
-            true ->
-                false;
-            false ->
-                lager:warning("[auth] ~p is not allowed for: ~p", [Perm, Token]),
-                true
+            {ok, Ps} ->
+                not libsnarl:test(Perm, Ps)
         end,
     ?MSnarl(?P(State), Start),
     R.
@@ -191,4 +192,73 @@ service_available() ->
             false;
         _ ->
             true
+    end.
+
+%% Cache user permissions for up to 1s.
+get_persmissions(Token) ->
+    {TTL1, TTL2} = application:get_env(wiggle, token_ttl,
+                                       {1000*1000, 10*1000*1000}),
+    timeout_cache_(permissions, Token, TTL1, TTL2,
+                   fun () -> libsnarl:user_cache(Token) end).
+
+timeout_cache(Cache, Value, TTL1, TTL2, Fun) ->
+    case application:get_env(wiggle, caching, true) of
+        true ->
+            timeout_cache_(Cache, Value, TTL1, TTL2, Fun);
+        false ->
+            Fun()
+    end.
+
+timeout_cache_(Cache, Value, TTL1, TTL2, Fun) ->
+    CacheFun = fun() -> {now(), Fun()} end,
+    {T0, R} = e2qc:cache(Cache, Value, CacheFun),
+    case timer:now_diff(now(), T0)/1000 of
+        Diff when Diff < TTL1 ->
+            R;
+        Diff when Diff < TTL2 ->
+            e2qc:evict(Cache, Value),
+            spawn(e2qc, cache, [Cache, Value, CacheFun]),
+            R;
+        _ ->
+            e2qc:evict(Cache, Value),
+            {_, R1} = e2qc:cache(Cache, Value, CacheFun),
+            R1
+    end.
+
+%% This function lets us define a timedout cache with a invalid value
+%% this is helpful since we don't want to cache not_found's.
+timeout_cache_with_invalid(Cache, Value, TTL1, TTL2, Invalid, Fun) ->
+    case timeout_cache(Cache, Value, TTL1, TTL2, Fun) of
+        R when R =:= Invalid ->
+            e2qc:evict(Cache, Value),
+            R;
+        R ->
+            R
+    end.
+
+list(ListFn, Token, Permission, FullList, Filter, TTLEntry, FullCache, ListCache) ->
+    Fun = list_fn(ListFn, Permission, FullList, Filter),
+    case application:get_env(wiggle, TTLEntry) of
+        {ok, {TTL1, TTL2}} ->
+            case FullList of
+                true ->
+                    timeout_cache(FullCache, {Token, Filter}, TTL1, TTL2, Fun);
+                _ ->
+                    timeout_cache(ListCache, Token, TTL1, TTL2, Fun)
+            end;
+        _ ->
+            Fun()
+    end.
+
+list_fn(ListFn, Permission, FullList, Filter) ->
+    fun () ->
+            {ok, Res} = ListFn(Permission, FullList),
+            case {Filter, FullList} of
+                {_, false} ->
+                    [ID || {_, ID} <- Res];
+                {[], _} ->
+                    [ID || {_, ID} <- Res];
+                _ ->
+                    [jsxd:select(Filter, ID) || {_, ID} <- Res]
+            end
     end.

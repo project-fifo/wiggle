@@ -50,6 +50,8 @@ start(_StartType, _StartArgs) ->
                           wiggle_rest_handler, [wiggle_iprange_handler]},
                          {<<"/api/:version/networks/[...]">>,
                           wiggle_rest_handler, [wiggle_network_handler]},
+                         {<<"/api/:version/groupings/[...]">>,
+                          wiggle_rest_handler, [wiggle_grouping_handler]},
                          {<<"/api/:version/datasets/[...]">>,
                           wiggle_rest_handler, [wiggle_dataset_handler]},
                          {<<"/api/:version/packages/[...]">>,

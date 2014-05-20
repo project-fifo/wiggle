@@ -5,6 +5,10 @@
 -include_lib("eunit/include/eunit.hrl").
 -endif.
 
+-define(CACHE, org).
+-define(LIST_CACHE, org_list).
+-define(FULL_CACHE, org_full_list).
+
 -export([allowed_methods/3,
          get/1,
          permission_required/1,
@@ -38,7 +42,14 @@ allowed_methods(_Version, _Token, [_Org, <<"metadata">> | _]) ->
 
 get(State = #state{path = [Org | _]}) ->
     Start = now(),
-    R = libsnarl:org_get(Org),
+    R = case application:get_env(wiggle, org_ttl) of
+            {ok, {TTL1, TTL2}} ->
+                wiggle_handler:timeout_cache_with_invalid(
+                  ?CACHE, Org, TTL1, TTL2, not_found,
+                  fun() -> libsnarl:org_get(Org) end);
+            _ ->
+                libsnarl:org_get(Org)
+        end,
     ?MSnarl(?P(State), Start),
     R.
 
@@ -120,23 +131,18 @@ permission_required(State) ->
 
 read(Req, State = #state{token = Token, path = [], full_list=FullList, full_list_fields=Filter}) ->
     Start = now(),
-    {ok, Permissions} = libsnarl:user_cache(Token),
+    {ok, Permissions} = wiggle_handler:get_persmissions(Token),
     ?MSnarl(?P(State), Start),
     Start1 = now(),
-    {ok, Res} = libsnarl:org_list(
-                  [{must, 'allowed',
-                    [<<"orgs">>, {<<"res">>, <<"uuid">>}, <<"get">>],
-                    Permissions}], FullList),
+    Permission = [{must, 'allowed',
+                   [<<"orgs">>, {<<"res">>, <<"uuid">>}, <<"get">>],
+                   Permissions}],
+    Res = wiggle_handler:list(fun libsnarl:org_list/2, Token, Permission,
+                              FullList, Filter, org_list_ttl, ?FULL_CACHE,
+                              ?LIST_CACHE),
+
     ?MSnarl(?P(State), Start1),
-    Res1 = case {Filter, FullList} of
-               {_, false} ->
-                   [ID || {_, ID} <- Res];
-               {[], _} ->
-                   [ID || {_, ID} <- Res];
-               _ ->
-                   [jsxd:select(Filter, ID) || {_, ID} <- Res]
-           end,
-    {Res1, Req, State};
+    {Res, Req, State};
 
 read(Req, State = #state{path = [_Org], obj = OrgObj}) ->
     {OrgObj, Req, State};
@@ -152,6 +158,8 @@ create(Req, State = #state{path = [], version = Version}, Decoded) ->
     {ok, Org} = jsxd:get(<<"name">>, Decoded),
     Start = now(),
     {ok, UUID} = libsnarl:org_add(Org),
+    e2qc:teardown(?LIST_CACHE),
+    e2qc:teardown(?FULL_CACHE),
     ?MSnarl(?P(State), Start),
     {{true, <<"/api/", Version/binary, "/orgs/", UUID/binary>>},
      Req, State#state{body = Decoded}};
@@ -164,6 +172,8 @@ create(Req, State =
     P = erlangify_trigger(Trigger, Event),
     Start = now(),
     ok = libsnarl:org_add_trigger(Org, P),
+    e2qc:evict(?CACHE, Org),
+    e2qc:teardown(?FULL_CACHE),
     ?MSnarl(?P(State), Start),
     {{true, <<"/api/", Version/binary, "/orgs/", Org/binary>>},
      Req, State}.
@@ -172,12 +182,8 @@ write(Req, State = #state{path = [Org, <<"metadata">> | Path]}, [{K, V}])
   when is_binary(Org) ->
     Start = now(),
     libsnarl:org_set(Org, Path ++ [K], jsxd:from_list(V)),
-    ?MSnarl(?P(State), Start),
-    {true, Req, State};
-
-write(Req, State = #state{path = [Org]}, _Body) ->
-    Start = now(),
-    ok = libsnarl:org_add(Org),
+    e2qc:evict(?CACHE, Org),
+    e2qc:teardown(?FULL_CACHE),
     ?MSnarl(?P(State), Start),
     {true, Req, State}.
 
@@ -187,19 +193,26 @@ write(Req, State = #state{path = [Org]}, _Body) ->
 
 delete(Req, State = #state{path = [Org, <<"metadata">> | Path]}) ->
     Start = now(),
-    libsnarl:org_set(Org, Path, delete),
+    ok = libsnarl:org_set(Org, Path, delete),
+    e2qc:evict(?CACHE, Org),
+    e2qc:teardown(?FULL_CACHE),
     ?MSnarl(?P(State), Start),
     {true, Req, State};
 
 delete(Req, State = #state{path = [Org, <<"triggers">> , Trigger]}) ->
     Start = now(),
     ok = libsnarl:org_remove_trigger(Org, Trigger),
+    e2qc:evict(?CACHE, Org),
+    e2qc:teardown(?FULL_CACHE),
     ?MSnarl(?P(State), Start),
     {true, Req, State};
 
 delete(Req, State = #state{path = [Org]}) ->
     Start = now(),
     ok = libsnarl:org_delete(Org),
+    e2qc:evict(?CACHE, Org),
+    e2qc:teardown(?LIST_CACHE),
+    e2qc:teardown(?FULL_CACHE),
     ?MSnarl(?P(State), Start),
     {true, Req, State}.
 

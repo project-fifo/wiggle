@@ -4,6 +4,10 @@
 -module(wiggle_package_handler).
 -include("wiggle.hrl").
 
+-define(CACHE, package).
+-define(LIST_CACHE, package_list).
+-define(FULL_CACHE, package_full_list).
+
 -export([allowed_methods/3,
          get/1,
          permission_required/1,
@@ -31,7 +35,14 @@ allowed_methods(_Version, _Token, [_Package]) ->
 
 get(State = #state{path = [Package | _]}) ->
     Start = now(),
-    R = libsniffle:package_get(Package),
+    R = case application:get_env(wiggle, package_ttl) of
+            {ok, {TTL1, TTL2}} ->
+                wiggle_handler:timeout_cache_with_invalid(
+                  ?CACHE, Package, TTL1, TTL2, not_found,
+                  fun() -> libsniffle:package_get(Package) end);
+            _ ->
+                libsniffle:package_get(Package)
+        end,
     ?MSniffle(?P(State), Start),
     R;
 
@@ -68,20 +79,17 @@ permission_required(_State) ->
 
 read(Req, State = #state{token = Token, path = [], full_list=FullList, full_list_fields=Filter}) ->
     Start = now(),
-    {ok, Permissions} = libsnarl:user_cache(Token),
+    {ok, Permissions} = wiggle_handler:get_persmissions(Token),
     ?MSnarl(?P(State), Start),
     Start1 = now(),
-    {ok, Res} = libsniffle:package_list([{must, 'allowed', [<<"packages">>, {<<"res">>, <<"uuid">>}, <<"get">>], Permissions}], FullList),
+    Permission = [{must, 'allowed',
+                   [<<"packages">>, {<<"res">>, <<"uuid">>}, <<"get">>],
+                   Permissions}],
+    Res = wiggle_handler:list(fun libsniffle:package_list/2, Token, Permission,
+                              FullList, Filter, package_list_ttl, ?FULL_CACHE,
+                              ?LIST_CACHE),
     ?MSniffle(?P(State), Start1),
-    Res1 = case {Filter, FullList} of
-               {_, false} ->
-                   [ID || {_, ID} <- Res];
-               {[], _} ->
-                   [ID || {_, ID} <- Res];
-               _ ->
-                   [jsxd:select(Filter, ID) || {_, ID} <- Res]
-           end,
-    {Res1, Req, State};
+    {Res, Req, State};
 
 read(Req, State = #state{path = [_Package], obj = Obj}) ->
     {Obj, Req, State}.
@@ -94,10 +102,13 @@ read(Req, State = #state{path = [_Package], obj = Obj}) ->
 create(Req, State = #state{path = [], version = Version}, Data) ->
     Data1 = jsxd:select([<<"cpu_cap">>, <<"quota">>, <<"ram">>,
                          <<"requirements">>, <<"zfs_io_priority">>,
-                         <<"max_swap">>], Data),
+                         <<"max_swap">>, <<"blocksize">>, <<"compression">>],
+                        Data),
     {ok, Package} = jsxd:get(<<"name">>, Data),
     case libsniffle:package_create(Package) of
         {ok, UUID} ->
+            e2qc:teardown(?LIST_CACHE),
+            e2qc:teardown(?FULL_CACHE),
             ok = libsniffle:package_set(UUID, Data1),
             {{true, <<"/api/", Version/binary, "/packages/", UUID/binary>>}, Req, State#state{body = Data1}};
         duplicate ->
@@ -111,7 +122,9 @@ write(Req, State = #state{method = <<"POST">>, path = []}, _) ->
     {true, Req, State};
 
 write(Req, State = #state{path = [Package, <<"metadata">> | Path]}, [{K, V}]) ->
-    libsniffle:package_set(Package, [<<"metadata">> | Path] ++ [K], jsxd:from_list(V)),
+    ok = libsniffle:package_set(Package, [<<"metadata">> | Path] ++ [K], jsxd:from_list(V)),
+    e2qc:evict(?CACHE, Package),
+    e2qc:teardown(?FULL_CACHE),
     {true, Req, State};
 
 write(Req, State, _Body) ->
@@ -122,9 +135,14 @@ write(Req, State, _Body) ->
 %%--------------------------------------------------------------------
 
 delete(Req, State = #state{path = [Package, <<"metadata">> | Path]}) ->
-    libsniffle:package_set(Package, [<<"metadata">> | Path], delete),
+    ok = libsniffle:package_set(Package, [<<"metadata">> | Path], delete),
+    e2qc:evict(?CACHE, Package),
+    e2qc:teardown(?FULL_CACHE),
     {true, Req, State};
 
 delete(Req, State = #state{path = [Package]}) ->
     ok = libsniffle:package_delete(Package),
+    e2qc:evict(?CACHE, Package),
+    e2qc:teardown(?LIST_CACHE),
+    e2qc:teardown(?FULL_CACHE),
     {true, Req, State}.
