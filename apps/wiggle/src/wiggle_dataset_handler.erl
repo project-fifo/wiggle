@@ -150,7 +150,7 @@ read(Req, State = #state{path = [UUID, <<"dataset.gz">>], obj = _Obj}) ->
                         [begin
                              {ok, Data} = libsniffle:img_get(UUID, Idx),
                              SendChunk(Data)
-                         end || Idx <- Idxs]
+                         end || Idx <- lists:sort(Idxs)]
                 end,
     {{chunked, StreamFun}, Req, State}.
 
