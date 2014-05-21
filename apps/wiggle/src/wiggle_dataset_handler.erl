@@ -136,18 +136,14 @@ read(Req, State = #state{path = [_Dataset], obj = Obj}) ->
     {Obj, Req, State};
 
 read(Req, State = #state{path = [UUID, <<"dataset.gz">>], obj = _Obj}) ->
-    {ok, Req1} = cowboy_req:chunked_reply(200, Req),
     {ok, Idxs} = libsniffle:img_list(UUID),
-    [begin
-         {ok, Data} = libsniffle:img_get(UUID, Idx),
-         case cowboy_req:chunk(Data, Req1) of
-             ok ->
-                 ok;
-             {error, Reason} ->
-                 lager:error("Export error: ~p", [Reason])
-         end
-     end || Idx <- Idxs],
-    {Req, State}.
+    StreamFun = fun(SendChunk) ->
+                        [begin
+                             {ok, Data} = libsniffle:img_get(UUID, Idx),
+                             SendChunk(Data)
+                         end || Idx <- Idxs]
+                end,
+    {{chunked, StreamFun}, Req, State}.
 
 %%--------------------------------------------------------------------
 %% PUT
