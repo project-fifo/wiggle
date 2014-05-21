@@ -20,7 +20,8 @@
          write/3,
          delete/2,
          raw_body/1,
-         content_types_accepted/1]).
+         content_types_accepted/1,
+         content_types_provided/1]).
 
 -ignore_xref([allowed_methods/3,
               get/1,
@@ -30,7 +31,8 @@
               write/3,
               delete/2,
               raw_body/1,
-              content_types_accepted/1]).
+              content_types_accepted/1,
+              content_types_provided/1]).
 
 -define(WRETRY, 5).
 
@@ -113,6 +115,13 @@ content_types_accepted(#state{path=[_, <<"dataset.gz">>], method = <<"PUT">>}) -
 content_types_accepted(_) ->
     wiggle_handler:accepted().
 
+content_types_provided(#state{path=[_, <<"dataset.gz">>], method = <<"GET">>}) ->
+    [
+     {{<<"application">>, <<"x-gzip">>, []}, read}
+    ];
+content_types_provided(_) ->
+    wiggle_handler:provided().
+
 %%--------------------------------------------------------------------
 %% GET
 %%--------------------------------------------------------------------
@@ -136,18 +145,14 @@ read(Req, State = #state{path = [_Dataset], obj = Obj}) ->
     {Obj, Req, State};
 
 read(Req, State = #state{path = [UUID, <<"dataset.gz">>], obj = _Obj}) ->
-    {ok, Req1} = cowboy_req:chunked_reply(200, Req),
     {ok, Idxs} = libsniffle:img_list(UUID),
-    [begin
-         {ok, Data} = libsniffle:img_get(UUID, Idx),
-         case cowboy_req:chunk(Data, Req1) of
-             ok ->
-                 ok;
-             {error, Reason} ->
-                 lager:error("Export error: ~p", [Reason])
-         end
-     end || Idx <- Idxs],
-    {Req, State}.
+    StreamFun = fun(SendChunk) ->
+                        [begin
+                             {ok, Data} = libsniffle:img_get(UUID, Idx),
+                             SendChunk(Data)
+                         end || Idx <- lists:sort(Idxs)]
+                end,
+    {{chunked, StreamFun}, Req, State}.
 
 %%--------------------------------------------------------------------
 %% PUT

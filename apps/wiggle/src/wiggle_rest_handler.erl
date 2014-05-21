@@ -164,11 +164,15 @@ forbidden(Req, State = #state{module = M}) ->
 %%--------------------------------------------------------------------
 
 read(Req, State = #state{module = M}) ->
-    {Reply, Req1, State1} = M:read(Req, State),
-    Start = now(),
-    {Data, Req2} = wiggle_handler:encode(Reply, Req1),
-    ?MEx(?P(State), <<"encode">>, Start),
-    {Data, Req2, State1#state{obj = Data}}.
+    case M:read(Req, State) of
+        {{chunked, _StreamFun}, _Req, _State} = Reply ->
+            Reply;
+        {Reply, Req1, State1} ->
+            Start = now(),
+            {Data, Req2} = wiggle_handler:encode(Reply, Req1),
+            ?MEx(?P(State), <<"encode">>, Start),
+            {Data, Req2, State1#state{obj = Data}}
+    end.
 
 %%--------------------------------------------------------------------
 %% write
