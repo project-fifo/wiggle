@@ -20,7 +20,8 @@
          write/3,
          delete/2,
          raw_body/1,
-         content_types_accepted/1]).
+         content_types_accepted/1,
+         content_types_provided/1]).
 
 -ignore_xref([allowed_methods/3,
               get/1,
@@ -30,7 +31,8 @@
               write/3,
               delete/2,
               raw_body/1,
-              content_types_accepted/1]).
+              content_types_accepted/1,
+              content_types_provided/1]).
 
 -define(WRETRY, 5).
 
@@ -112,6 +114,13 @@ content_types_accepted(#state{path=[_, <<"dataset.gz">>], method = <<"PUT">>}) -
     ];
 content_types_accepted(_) ->
     wiggle_handler:accepted().
+
+content_types_provided(#state{path=[_, <<"dataset.gz">>], method = <<"GET">>}) ->
+    [
+     {{<<"application">>, <<"x-gzip">>, []}, read}
+    ];
+content_types_provided(_) ->
+    wiggle_handler:provided().
 
 %%--------------------------------------------------------------------
 %% GET
