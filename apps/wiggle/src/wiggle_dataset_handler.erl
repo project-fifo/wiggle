@@ -137,13 +137,13 @@ read(Req, State = #state{path = [_Dataset], obj = Obj}) ->
 
 read(Req, State = #state{path = [UUID, <<"dataset.gz">>], obj = _Obj}) ->
     {ok, Idxs} = libsniffle:img_list(UUID),
-    StreamFun = fun(Socket, Transport) ->
+    StreamFun = fun(SendChunk) ->
                         [begin
                              {ok, Data} = libsniffle:img_get(UUID, Idx),
-                             Transport:send(Socket, Data)
+                             SendChunk(Data)
                          end || Idx <- Idxs]
                 end,
-    {{stream, StreamFun}, Req, State}.
+    {{chunked, StreamFun}, Req, State}.
 
 %%--------------------------------------------------------------------
 %% PUT
