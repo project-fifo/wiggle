@@ -145,14 +145,28 @@ read(Req, State = #state{path = [_Dataset], obj = Obj}) ->
     {Obj, Req, State};
 
 read(Req, State = #state{path = [UUID, <<"dataset.gz">>], obj = _Obj}) ->
-    {ok, Idxs} = libsniffle:img_list(UUID),
-    StreamFun = fun(SendChunk) ->
-                        [begin
-                             {ok, Data} = libsniffle:img_get(UUID, Idx),
-                             SendChunk(Data)
-                         end || Idx <- lists:sort(Idxs)]
-                end,
-    {{chunked, StreamFun}, Req, State}.
+    case libsniffle:img_list(UUID) of
+        {ok, Idxs} ->
+            StreamFun = fun(SendChunk) ->
+                                [begin
+                                     {ok, Data} = libsniffle:img_get(UUID, Idx),
+                                     SendChunk(Data)
+                                 end || Idx <- lists:sort(Idxs)]
+                        end,
+            {{chunked, StreamFun}, Req, State};
+        {ok, AKey, SKey, Host, Port, Bucket, Key} ->
+            Config = [{host, Host},
+                      {port, Port},
+                      {chunk_size, 5242880},
+                      {bucket, Bucket},
+                      {access_key, AKey},
+                      {secret_key, SKey}],
+            {ok, D} = fifo_s3_download:new(Key, Config),
+            StreamFun = fun(SendChunk) ->
+                                do_strea(SendChunk, D)
+                        end,
+            {{chunked, StreamFun}, Req, State}
+    end.
 
 %%--------------------------------------------------------------------
 %% PUT
@@ -342,3 +356,12 @@ ensure_integer(L) when is_list(L) ->
     list_to_integer(L);
 ensure_integer(B) when is_binary(B) ->
     list_to_integer(binary_to_list(B)).
+
+do_strea(SendChunk, D) ->
+    case fifo_s3_download:get(D) of
+        {ok, done} ->
+            ok;
+        {ok, Data} ->
+            SendChunk(Data),
+            do_strea(SendChunk,D)
+    end.
