@@ -494,8 +494,8 @@ write(Req, State = #state{path = [Vm, <<"nics">>, Mac]}, [{<<"primary">>, true}]
 write(Req, State = #state{path = [Vm, <<"metadata">> | Path]}, [{K, V}]) ->
     e2qc:evict(?CACHE, Vm),
     e2qc:teardown(?FULL_CACHE),
-    ?LIB(ls_vm:set_metadata(Vm,  Path ++ [K],
-                            jsxd:from_list(V)));
+    ?LIB(ls_vm:set_metadata(Vm,  [{Path ++ [K],
+                                   jsxd:from_list(V)}]));
 
 
 write(Req, State = #state{path = [Vm]}, [{<<"action">>, <<"start">>}]) ->
@@ -638,7 +638,7 @@ delete(Req, State = #state{path = [Vm]}) ->
 
 delete(Req, State = #state{path = [Vm, <<"metadata">> | Path]}) ->
     Start = now(),
-    ls_vm:set_metadata(Vm, Path, delete),
+    ls_vm:set_metadata(Vm, [{Path, delete}]),
     e2qc:evict(?CACHE, Vm),
     e2qc:teardown(?FULL_CACHE),
     ?MSniffle(?P(State), Start),
