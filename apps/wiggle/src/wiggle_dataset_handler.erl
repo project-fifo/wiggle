@@ -199,7 +199,7 @@ create(Req, State = #state{path = [], version = Version}, Decoded) ->
          {<<"snapshot">>, Snap},
          {<<"vm">>, Vm}] ->
             Start1 = now(),
-            {ok, UUID} = libsniffle:vm_promote_snapshot(Vm, Snap, Config),
+            {ok, UUID} = ls_vm:promote_snapshot(Vm, Snap, Config),
             ?MSniffle(?P(State), Start1),
             {{true, <<"/api/", Version/binary, "/datasets/", UUID/binary>>}, Req, State#state{body = Decoded}}
     end.

@@ -47,7 +47,7 @@ websocket_init(_Any, Req, []) ->
                 {Token, Req3} ->
                     case libsnarl:allowed(Token, [<<"vms">>, ID, <<"console">>]) of
                         true ->
-                            case libsniffle:vm_get(ID) of
+                            case ls_vm:get(ID) of
                                 {ok, VM} ->
                                     case {jsxd:get([<<"info">>, <<"vnc">>, <<"host">>], VM),
                                           jsxd:get([<<"info">>, <<"vnc">>, <<"port">>], VM)} of

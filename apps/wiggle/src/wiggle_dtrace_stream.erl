@@ -123,7 +123,7 @@ handle(Config, Req, State  = #state{encoder = Enc, type = Type}) ->
                   [] ->
                       Config;
                   VMs ->
-                      VMs0 = [libsniffle:vm_get(V) || V <- VMs],
+                      VMs0 = [ls_vm:get(V) || V <- VMs],
                       VMs1 = [jsxd:get([<<"hypervisor">>], V) || {ok, V} <- VMs0],
                       Servers2 = [S || {ok, S} <- VMs1],
                       Filter = [[<<"zonename">>, V] || V <- VMs],
