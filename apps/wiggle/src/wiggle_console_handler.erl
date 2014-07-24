@@ -43,7 +43,7 @@ websocket_init(_Any, Req, []) ->
                         {ok, VM} ->
                             case ft_vm:hypervisor(VM) of
                                 {ok, HID} ->
-                                    case libsniffle:hypervisor_get(HID) of
+                                    case ls_hypervisor:get(HID) of
                                         {ok, H} ->
                                             {Host, Port} = ft_hypervisor:endpoint(H),
                                             {ok, Console} = libchunter:console_open(Host, Port, ID, self()),

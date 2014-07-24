@@ -106,7 +106,7 @@ websocket_terminate(_Reason, _Req, #state{socket = Port} = _State) ->
     ok.
 
 handle(null, Req, State = #state{encoder = Enc, type = Type}) ->
-    {ok, Servers} = libsniffle:hypervisor_list(),
+    {ok, Servers} = ls_hypervisor:list(),
     case libsniffle:dtrace_run(State#state.id, [{<<"servers">>, Servers}]) of
         {ok, S} ->
             {reply, {Type, Enc([{<<"config">>, jsxd:merge([{<<"servers">>, Servers}], State#state.config)}])},
@@ -118,7 +118,7 @@ handle(null, Req, State = #state{encoder = Enc, type = Type}) ->
 
 handle(Config, Req, State  = #state{encoder = Enc, type = Type}) ->
     lager:debug("[dtrace] handle(~p)", [Config]),
-    {ok, Servers} = libsniffle:hypervisor_list(),
+    {ok, Servers} = ls_hypervisor:list(),
     Config1 = case jsxd:get([<<"vms">>], [], Config) of
                   [] ->
                       Config;
