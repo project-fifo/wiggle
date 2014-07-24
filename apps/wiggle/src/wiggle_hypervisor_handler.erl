@@ -95,24 +95,25 @@ read(Req, State = #state{token = Token, path = [], full_list=FullList, full_list
     Permission = [{must, 'allowed',
                    [<<"hypervisors">>, {<<"res">>, <<"name">>}, <<"get">>],
                    Permissions}],
-    Res = wiggle_handler:list(fun libsniffle:hypervisor_list/2, Token, Permission,
+    Res = wiggle_handler:list(fun libsniffle:hypervisor_list/2,
+                              fun ft_hypervisor:to_json/1, Token, Permission,
                               FullList, Filter, hypervisor_list_ttl, ?FULL_CACHE,
                               ?LIST_CACHE),
     ?MSniffle(?P(State), Start1),
     {Res, Req, State};
 
 read(Req, State = #state{path = [_Hypervisor, <<"services">>], obj = Obj}) ->
-    Snaps = jsxd:fold(fun(UUID, Snap, Acc) ->
-                              [jsxd:set(<<"uuid">>, UUID, Snap) | Acc]
-                      end, [], jsxd:get(<<"services">>, [], Obj)),
-    {Snaps, Req, State};
+    Services = jsxd:fold(fun(UUID, Snap, Acc) ->
+                                 [jsxd:set(<<"uuid">>, UUID, Snap) | Acc]
+                         end, [], ft_hypervisor:services(Obj)),
+    {Services, Req, State};
 
 read(Req, State = #state{path = [_Hypervisor, <<"services">>, Service],
                          obj = Obj = [{_,_}|_]}) when is_binary(Service) ->
-    {jsxd:get([<<"services">>, Service], [{}], Obj), Req, State};
+    {jsxd:get([Service], [{}], ft_hypervisor:services(Obj)), Req, State};
 
 read(Req, State = #state{path = [_Hypervisor], obj = Obj}) ->
-    {Obj, Req, State}.
+    {ft_hypervisor:to_json(Obj), Req, State}.
 
 
 %%--------------------------------------------------------------------

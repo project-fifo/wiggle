@@ -49,8 +49,9 @@ websocket_init(_Any, Req, []) ->
                         true ->
                             case ls_vm:get(ID) of
                                 {ok, VM} ->
-                                    case {jsxd:get([<<"info">>, <<"vnc">>, <<"host">>], VM),
-                                          jsxd:get([<<"info">>, <<"vnc">>, <<"port">>], VM)} of
+                                    Info = ft_vm:info(VM),
+                                    case {jsxd:get([<<"vnc">>, <<"host">>], Info),
+                                          jsxd:get([<<"vnc">>, <<"port">>], Info)} of
                                         {{ok, Host}, {ok, Port}} when is_binary(Host),
                                                                       is_integer(Port)->
                                             case gen_tcp:connect(binary_to_list(Host), Port,

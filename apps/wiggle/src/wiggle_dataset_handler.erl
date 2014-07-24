@@ -134,7 +134,8 @@ read(Req, State = #state{token = Token, path = [], full_list=FullList, full_list
     Permission = [{must, 'allowed',
                    [<<"datasets">>, {<<"res">>, <<"dataset">>}, <<"get">>],
                    Permissions}],
-    Res = wiggle_handler:list(fun libsniffle:dataset_list/2, Token, Permission,
+    Res = wiggle_handler:list(fun libsniffle:dataset_list/2,
+                              fun ft_dataset:to_json/1, Token, Permission,
                               FullList, Filter, dataset_list_ttl, ?FULL_CACHE,
                               ?LIST_CACHE),
 
@@ -142,7 +143,7 @@ read(Req, State = #state{token = Token, path = [], full_list=FullList, full_list
     {Res, Req, State};
 
 read(Req, State = #state{path = [_Dataset], obj = Obj}) ->
-    {Obj, Req, State};
+    {ft_dataset:to_json(Obj), Req, State};
 
 read(Req, State = #state{path = [UUID, <<"dataset.gz">>], obj = _Obj}) ->
     case libsniffle:img_list(UUID) of
@@ -207,7 +208,7 @@ create(Req, State = #state{path = [], version = Version}, Decoded) ->
 write(Req, State = #state{path = [UUID, <<"dataset.gz">>]}, _) ->
     case libsniffle:dataset_get(UUID) of
         {ok, R} ->
-            Size = jsxd:get(<<"image_size">>, 1, R),
+            Size = ft_dataset:image_size(R),
             libsniffle:dataset_set(UUID, <<"status">>, <<"importing">>),
             {Res, Req1} = import_dataset(UUID, 0, ensure_integer(Size), Req, undefined),
             {Res, Req1, State};
@@ -253,8 +254,8 @@ delete(Req, State = #state{path = [Dataset]}) ->
     Start = now(),
     case libsniffle:dataset_get(Dataset) of
         {ok, D} ->
-            case jsxd:get(<<"status">>, D) of
-                {ok, <<"importing">>} ->
+            case ft_dataset:status(D) of
+                <<"importing">> ->
                     ?MSniffle(?P(State), Start),
                     {409, Req, State};
                 _ ->

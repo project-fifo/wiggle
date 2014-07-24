@@ -85,14 +85,15 @@ read(Req, State = #state{token = Token, path = [], full_list=FullList, full_list
     Permission = [{must, 'allowed',
                    [<<"packages">>, {<<"res">>, <<"uuid">>}, <<"get">>],
                    Permissions}],
-    Res = wiggle_handler:list(fun libsniffle:package_list/2, Token, Permission,
+    Res = wiggle_handler:list(fun libsniffle:package_list/2,
+                              fun ft_package:to_json/1, Token, Permission,
                               FullList, Filter, package_list_ttl, ?FULL_CACHE,
                               ?LIST_CACHE),
     ?MSniffle(?P(State), Start1),
     {Res, Req, State};
 
 read(Req, State = #state{path = [_Package], obj = Obj}) ->
-    {Obj, Req, State}.
+    {ft_package:to_json(Obj), Req, State}.
 
 
 %%--------------------------------------------------------------------

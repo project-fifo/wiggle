@@ -41,13 +41,11 @@ websocket_init(_Any, Req, []) ->
                 true ->
                     case ls_vm:get(ID) of
                         {ok, VM} ->
-                            case jsxd:get(<<"hypervisor">>, VM) of
+                            case ft_vm:hypervisor(VM) of
                                 {ok, HID} ->
                                     case libsniffle:hypervisor_get(HID) of
                                         {ok, H} ->
-                                            {ok,HostBin} = jsxd:get(<<"host">>, H),
-                                            Host = binary_to_list(HostBin),
-                                            {ok, Port} = jsxd:get(<<"port">>, H),
+                                            {Host, Port} = ft_hypervisor:endpoint(H),
                                             {ok, Console} = libchunter:console_open(Host, Port, ID, self()),
                                             {ok, Req3, {Console}};
                                         _ ->

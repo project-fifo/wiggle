@@ -79,17 +79,19 @@ read(Req, State = #state{token = Token, path = [], full_list=FullList, full_list
     Permission = [{must, 'allowed',
                    [<<"dtraces">>, {<<"res">>, <<"uuid">>}, <<"get">>],
                    Permissions}],
-    Res = wiggle_handler:list(fun libsniffle:dtrace_list/2, Token, Permission,
+    Res = wiggle_handler:list(fun libsniffle:dtrace_list/2,
+                              fun ft_dtrace:to_json/1, Token, Permission,
                               FullList, Filter, dtrace_list_ttl, ?FULL_CACHE,
                               ?LIST_CACHE),
     ?MSniffle(?P(State), Start1),
     {Res, Req, State};
 
 read(Req, State = #state{path = [_Dtrace], obj = Obj}) ->
-    Obj1 = jsxd:update(<<"script">>, fun (S) ->
+    Obj1 = ft_dtrace:to_json(Obj),
+    Obj2 = jsxd:update(<<"script">>, fun (S) ->
                                              list_to_binary(S)
-                                     end, Obj),
-    {Obj1, Req, State}.
+                                     end, Obj1),
+    {Obj2, Req, State}.
 
 %%--------------------------------------------------------------------
 %% PUT

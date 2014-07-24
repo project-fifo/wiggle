@@ -118,13 +118,14 @@ to_json(Obj) ->
     jsxd:thread([{update, <<"network">>, fun ip_to_str/1},
                  {update, <<"gateway">>, fun ip_to_str/1},
                  {update, <<"netmask">>, fun ip_to_str/1},
-                 {update, <<"first">>, fun ip_to_str/1},
-                 {update, <<"last">>, fun ip_to_str/1},
-                 {update, <<"current">>, fun ip_to_str/1},
                  {update, <<"free">>,
                   fun (Free) ->
                           lists:map(fun ip_to_str/1, Free)
-                  end}], Obj).
+                  end},
+                 {update, <<"used">>,
+                  fun (Free) ->
+                          lists:map(fun ip_to_str/1, Free)
+                  end}], ft_iprange:to_json(Obj)).
 %%--------------------------------------------------------------------
 %% PUT
 %%--------------------------------------------------------------------
