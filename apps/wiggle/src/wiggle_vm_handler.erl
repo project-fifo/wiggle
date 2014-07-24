@@ -269,8 +269,13 @@ read(Req, State = #state{path = [_Vm, <<"snapshots">>], obj = Obj}) ->
     {Snaps, Req, State};
 
 read(Req, State = #state{path = [_Vm, <<"snapshots">>, SnapID], obj = Obj}) ->
-    {ok, Snap} = jsxd:get([<<"snapshots">>, SnapID], Obj),
-    {jsxd:set(<<"uuid">>, SnapID, Snap), Req, State};
+    case jsxd:get([SnapID], ft_vm:snapshots(Obj)) of
+        {ok, SnapObj} ->
+            {jsxd:set(<<"uuid">>, SnapID, SnapObj), Req, State};
+        _ ->
+            {null, Req, State}
+
+    end;
 
 read(Req, State = #state{path = [_Vm, <<"services">>], obj = Obj}) ->
     Snaps = jsxd:fold(fun(UUID, Snap, Acc) ->
@@ -285,12 +290,13 @@ read(Req, State = #state{path = [_Vm, <<"backups">>], obj = Obj}) ->
                       end, [], ft_vm:backups(Obj)),
     {Snaps, Req, State};
 
-read(Req, State = #state{path = [_Vm, <<"backups">>, Snap], obj = Obj}) ->
-    case jsxd:get([<<"backups">>, Snap], null, Obj) of
-        null ->
-            {null, Req, State};
-        SnapObj ->
-            {jsxd:set(<<"uuid">>, Snap, SnapObj), Req, State}
+read(Req, State = #state{path = [_Vm, <<"backups">>, SnapID], obj = Obj}) ->
+    case jsxd:get([SnapID], ft_vm:backups(Obj)) of
+        {ok, SnapObj} ->
+            {jsxd:set(<<"uuid">>, SnapID, SnapObj), Req, State};
+        _ ->
+            {null, Req, State}
+
     end;
 
 read(Req, State = #state{path = [_Vm, <<"services">>, Service],
