@@ -86,7 +86,7 @@ allowed_methods(_Version, _Token, [_Vm, <<"backups">>]) ->
 get(State = #state{path = [Vm, <<"backups">>, Snap]}) ->
     case wiggle_vm_handler:get(State#state{path=[Vm]}) of
         {ok, Obj} ->
-            case jsxd:get([<<"backups">>, Snap], Obj) of
+            case jsxd:get([Snap], ft_vm:backups(Obj)) of
                 undefined -> not_found;
                 {ok, _} -> {ok, Obj}
             end;
@@ -97,7 +97,7 @@ get(State = #state{path = [Vm, <<"backups">>, Snap]}) ->
 get(State = #state{path = [Vm, <<"snapshots">>, Snap]}) ->
     case wiggle_vm_handler:get(State#state{path=[Vm]}) of
         {ok, Obj} ->
-            case jsxd:get([<<"snapshots">>, Snap], Obj) of
+            case jsxd:get([Snap], ft_vm:snapshots(Obj)) of
                 undefined -> not_found;
                 {ok, _} -> {ok, Obj}
             end;
@@ -109,7 +109,7 @@ get(State = #state{path = [Vm, <<"nics">>, Mac]}) ->
     case wiggle_vm_handler:get(State#state{path=[Vm]}) of
         {ok, Obj} ->
             Macs = [jsxd:get([<<"mac">>], <<>>, N) ||
-                       N <- jsxd:get([<<"config">>, <<"networks">>], [], Obj)],
+                       N <- jsxd:get([<<"networks">>], [], ft_vm:config(Obj))],
             case lists:member(Mac, Macs) of
                 true ->
                     {ok, Obj};
@@ -264,7 +264,7 @@ read(Req, State = #state{token = Token, path = [], full_list=FullList, full_list
 read(Req, State = #state{path = [_Vm, <<"snapshots">>], obj = Obj}) ->
     Snaps = jsxd:fold(fun(UUID, Snap, Acc) ->
                               [jsxd:set(<<"uuid">>, UUID, Snap) | Acc]
-                      end, [], jsxd:get(<<"snapshots">>, [], Obj)),
+                      end, [], ft_vm:snapshots(Obj)),
     {Snaps, Req, State};
 
 read(Req, State = #state{path = [_Vm, <<"snapshots">>, SnapID], obj = Obj}) ->
@@ -274,14 +274,14 @@ read(Req, State = #state{path = [_Vm, <<"snapshots">>, SnapID], obj = Obj}) ->
 read(Req, State = #state{path = [_Vm, <<"services">>], obj = Obj}) ->
     Snaps = jsxd:fold(fun(UUID, Snap, Acc) ->
                               [jsxd:set(<<"uuid">>, UUID, Snap) | Acc]
-                      end, [], jsxd:get(<<"services">>, [], Obj)),
+                      end, [], ft_vm:services(Obj)),
     {Snaps, Req, State};
 
 
 read(Req, State = #state{path = [_Vm, <<"backups">>], obj = Obj}) ->
     Snaps = jsxd:fold(fun(UUID, Snap, Acc) ->
                               [jsxd:set(<<"uuid">>, UUID, Snap) | Acc]
-                      end, [], jsxd:get(<<"backups">>, [], Obj)),
+                      end, [], ft_vm:backups(Obj)),
     {Snaps, Req, State};
 
 read(Req, State = #state{path = [_Vm, <<"backups">>, Snap], obj = Obj}) ->
@@ -294,10 +294,10 @@ read(Req, State = #state{path = [_Vm, <<"backups">>, Snap], obj = Obj}) ->
 
 read(Req, State = #state{path = [_Vm, <<"services">>, Service],
                          obj = Obj = [{_,_}|_]}) when is_binary(Service) ->
-    {jsxd:get([<<"services">>, Service], [{}], Obj), Req, State};
+    {ft_vm:services(Obj), Req, State};
 
 read(Req, State = #state{path = [_Vm], obj = Obj}) ->
-    {Obj, Req, State}.
+    {ft_vm:to_json(Obj), Req, State}.
 
 %%--------------------------------------------------------------------
 %% PUT
