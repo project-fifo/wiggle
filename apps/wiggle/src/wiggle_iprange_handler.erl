@@ -39,9 +39,9 @@ get(State = #state{path = [Iprange | _]}) ->
             {ok, {TTL1, TTL2}} ->
                 wiggle_handler:timeout_cache_with_invalid(
                   ?CACHE, Iprange, TTL1, TTL2, not_found,
-                  fun() -> libsniffle:iprange_get(Iprange) end);
+                  fun() -> ls_iprange:get(Iprange) end);
             _ ->
-                libsniffle:iprange_get(Iprange)
+                ls_iprange:get(Iprange)
         end,
     ?MSniffle(?P(State), Start),
     R.
@@ -85,7 +85,7 @@ read(Req, State = #state{token = Token, path = [], full_list=FullList, full_list
     %% We can't use the wiggle_handler:list_fn/4 since we need to
     %% apply a transformation to the objects when full list is given.
     Fun = fun() ->
-                  {ok, Res} = libsniffle:iprange_list(Permission, FullList),
+                  {ok, Res} = ls_iprange:list(Permission, FullList),
                   case {Filter, FullList} of
                       {_, false} ->
                           [ID || {_, ID} <- Res];
@@ -140,7 +140,7 @@ create(Req, State = #state{path = [], version = Version}, Data) ->
     {ok, Tag} = jsxd:get(<<"tag">>, Data),
     Vlan = jsxd:get(<<"vlan">>, 0, Data),
     Start = now(),
-    case libsniffle:iprange_create(Iprange, Network, Gateway, Netmask, First, Last, Tag, Vlan) of
+    case ls_iprange:create(Iprange, Network, Gateway, Netmask, First, Last, Tag, Vlan) of
         {ok, UUID} ->
             ?MSniffle(?P(State), Start),
             e2qc:teardown(?LIST_CACHE),
@@ -160,7 +160,7 @@ write(Req, State = #state{path = [Iprange, <<"metadata">> | Path]}, [{K, V}]) ->
     Start = now(),
     e2qc:evict(?CACHE, Iprange),
     e2qc:teardown(?FULL_CACHE),
-    libsniffle:iprange_set(Iprange, [<<"metadata">> | Path] ++ [K], jsxd:from_list(V)),
+    ls_iprange:set_metadata(Iprange, [{Path ++ [K], jsxd:from_list(V)}]),
     ?MSniffle(?P(State), Start),
     {true, Req, State};
 
@@ -175,7 +175,7 @@ delete(Req, State = #state{path = [Iprange, <<"metadata">> | Path]}) ->
     Start = now(),
     e2qc:evict(?CACHE, Iprange),
     e2qc:teardown(?FULL_CACHE),
-    libsniffle:iprange_set(Iprange, [<<"metadata">> | Path], delete),
+    ls_iprange:set_metadata(Iprange, [{Path, delete}]),
     ?MSniffle(?P(State), Start),
     {true, Req, State};
 
@@ -184,7 +184,7 @@ delete(Req, State = #state{path = [Iprange]}) ->
     e2qc:evict(?CACHE, Iprange),
     e2qc:teardown(?LIST_CACHE),
     e2qc:teardown(?FULL_CACHE),
-    ok = libsniffle:iprange_delete(Iprange),
+    ok = ls_iprange:delete(Iprange),
     ?MSniffle(?P(State), Start),
     {true, Req, State}.
 
