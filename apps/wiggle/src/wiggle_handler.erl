@@ -16,7 +16,7 @@
          get_persmissions/1,
          timeout_cache_with_invalid/6,
          timeout_cache/5,
-         list/8
+         list/8, list/9
         ]).
 
 initial_state(Req) ->
@@ -237,7 +237,11 @@ timeout_cache_with_invalid(Cache, Value, TTL1, TTL2, Invalid, Fun) ->
     end.
 
 list(ListFn, Token, Permission, FullList, Filter, TTLEntry, FullCache, ListCache) ->
-    Fun = list_fn(ListFn, Permission, FullList, Filter),
+    ConvertFn = fun(E) -> E end,
+    list(ListFn, ConvertFn, Token, Permission, FullList, Filter, TTLEntry, FullCache, ListCache).
+
+list(ListFn, ConvertFn, Token, Permission, FullList, Filter, TTLEntry, FullCache, ListCache) ->
+    Fun = list_fn(ListFn, ConvertFn, Permission, FullList, Filter),
     case application:get_env(wiggle, TTLEntry) of
         {ok, {TTL1, TTL2}} ->
             case FullList of
@@ -250,15 +254,15 @@ list(ListFn, Token, Permission, FullList, Filter, TTLEntry, FullCache, ListCache
             Fun()
     end.
 
-list_fn(ListFn, Permission, FullList, Filter) ->
+list_fn(ListFn, ConvertFn, Permission, FullList, Filter) ->
     fun () ->
             {ok, Res} = ListFn(Permission, FullList),
             case {Filter, FullList} of
                 {_, false} ->
                     [ID || {_, ID} <- Res];
                 {[], _} ->
-                    [ID || {_, ID} <- Res];
+                    [ConvertFn(Obj) || {_, Obj} <- Res];
                 _ ->
-                    [jsxd:select(Filter, ID) || {_, ID} <- Res]
+                    [jsxd:select(Filter, ConvertFn(Obj)) || {_, Obj} <- Res]
             end
     end.

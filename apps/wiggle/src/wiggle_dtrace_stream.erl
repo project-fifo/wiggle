@@ -60,7 +60,7 @@ websocket_init(_Any, Req, []) ->
         {Token, Req3} ->
             case libsnarl:allowed(Token, [<<"dtrace">>, ID, <<"stream">>]) of
                 true ->
-                    case libsniffle:dtrace_get(ID) of
+                    case ls_dtrace:get(ID) of
                         {ok, Obj} ->
                             lager:debug("[dtrace] Gotten object: ~p", [Obj]),
                             {ok, Req3, #state{id = ID, config = jsxd:get(<<"config">>, [], Obj),
@@ -106,8 +106,8 @@ websocket_terminate(_Reason, _Req, #state{socket = Port} = _State) ->
     ok.
 
 handle(null, Req, State = #state{encoder = Enc, type = Type}) ->
-    {ok, Servers} = libsniffle:hypervisor_list(),
-    case libsniffle:dtrace_run(State#state.id, [{<<"servers">>, Servers}]) of
+    {ok, Servers} = ls_hypervisor:list(),
+    case ls_dtrace:run(State#state.id, [{<<"servers">>, Servers}]) of
         {ok, S} ->
             {reply, {Type, Enc([{<<"config">>, jsxd:merge([{<<"servers">>, Servers}], State#state.config)}])},
              Req, State#state{socket = S}};
@@ -118,12 +118,12 @@ handle(null, Req, State = #state{encoder = Enc, type = Type}) ->
 
 handle(Config, Req, State  = #state{encoder = Enc, type = Type}) ->
     lager:debug("[dtrace] handle(~p)", [Config]),
-    {ok, Servers} = libsniffle:hypervisor_list(),
+    {ok, Servers} = ls_hypervisor:list(),
     Config1 = case jsxd:get([<<"vms">>], [], Config) of
                   [] ->
                       Config;
                   VMs ->
-                      VMs0 = [libsniffle:vm_get(V) || V <- VMs],
+                      VMs0 = [ls_vm:get(V) || V <- VMs],
                       VMs1 = [jsxd:get([<<"hypervisor">>], V) || {ok, V} <- VMs0],
                       Servers2 = [S || {ok, S} <- VMs1],
                       Filter = [[<<"zonename">>, V] || V <- VMs],
@@ -137,7 +137,7 @@ handle(Config, Req, State  = #state{encoder = Enc, type = Type}) ->
     Config2 = jsxd:update([<<"servers">>], fun(S) ->
                                                    S
                                            end, Servers, Config1),
-    case libsniffle:dtrace_run(State#state.id, Config2) of
+    case ls_dtrace:run(State#state.id, Config2) of
         {ok, S} ->
             {reply, {Type, Enc(jsxd:merge(Config1, State#state.config))},
              Req, State#state{socket = S}};

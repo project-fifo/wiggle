@@ -57,9 +57,9 @@ get(State = #state{path = [Dataset | _]}) ->
             {ok, {TTL1, TTL2}} ->
                 wiggle_handler:timeout_cache_with_invalid(
                   ?CACHE, Dataset, TTL1, TTL2, not_found,
-                  fun() -> libsniffle:dataset_get(Dataset) end);
+                  fun() -> ls_dataset:get(Dataset) end);
             _ ->
-                libsniffle:dataset_get(Dataset)
+                ls_dataset:get(Dataset)
         end,
     ?MSniffle(?P(State), Start),
     R.
@@ -134,7 +134,8 @@ read(Req, State = #state{token = Token, path = [], full_list=FullList, full_list
     Permission = [{must, 'allowed',
                    [<<"datasets">>, {<<"res">>, <<"dataset">>}, <<"get">>],
                    Permissions}],
-    Res = wiggle_handler:list(fun libsniffle:dataset_list/2, Token, Permission,
+    Res = wiggle_handler:list(fun ls_dataset:list/2,
+                              fun ft_dataset:to_json/1, Token, Permission,
                               FullList, Filter, dataset_list_ttl, ?FULL_CACHE,
                               ?LIST_CACHE),
 
@@ -142,14 +143,14 @@ read(Req, State = #state{token = Token, path = [], full_list=FullList, full_list
     {Res, Req, State};
 
 read(Req, State = #state{path = [_Dataset], obj = Obj}) ->
-    {Obj, Req, State};
+    {ft_dataset:to_json(Obj), Req, State};
 
 read(Req, State = #state{path = [UUID, <<"dataset.gz">>], obj = _Obj}) ->
-    case libsniffle:img_list(UUID) of
+    case ls_img:list(UUID) of
         {ok, Idxs} ->
             StreamFun = fun(SendChunk) ->
                                 [begin
-                                     {ok, Data} = libsniffle:img_get(UUID, Idx),
+                                     {ok, Data} = ls_img:get(UUID, Idx),
                                      SendChunk(Data)
                                  end || Idx <- lists:sort(Idxs)]
                         end,
@@ -173,15 +174,16 @@ read(Req, State = #state{path = [UUID, <<"dataset.gz">>], obj = _Obj}) ->
 %%--------------------------------------------------------------------
 
 create(Req, State = #state{path = [UUID], version = Version}, Decoded) ->
-    case libsniffle:dataset_create(UUID) of
+    case ls_dataset:create(UUID) of
         duplicate ->
             {false, Req, State};
         _ ->
             e2qc:teardown(?LIST_CACHE),
             e2qc:teardown(?FULL_CACHE),
             D1 = transform_dataset(Decoded),
-            libsniffle:dataset_set(UUID, [{<<"imported">>, 0},
-                                          {<<"status">>, <<"pending">>}| D1]),
+            ls_dataset:set(UUID, D1),
+            ls_dataset:imported(UUID, 0),
+            ls_dataset:status(UUID, <<"pending">>),
             {{true, <<"/api/", Version/binary, "/datasets/", UUID/binary>>},
              Req, State#state{body = Decoded}}
     end;
@@ -192,23 +194,23 @@ create(Req, State = #state{path = [], version = Version}, Decoded) ->
     case jsxd:from_list(Decoded) of
         [{<<"url">>, URL}] ->
             Start = now(),
-            {ok, UUID} = libsniffle:dataset_import(URL),
+            {ok, UUID} = ls_dataset:import(URL),
             ?MSniffle(?P(State), Start),
             {{true, <<"/api/", Version/binary, "/datasets/", UUID/binary>>}, Req, State#state{body = Decoded}};
         [{<<"config">>, Config},
          {<<"snapshot">>, Snap},
          {<<"vm">>, Vm}] ->
             Start1 = now(),
-            {ok, UUID} = libsniffle:vm_promote_snapshot(Vm, Snap, Config),
+            {ok, UUID} = ls_vm:promote_snapshot(Vm, Snap, Config),
             ?MSniffle(?P(State), Start1),
             {{true, <<"/api/", Version/binary, "/datasets/", UUID/binary>>}, Req, State#state{body = Decoded}}
     end.
 
 write(Req, State = #state{path = [UUID, <<"dataset.gz">>]}, _) ->
-    case libsniffle:dataset_get(UUID) of
+    case ls_dataset:get(UUID) of
         {ok, R} ->
-            Size = jsxd:get(<<"image_size">>, 1, R),
-            libsniffle:dataset_set(UUID, <<"status">>, <<"importing">>),
+            Size = ft_dataset:image_size(R),
+            ls_dataset:status(UUID, <<"importing">>),
             {Res, Req1} = import_dataset(UUID, 0, ensure_integer(Size), Req, undefined),
             {Res, Req1, State};
         _ ->
@@ -217,18 +219,19 @@ write(Req, State = #state{path = [UUID, <<"dataset.gz">>]}, _) ->
 
 write(Req, State = #state{path = [Dataset, <<"metadata">> | Path]}, [{K, V}]) ->
     Start = now(),
-    ok = libsniffle:dataset_set(Dataset, [<<"metadata">> | Path] ++ [K], jsxd:from_list(V)),
+    ok = ls_dataset:set_metadata(Dataset, [{Path ++ [K], jsxd:from_list(V)}]),
     e2qc:evict(?CACHE, Dataset),
     e2qc:teardown(?FULL_CACHE),
     ?MSniffle(?P(State), Start),
     {true, Req, State};
 
-write(Req, State = #state{path = [Dataset]}, [{K, V}]) ->
-    Start = now(),
-    ok = libsniffle:dataset_set(Dataset, [K], jsxd:from_list(V)),
-    e2qc:evict(?CACHE, Dataset),
-    e2qc:teardown(?FULL_CACHE),
-    ?MSniffle(?P(State), Start),
+write(Req, State = #state{path = [_Dataset]}, [{_K, _V}]) ->
+    %%Start = now(),
+    %% TODO: Cut this down in smaller pices.
+    %%ok = libsniffle:dataset_set(Dataset, [K], jsxd:from_list(V)),
+    %%e2qc:evict(?CACHE, Dataset),
+    %%e2qc:teardown(?FULL_CACHE),
+    %%?MSniffle(?P(State), Start),
     {true, Req, State};
 
 write(Req, State = #state{path = []}, _Body) ->
@@ -243,7 +246,7 @@ write(Req, State, _Body) ->
 
 delete(Req, State = #state{path = [Dataset, <<"metadata">> | Path]}) ->
     Start = now(),
-    ok = libsniffle:dataset_set(Dataset, [<<"metadata">> | Path], delete),
+    ok = ls_dataset:set_metadata(Dataset, [{Path, delete}]),
     e2qc:evict(?CACHE, Dataset),
     e2qc:teardown(?FULL_CACHE),
     ?MSniffle(?P(State), Start),
@@ -251,14 +254,14 @@ delete(Req, State = #state{path = [Dataset, <<"metadata">> | Path]}) ->
 
 delete(Req, State = #state{path = [Dataset]}) ->
     Start = now(),
-    case libsniffle:dataset_get(Dataset) of
+    case ls_dataset:get(Dataset) of
         {ok, D} ->
-            case jsxd:get(<<"status">>, D) of
-                {ok, <<"importing">>} ->
+            case ft_dataset:status(D) of
+                <<"importing">> ->
                     ?MSniffle(?P(State), Start),
                     {409, Req, State};
                 _ ->
-                    ok = libsniffle:dataset_delete(Dataset),
+                    ok = ls_dataset:delete(Dataset),
                     e2qc:evict(?CACHE, Dataset),
                     e2qc:teardown(?LIST_CACHE),
                     e2qc:teardown(?FULL_CACHE),
@@ -307,7 +310,7 @@ import_dataset(UUID, Idx, TotalSize, Req, WReq) ->
                 {ok, WReq1} ->
                     Idx1 = Idx + 1,
                     Done = (Idx1 * 1024*1024) / TotalSize,
-                    libsniffle:dataset_set(UUID, <<"imported">>, Done),
+                    ls_dataset:imported(UUID, Done),
                     e2qc:evict(?CACHE, UUID),
                     e2qc:teardown(?FULL_CACHE),
                     libhowl:send(UUID,
@@ -318,9 +321,9 @@ import_dataset(UUID, Idx, TotalSize, Req, WReq) ->
                     fail_import(UUID, Reason, Idx)
             end;
         {done, Req1} ->
-            libsniffle:img_create(UUID, done, <<>>, WReq),
-            ok = libsniffle:dataset_set(UUID, <<"imported">>, 1),
-            libsniffle:dataset_set(UUID, <<"status">>, <<"imported">>),
+            ls_img:create(UUID, done, <<>>, WReq),
+            ok = ls_dataset:imported(UUID, 1),
+            ls_dataset:status(UUID, <<"imported">>),
             libhowl:send(UUID,
                          [{<<"event">>, <<"progress">>},
                           {<<"data">>, [{<<"imported">>, 1}]}]),
@@ -333,7 +336,7 @@ import_dataset(UUID, Idx, TotalSize, Req, WReq) ->
 do_write(_, _, _, _, ?WRETRY) ->
     {error, retry_exceeded};
 do_write(UUID, Idx, Data, WReq, Retry) ->
-    case libsniffle:img_create(UUID, Idx, Data, WReq) of
+    case ls_img:create(UUID, Idx, Data, WReq) of
         {ok, WReq1} ->
             {ok, WReq1};
         Reason ->
@@ -348,7 +351,8 @@ fail_import(UUID, Reason, Idx) ->
                  [{<<"event">>, <<"error">>},
                   {<<"data">>, [{<<"message">>, Reason},
                                 {<<"index">>, Idx}]}]),
-    libsniffle:dataset_set(UUID, <<"imported">>, <<"failed">>).
+    ls_dataset:status(UUID, <<"failed">>),
+    ls_dataset:imported(UUID, <<"failed">>).
 
 ensure_integer(I) when is_integer(I) ->
     I;

@@ -39,9 +39,9 @@ get(State = #state{path = [Package | _]}) ->
             {ok, {TTL1, TTL2}} ->
                 wiggle_handler:timeout_cache_with_invalid(
                   ?CACHE, Package, TTL1, TTL2, not_found,
-                  fun() -> libsniffle:package_get(Package) end);
+                  fun() -> ls_package:get(Package) end);
             _ ->
-                libsniffle:package_get(Package)
+                ls_package:get(Package)
         end,
     ?MSniffle(?P(State), Start),
     R;
@@ -85,14 +85,15 @@ read(Req, State = #state{token = Token, path = [], full_list=FullList, full_list
     Permission = [{must, 'allowed',
                    [<<"packages">>, {<<"res">>, <<"uuid">>}, <<"get">>],
                    Permissions}],
-    Res = wiggle_handler:list(fun libsniffle:package_list/2, Token, Permission,
+    Res = wiggle_handler:list(fun ls_package:list/2,
+                              fun ft_package:to_json/1, Token, Permission,
                               FullList, Filter, package_list_ttl, ?FULL_CACHE,
                               ?LIST_CACHE),
     ?MSniffle(?P(State), Start1),
     {Res, Req, State};
 
 read(Req, State = #state{path = [_Package], obj = Obj}) ->
-    {Obj, Req, State}.
+    {ft_package:to_json(Obj), Req, State}.
 
 
 %%--------------------------------------------------------------------
@@ -105,11 +106,11 @@ create(Req, State = #state{path = [], version = Version}, Data) ->
                          <<"max_swap">>, <<"blocksize">>, <<"compression">>],
                         Data),
     {ok, Package} = jsxd:get(<<"name">>, Data),
-    case libsniffle:package_create(Package) of
+    case ls_package:create(Package) of
         {ok, UUID} ->
             e2qc:teardown(?LIST_CACHE),
             e2qc:teardown(?FULL_CACHE),
-            ok = libsniffle:package_set(UUID, Data1),
+            ok = ls_package:set(UUID, Data1),
             {{true, <<"/api/", Version/binary, "/packages/", UUID/binary>>}, Req, State#state{body = Data1}};
         duplicate ->
             {ok, Req1} = cowboy_req:reply(409, Req),
@@ -122,7 +123,7 @@ write(Req, State = #state{method = <<"POST">>, path = []}, _) ->
     {true, Req, State};
 
 write(Req, State = #state{path = [Package, <<"metadata">> | Path]}, [{K, V}]) ->
-    ok = libsniffle:package_set(Package, [<<"metadata">> | Path] ++ [K], jsxd:from_list(V)),
+    ok = ls_package:set_metadata(Package, [{Path ++ [K], jsxd:from_list(V)}]),
     e2qc:evict(?CACHE, Package),
     e2qc:teardown(?FULL_CACHE),
     {true, Req, State};
@@ -135,13 +136,13 @@ write(Req, State, _Body) ->
 %%--------------------------------------------------------------------
 
 delete(Req, State = #state{path = [Package, <<"metadata">> | Path]}) ->
-    ok = libsniffle:package_set(Package, [<<"metadata">> | Path], delete),
+    ok = ls_package:set_metadata(Package, [{Path, delete}]),
     e2qc:evict(?CACHE, Package),
     e2qc:teardown(?FULL_CACHE),
     {true, Req, State};
 
 delete(Req, State = #state{path = [Package]}) ->
-    ok = libsniffle:package_delete(Package),
+    ok = ls_package:delete(Package),
     e2qc:evict(?CACHE, Package),
     e2qc:teardown(?LIST_CACHE),
     e2qc:teardown(?FULL_CACHE),

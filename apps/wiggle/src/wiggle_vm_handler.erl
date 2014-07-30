@@ -86,7 +86,7 @@ allowed_methods(_Version, _Token, [_Vm, <<"backups">>]) ->
 get(State = #state{path = [Vm, <<"backups">>, Snap]}) ->
     case wiggle_vm_handler:get(State#state{path=[Vm]}) of
         {ok, Obj} ->
-            case jsxd:get([<<"backups">>, Snap], Obj) of
+            case jsxd:get([Snap], ft_vm:backups(Obj)) of
                 undefined -> not_found;
                 {ok, _} -> {ok, Obj}
             end;
@@ -97,7 +97,7 @@ get(State = #state{path = [Vm, <<"backups">>, Snap]}) ->
 get(State = #state{path = [Vm, <<"snapshots">>, Snap]}) ->
     case wiggle_vm_handler:get(State#state{path=[Vm]}) of
         {ok, Obj} ->
-            case jsxd:get([<<"snapshots">>, Snap], Obj) of
+            case jsxd:get([Snap], ft_vm:snapshots(Obj)) of
                 undefined -> not_found;
                 {ok, _} -> {ok, Obj}
             end;
@@ -109,7 +109,7 @@ get(State = #state{path = [Vm, <<"nics">>, Mac]}) ->
     case wiggle_vm_handler:get(State#state{path=[Vm]}) of
         {ok, Obj} ->
             Macs = [jsxd:get([<<"mac">>], <<>>, N) ||
-                       N <- jsxd:get([<<"config">>, <<"networks">>], [], Obj)],
+                       N <- jsxd:get([<<"networks">>], [], ft_vm:config(Obj))],
             case lists:member(Mac, Macs) of
                 true ->
                     {ok, Obj};
@@ -126,9 +126,9 @@ get(State = #state{path = [Vm | _]}) ->
             {ok, {TTL1, TTL2}} ->
                 wiggle_handler:timeout_cache_with_invalid(
                   ?CACHE, Vm, TTL1, TTL2, not_found,
-                  fun() -> libsniffle:vm_get(Vm) end);
+                  fun() -> ls_vm:get(Vm) end);
             _ ->
-                libsniffle:vm_get(Vm)
+                ls_vm:get(Vm)
         end,
     ?MSniffle(?P(State), Start),
     R.
@@ -255,7 +255,8 @@ read(Req, State = #state{token = Token, path = [], full_list=FullList, full_list
     Permission = [{must, 'allowed',
                    [<<"vms">>, {<<"res">>, <<"uuid">>}, <<"get">>],
                    Permissions}],
-    Res = wiggle_handler:list(fun libsniffle:vm_list/2, Token, Permission,
+    Res = wiggle_handler:list(fun ls_vm:list/2,
+                              fun ft_vm:to_json/1, Token, Permission,
                               FullList, Filter, vm_list_ttl, ?FULL_CACHE,
                               ?LIST_CACHE),
     ?MSniffle(?P(State), Start1),
@@ -264,40 +265,46 @@ read(Req, State = #state{token = Token, path = [], full_list=FullList, full_list
 read(Req, State = #state{path = [_Vm, <<"snapshots">>], obj = Obj}) ->
     Snaps = jsxd:fold(fun(UUID, Snap, Acc) ->
                               [jsxd:set(<<"uuid">>, UUID, Snap) | Acc]
-                      end, [], jsxd:get(<<"snapshots">>, [], Obj)),
+                      end, [], ft_vm:snapshots(Obj)),
     {Snaps, Req, State};
 
 read(Req, State = #state{path = [_Vm, <<"snapshots">>, SnapID], obj = Obj}) ->
-    {ok, Snap} = jsxd:get([<<"snapshots">>, SnapID], Obj),
-    {jsxd:set(<<"uuid">>, SnapID, Snap), Req, State};
+    case jsxd:get([SnapID], ft_vm:snapshots(Obj)) of
+        {ok, SnapObj} ->
+            {jsxd:set(<<"uuid">>, SnapID, SnapObj), Req, State};
+        _ ->
+            {null, Req, State}
+
+    end;
 
 read(Req, State = #state{path = [_Vm, <<"services">>], obj = Obj}) ->
     Snaps = jsxd:fold(fun(UUID, Snap, Acc) ->
                               [jsxd:set(<<"uuid">>, UUID, Snap) | Acc]
-                      end, [], jsxd:get(<<"services">>, [], Obj)),
+                      end, [], ft_vm:services(Obj)),
     {Snaps, Req, State};
 
 
 read(Req, State = #state{path = [_Vm, <<"backups">>], obj = Obj}) ->
     Snaps = jsxd:fold(fun(UUID, Snap, Acc) ->
                               [jsxd:set(<<"uuid">>, UUID, Snap) | Acc]
-                      end, [], jsxd:get(<<"backups">>, [], Obj)),
+                      end, [], ft_vm:backups(Obj)),
     {Snaps, Req, State};
 
-read(Req, State = #state{path = [_Vm, <<"backups">>, Snap], obj = Obj}) ->
-    case jsxd:get([<<"backups">>, Snap], null, Obj) of
-        null ->
-            {null, Req, State};
-        SnapObj ->
-            {jsxd:set(<<"uuid">>, Snap, SnapObj), Req, State}
+read(Req, State = #state{path = [_Vm, <<"backups">>, SnapID], obj = Obj}) ->
+    case jsxd:get([SnapID], ft_vm:backups(Obj)) of
+        {ok, SnapObj} ->
+            {jsxd:set(<<"uuid">>, SnapID, SnapObj), Req, State};
+        _ ->
+            {null, Req, State}
+
     end;
 
 read(Req, State = #state{path = [_Vm, <<"services">>, Service],
                          obj = Obj = [{_,_}|_]}) when is_binary(Service) ->
-    {jsxd:get([<<"services">>, Service], [{}], Obj), Req, State};
+    {ft_vm:services(Obj), Req, State};
 
 read(Req, State = #state{path = [_Vm], obj = Obj}) ->
-    {Obj, Req, State}.
+    {ft_vm:to_json(Obj), Req, State}.
 
 %%--------------------------------------------------------------------
 %% PUT
@@ -323,7 +330,7 @@ create(Req, State = #state{path = [], version = Version, token = Token}, Decoded
             {ok, User} = libsnarl:user_get(Token),
             {ok, Owner} = jsxd:get(<<"uuid">>, User),
             Start = now(),
-            {ok, UUID} = libsniffle:create(Package, Dataset, jsxd:set(<<"owner">>, Owner, Config1)),
+            {ok, UUID} = ls_vm:create(Package, Dataset, jsxd:set(<<"owner">>, Owner, Config1)),
             e2qc:teardown(?LIST_CACHE),
             e2qc:teardown(?FULL_CACHE),
             ?MSniffle(?P(State), Start),
@@ -344,7 +351,7 @@ create(Req, State = #state{path = [], version = Version, token = Token}, Decoded
 create(Req, State = #state{path = [Vm, <<"snapshots">>], version = Version}, Decoded) ->
     Comment = jsxd:get(<<"comment">>, <<"">>, Decoded),
     Start = now(),
-    {ok, UUID} = libsniffle:vm_snapshot(Vm, Comment),
+    {ok, UUID} = ls_vm:snapshot(Vm, Comment),
     e2qc:evict(?CACHE, Vm),
     e2qc:teardown(?FULL_CACHE),
     ?MSniffle(?P(State), Start),
@@ -369,7 +376,7 @@ create(Req, State = #state{path = [Vm, <<"backups">>], version = Version}, Decod
                                  end,
                          e2qc:evict(?CACHE, Vm),
                          e2qc:teardown(?FULL_CACHE),
-                         libsniffle:vm_incremental_backup(Vm, Parent, Comment,
+                         ls_vm:incremental_backup(Vm, Parent, Comment,
                                                           Opts1);
                      _ ->
                          Opts1 = case jsxd:get(<<"delete">>, false, Decoded) of
@@ -378,7 +385,7 @@ create(Req, State = #state{path = [Vm, <<"backups">>], version = Version}, Decod
                                      false ->
                                          Opts
                                  end,
-                         libsniffle:vm_full_backup(Vm, Comment, Opts1)
+                         ls_vm:full_backup(Vm, Comment, Opts1)
                  end,
     ?MSniffle(?P(State), Start),
     {{true, <<"/api/", Version/binary, "/vms/", Vm/binary, "/backups/", UUID/binary>>}, Req, State#state{body = Decoded}};
@@ -387,7 +394,7 @@ create(Req, State = #state{path = [Vm, <<"backups">>], version = Version}, Decod
 create(Req, State = #state{path = [Vm, <<"nics">>], version = Version}, Decoded) ->
     {ok, Network} = jsxd:get(<<"network">>, Decoded),
     Start = now(),
-    case libsniffle:vm_add_nic(Vm, Network) of
+    case ls_vm:add_nic(Vm, Network) of
         ok ->
             ?MSniffle(?P(State), Start),
             e2qc:evict(?CACHE, Vm),
@@ -423,7 +430,7 @@ write(Req, State = #state{path = [<<"dry_run">>], token = Token}, Decoded) ->
             {ok, User} = libsnarl:user_get(Token),
             {ok, Owner} = jsxd:get(<<"uuid">>, User),
             Start = now(),
-            case libsniffle:dry_run(Package, Dataset,
+            case ls_vm:dry_run(Package, Dataset,
                                     jsxd:set(<<"owner">>, Owner, Config1)) of
                 {ok, success} ->
                     {true, Req, State#state{body = Decoded}};
@@ -445,7 +452,7 @@ write(Req, State = #state{path = [Vm, <<"services">>]},
        {<<"service">>, Service}]) ->
     e2qc:evict(?CACHE, Vm),
     e2qc:teardown(?FULL_CACHE),
-    libsniffle:vm_service_enable(Vm, Service),
+    ls_vm:service_enable(Vm, Service),
     {true, Req, State};
 
 write(Req, State = #state{path = [Vm, <<"services">>]},
@@ -453,7 +460,7 @@ write(Req, State = #state{path = [Vm, <<"services">>]},
        {<<"service">>, Service}]) ->
     e2qc:evict(?CACHE, Vm),
     e2qc:teardown(?FULL_CACHE),
-    libsniffle:vm_service_disable(Vm, Service),
+    ls_vm:service_disable(Vm, Service),
     {true, Req, State};
 
 write(Req, State = #state{path = [Vm, <<"services">>]},
@@ -461,7 +468,7 @@ write(Req, State = #state{path = [Vm, <<"services">>]},
        {<<"service">>, Service}]) ->
     e2qc:evict(?CACHE, Vm),
     e2qc:teardown(?FULL_CACHE),
-    libsniffle:vm_service_clear(Vm, Service),
+    ls_vm:service_clear(Vm, Service),
     {true, Req, State};
 
 
@@ -474,7 +481,7 @@ write(Req, State = #state{path = [Vm, <<"owner">>]}, [{<<"org">>, Org}]) ->
         {ok, _} ->
             e2qc:evict(?CACHE, Vm),
             e2qc:teardown(?FULL_CACHE),
-            R = libsniffle:vm_owner(Vm, Org),
+            R = ls_vm:owner(Vm, Org),
             ?MSniffle(?P(State), Start),
             {R =:= ok, Req, State};
         E ->
@@ -489,57 +496,57 @@ write(Req, State = #state{path = [Vm, <<"owner">>]}, [{<<"org">>, Org}]) ->
 write(Req, State = #state{path = [Vm, <<"nics">>, Mac]}, [{<<"primary">>, true}]) ->
     e2qc:evict(?CACHE, Vm),
     e2qc:teardown(?FULL_CACHE),
-    ?LIB(libsniffle:vm_primary_nic(Vm, Mac));
+    ?LIB(ls_vm:primary_nic(Vm, Mac));
 
 write(Req, State = #state{path = [Vm, <<"metadata">> | Path]}, [{K, V}]) ->
     e2qc:evict(?CACHE, Vm),
     e2qc:teardown(?FULL_CACHE),
-    ?LIB(libsniffle:vm_set(Vm, [<<"metadata">> | Path] ++ [K],
-                           jsxd:from_list(V)));
+    ?LIB(ls_vm:set_metadata(Vm,  [{Path ++ [K],
+                                   jsxd:from_list(V)}]));
 
 
 write(Req, State = #state{path = [Vm]}, [{<<"action">>, <<"start">>}]) ->
     e2qc:evict(?CACHE, Vm),
     e2qc:teardown(?FULL_CACHE),
-    ?LIB(libsniffle:vm_start(Vm));
+    ?LIB(ls_vm:start(Vm));
 
 write(Req, State = #state{path = [Vm]}, [{<<"action">>, <<"stop">>}]) ->
     e2qc:evict(?CACHE, Vm),
     e2qc:teardown(?FULL_CACHE),
-    ?LIB(libsniffle:vm_stop(Vm));
+    ?LIB(ls_vm:stop(Vm));
 
 write(Req, State = #state{path = [Vm]},
       [{<<"action">>, <<"stop">>}, {<<"force">>, true}]) ->
     e2qc:evict(?CACHE, Vm),
     e2qc:teardown(?FULL_CACHE),
-    ?LIB(libsniffle:vm_stop(Vm, [force]));
+    ?LIB(ls_vm:stop(Vm, [force]));
 
 write(Req, State = #state{path = [Vm]}, [{<<"action">>, <<"reboot">>}]) ->
     e2qc:evict(?CACHE, Vm),
     e2qc:teardown(?FULL_CACHE),
-    ?LIB(libsniffle:vm_reboot(Vm));
+    ?LIB(ls_vm:reboot(Vm));
 
 write(Req, State = #state{path = [Vm]},
       [{<<"action">>, <<"reboot">>}, {<<"force">>, true}]) ->
     e2qc:evict(?CACHE, Vm),
     e2qc:teardown(?FULL_CACHE),
-    ?LIB(libsniffle:vm_reboot(Vm, [force]));
+    ?LIB(ls_vm:reboot(Vm, [force]));
 
 write(Req, State = #state{path = [Vm]}, [{<<"config">>, Config},
                                          {<<"package">>, Package}]) ->
     e2qc:evict(?CACHE, Vm),
     e2qc:teardown(?FULL_CACHE),
-    ?LIB(libsniffle:vm_update(Vm, Package, Config));
+    ?LIB(ls_vm:update(Vm, Package, Config));
 
 write(Req, State = #state{path = [Vm]}, [{<<"config">>, Config}]) ->
     e2qc:evict(?CACHE, Vm),
     e2qc:teardown(?FULL_CACHE),
-    ?LIB(libsniffle:vm_update(Vm, undefined, Config));
+    ?LIB(ls_vm:update(Vm, undefined, Config));
 
 write(Req, State = #state{path = [Vm]}, [{<<"package">>, Package}]) ->
     e2qc:evict(?CACHE, Vm),
     e2qc:teardown(?FULL_CACHE),
-    ?LIB(libsniffle:vm_update(Vm, Package, []));
+    ?LIB(ls_vm:update(Vm, Package, []));
 
 write(Req, State = #state{path = []}, _Body) ->
     {true, Req, State};
@@ -551,7 +558,7 @@ write(Req, State = #state{path = [Vm, <<"snapshots">>, UUID]},
       [{<<"action">>, <<"rollback">>}]) ->
     e2qc:evict(?CACHE, Vm),
     e2qc:teardown(?FULL_CACHE),
-    ?LIB(libsniffle:vm_rollback_snapshot(Vm, UUID));
+    ?LIB(ls_vm:rollback_snapshot(Vm, UUID));
 
 write(Req, State = #state{path = [_Vm, <<"backups">>]}, _Body) ->
     {true, Req, State};
@@ -561,12 +568,13 @@ write(Req, State = #state{path = [Vm, <<"backups">>, UUID]},
        {<<"hypervisor">>, Hypervisor}]) ->
     e2qc:evict(?CACHE, Vm),
     e2qc:teardown(?FULL_CACHE),
-    ?LIB(libsniffle:vm_restore_backup(Vm, UUID, Hypervisor));
+    ?LIB(ls_vm:restore_backup(Vm, UUID, Hypervisor));
+
 write(Req, State = #state{path = [Vm, <<"backups">>, UUID]},
       [{<<"action">>, <<"rollback">>}]) ->
     e2qc:evict(?CACHE, Vm),
     e2qc:teardown(?FULL_CACHE),
-    ?LIB(libsniffle:vm_restore_backup(Vm, UUID));
+    ?LIB(ls_vm:restore_backup(Vm, UUID));
 
 write(Req, State, _Body) ->
     lager:error("Unknown PUT request: ~p~n.", [State]),
@@ -578,7 +586,7 @@ write(Req, State, _Body) ->
 
 delete(Req, State = #state{path = [Vm, <<"snapshots">>, UUID]}) ->
     Start = now(),
-    ok = libsniffle:vm_delete_snapshot(Vm, UUID),
+    ok = ls_vm:delete_snapshot(Vm, UUID),
     e2qc:evict(?CACHE, Vm),
     e2qc:teardown(?FULL_CACHE),
     ?MSniffle(?P(State), Start),
@@ -587,7 +595,7 @@ delete(Req, State = #state{path = [Vm, <<"snapshots">>, UUID]}) ->
 delete(Req, State = #state{path = [Vm, <<"backups">>, UUID],
                            body=[{<<"location">>, <<"hypervisor">>}]}) ->
     Start = now(),
-    ok = libsniffle:vm_delete_backup(Vm, UUID, hypervisor),
+    ok = ls_vm:delete_backup(Vm, UUID, hypervisor),
     e2qc:evict(?CACHE, Vm),
     e2qc:teardown(?FULL_CACHE),
     ?MSniffle(?P(State), Start),
@@ -595,7 +603,7 @@ delete(Req, State = #state{path = [Vm, <<"backups">>, UUID],
 
 delete(Req, State = #state{path = [Vm, <<"backups">>, UUID]}) ->
     Start = now(),
-    ok = libsniffle:vm_delete_backup(Vm, UUID, cloud),
+    ok = ls_vm:delete_backup(Vm, UUID, cloud),
     e2qc:evict(?CACHE, Vm),
     e2qc:teardown(?FULL_CACHE),
     ?MSniffle(?P(State), Start),
@@ -603,7 +611,7 @@ delete(Req, State = #state{path = [Vm, <<"backups">>, UUID]}) ->
 
 delete(Req, State = #state{path = [Vm, <<"nics">>, Mac]}) ->
     Start = now(),
-    ok = libsniffle:vm_remove_nic(Vm, Mac),
+    ok = ls_vm:remove_nic(Vm, Mac),
     e2qc:evict(?CACHE, Vm),
     e2qc:teardown(?FULL_CACHE),
     ?MSniffle(?P(State), Start),
@@ -612,7 +620,7 @@ delete(Req, State = #state{path = [Vm, <<"nics">>, Mac]}) ->
 delete(Req, State = #state{path = [Vm],
                            body=[{<<"location">>, <<"hypervisor">>}]}) ->
     Start = now(),
-    ok = libsniffle:vm_store(Vm),
+    ok = ls_vm:store(Vm),
     e2qc:evict(?CACHE, Vm),
     e2qc:teardown(?FULL_CACHE),
     ?MSniffle(?P(State), Start),
@@ -620,7 +628,7 @@ delete(Req, State = #state{path = [Vm],
 
 delete(Req, State = #state{path = [Vm, <<"hypervisor">>]}) ->
     Start = now(),
-    ok = libsniffle:vm_store(Vm),
+    ok = ls_vm:store(Vm),
     e2qc:evict(?CACHE, Vm),
     e2qc:teardown(?FULL_CACHE),
     ?MSniffle(?P(State), Start),
@@ -628,7 +636,7 @@ delete(Req, State = #state{path = [Vm, <<"hypervisor">>]}) ->
 
 delete(Req, State = #state{path = [Vm]}) ->
     Start = now(),
-    ok = libsniffle:vm_delete(Vm),
+    ok = ls_vm:delete(Vm),
     e2qc:evict(?CACHE, Vm),
     e2qc:teardown(?LIST_CACHE),
     e2qc:teardown(?FULL_CACHE),
@@ -637,7 +645,7 @@ delete(Req, State = #state{path = [Vm]}) ->
 
 delete(Req, State = #state{path = [Vm, <<"metadata">> | Path]}) ->
     Start = now(),
-    libsniffle:vm_set(Vm, [<<"metadata">> | Path], delete),
+    ls_vm:set_metadata(Vm, [{Path, delete}]),
     e2qc:evict(?CACHE, Vm),
     e2qc:teardown(?FULL_CACHE),
     ?MSniffle(?P(State), Start),
