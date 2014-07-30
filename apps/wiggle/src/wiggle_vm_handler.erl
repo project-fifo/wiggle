@@ -327,7 +327,7 @@ create(Req, State = #state{path = [], version = Version, token = Token}, Decoded
                           jsxd:set(<<"requirements">>, [], Config)
                   end,
         try
-            {ok, User} = libsnarl:user_get(Token),
+            {ok, User} = ls_user:get(Token),
             {ok, Owner} = jsxd:get(<<"uuid">>, User),
             Start = now(),
             {ok, UUID} = ls_vm:create(Package, Dataset, jsxd:set(<<"owner">>, Owner, Config1)),
@@ -427,7 +427,7 @@ write(Req, State = #state{path = [<<"dry_run">>], token = Token}, Decoded) ->
                           jsxd:set(<<"requirements">>, [], Config)
                   end,
         try
-            {ok, User} = libsnarl:user_get(Token),
+            {ok, User} = ls_user:get(Token),
             {ok, Owner} = jsxd:get(<<"uuid">>, User),
             Start = now(),
             case ls_vm:dry_run(Package, Dataset,
@@ -477,7 +477,7 @@ write(Req, State = #state{path = [_, <<"nics">>]}, _Body) ->
 
 write(Req, State = #state{path = [Vm, <<"owner">>]}, [{<<"org">>, Org}]) ->
     Start = now(),
-    case libsnarl:org_get(Org) of
+    case ls_org:get(Org) of
         {ok, _} ->
             e2qc:evict(?CACHE, Vm),
             e2qc:teardown(?FULL_CACHE),

@@ -33,7 +33,7 @@ allowed_methods(_Version, _Token, [_Session]) ->
 
 get(State = #state{path = [Session]}) ->
     Start = now(),
-    R = libsnarl:user_get({token, Session}),
+    R = ls_user:get({token, Session}),
     ?MSnarl(?P(State), Start),
     R.
 
