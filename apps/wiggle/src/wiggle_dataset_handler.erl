@@ -132,7 +132,7 @@ read(Req, State = #state{token = Token, path = [], full_list=FullList, full_list
     ?MSnarl(?P(State), Start),
     Start1 = now(),
     Permission = [{must, 'allowed',
-                   [<<"datasets">>, {<<"res">>, <<"dataset">>}, <<"get">>],
+                   [<<"datasets">>, {<<"res">>, <<"uuid">>}, <<"get">>],
                    Permissions}],
     Res = wiggle_handler:list(fun ls_dataset:list/2,
                               fun ft_dataset:to_json/1, Token, Permission,
@@ -282,7 +282,7 @@ transform_dataset(D1) ->
            [{select,[<<"os">>, <<"metadata">>, <<"name">>, <<"version">>,
                      <<"description">>, <<"disk_driver">>, <<"nic_driver">>,
                      <<"users">>]},
-            {set, <<"dataset">>, ID},
+            {set, <<"uuid">>, ID},
             {set, <<"image_size">>,
              ensure_integer(
                jsxd:get(<<"image_size">>,
