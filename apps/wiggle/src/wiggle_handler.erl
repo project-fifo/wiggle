@@ -199,7 +199,7 @@ get_persmissions(Token) ->
     {TTL1, TTL2} = application:get_env(wiggle, token_ttl,
                                        {1000*1000, 10*1000*1000}),
     timeout_cache_(permissions, Token, TTL1, TTL2,
-                   fun () -> libsnarl:user_cache(Token) end).
+                   fun () -> ls_user:cache(Token) end).
 
 timeout_cache(Cache, Value, TTL1, TTL2, Fun) ->
     case application:get_env(wiggle, caching, true) of

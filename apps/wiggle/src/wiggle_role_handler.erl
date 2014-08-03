@@ -60,9 +60,9 @@ get(State = #state{path = [Role | _]}) ->
             {ok, {TTL1, TTL2}} ->
                 wiggle_handler:timeout_cache_with_invalid(
                   ?CACHE, Role, TTL1, TTL2, not_found,
-                  fun() -> libsnarl:role_get(Role) end);
+                  fun() -> ls_role:get(Role) end);
             _ ->
-                libsnarl:role_get(Role)
+                ls_role:get(Role)
         end,
     ?MSnarl(?P(State), Start),
     R.
@@ -117,7 +117,7 @@ read(Req, State = #state{token = Token, path = [], full_list=FullList, full_list
     Permission = [{must, 'allowed',
                    [<<"roles">>, {<<"res">>, <<"uuid">>}, <<"get">>],
                    Permissions}],
-    Res = wiggle_handler:list(fun libsnarl:role_list/2, Token, Permission,
+    Res = wiggle_handler:list(fun ls_role:list/2, Token, Permission,
                               FullList, Filter, role_list_ttl, ?FULL_CACHE,
                               ?LIST_CACHE),
     ?MSniffle(?P(State), Start1),
@@ -140,7 +140,7 @@ read(Req, State = #state{path = [_Role, <<"permissions">>], obj = RoleObj}) ->
 create(Req, State = #state{path = [], version = Version}, Decoded) ->
     {ok, Role} = jsxd:get(<<"name">>, Decoded),
     Start = now(),
-    {ok, UUID} = libsnarl:role_add(Role),
+    {ok, UUID} = ls_role:add(Role),
     e2qc:teardown(?LIST_CACHE),
     ?MSnarl(?P(State), Start),
     {{true, <<"/api/", Version/binary, "/roles/", UUID/binary>>}, Req, State#state{body = Decoded}}.
@@ -153,7 +153,7 @@ write(Req, State = #state{path = [Role, <<"metadata">> | Path]}, [{K, V}]) when 
     Start = now(),
     e2qc:evict(?CACHE, Role),
     e2qc:teardown(?LIST_CACHE),
-    libsnarl:role_set(Role, Path ++ [K], jsxd:from_list(V)),
+    ls_role:set(Role, Path ++ [K], jsxd:from_list(V)),
     ?MSnarl(?P(State), Start),
     {true, Req, State};
 
@@ -161,7 +161,7 @@ write(Req, State = #state{path = [Role]}, _Body) ->
     Start = now(),
     e2qc:evict(?CACHE, Role),
     e2qc:teardown(?LIST_CACHE),
-    ok = libsnarl:role_add(Role),
+    ok = ls_role:add(Role),
     ?MSnarl(?P(State), Start),
     {true, Req, State};
 
@@ -170,7 +170,7 @@ write(Req, State = #state{path = [Role, <<"permissions">> | Permission]}, _Body)
     Start = now(),
     e2qc:evict(?CACHE, Role),
     e2qc:teardown(?LIST_CACHE),
-    ok = libsnarl:role_grant(Role, P),
+    ok = ls_role:grant(Role, P),
     ?MSnarl(?P(State), Start),
     {true, Req, State}.
 
@@ -182,7 +182,7 @@ delete(Req, State = #state{path = [Role, <<"metadata">> | Path]}) ->
     Start = now(),
     e2qc:evict(?CACHE, Role),
     e2qc:teardown(?LIST_CACHE),
-    libsnarl:role_set(Role, Path, delete),
+    ls_role:set(Role, Path, delete),
     ?MSnarl(?P(State), Start),
     {true, Req, State};
 
@@ -191,7 +191,7 @@ delete(Req, State = #state{path = [Role, <<"permissions">> | Permission]}) ->
     Start = now(),
     e2qc:evict(?CACHE, Role),
     e2qc:teardown(?LIST_CACHE),
-    ok = libsnarl:role_revoke(Role, P),
+    ok = ls_role:revoke(Role, P),
     ?MSnarl(?P(State), Start),
     {true, Req, State};
 
@@ -199,7 +199,7 @@ delete(Req, State = #state{path = [Role]}) ->
     Start = now(),
     e2qc:evict(?CACHE, Role),
     e2qc:teardown(?LIST_CACHE),
-    ok = libsnarl:role_delete(Role),
+    ok = ls_role:delete(Role),
     ?MSnarl(?P(State), Start),
     {true, Req, State}.
 

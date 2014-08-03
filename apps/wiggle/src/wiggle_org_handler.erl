@@ -46,9 +46,9 @@ get(State = #state{path = [Org | _]}) ->
             {ok, {TTL1, TTL2}} ->
                 wiggle_handler:timeout_cache_with_invalid(
                   ?CACHE, Org, TTL1, TTL2, not_found,
-                  fun() -> libsnarl:org_get(Org) end);
+                  fun() -> ls_org:get(Org) end);
             _ ->
-                libsnarl:org_get(Org)
+                ls_org:get(Org)
         end,
     ?MSnarl(?P(State), Start),
     R.
@@ -137,7 +137,7 @@ read(Req, State = #state{token = Token, path = [], full_list=FullList, full_list
     Permission = [{must, 'allowed',
                    [<<"orgs">>, {<<"res">>, <<"uuid">>}, <<"get">>],
                    Permissions}],
-    Res = wiggle_handler:list(fun libsnarl:org_list/2, Token, Permission,
+    Res = wiggle_handler:list(fun ls_org:list/2, Token, Permission,
                               FullList, Filter, org_list_ttl, ?FULL_CACHE,
                               ?LIST_CACHE),
 
@@ -157,7 +157,7 @@ read(Req, State = #state{path = [_Org, <<"triggers">>], obj = OrgObj}) ->
 create(Req, State = #state{path = [], version = Version}, Decoded) ->
     {ok, Org} = jsxd:get(<<"name">>, Decoded),
     Start = now(),
-    {ok, UUID} = libsnarl:org_add(Org),
+    {ok, UUID} = ls_org:add(Org),
     e2qc:teardown(?LIST_CACHE),
     e2qc:teardown(?FULL_CACHE),
     ?MSnarl(?P(State), Start),
@@ -171,7 +171,7 @@ create(Req, State =
              }, Event) ->
     P = erlangify_trigger(Trigger, Event),
     Start = now(),
-    ok = libsnarl:org_add_trigger(Org, P),
+    ok = ls_org:add_trigger(Org, P),
     e2qc:evict(?CACHE, Org),
     e2qc:teardown(?FULL_CACHE),
     ?MSnarl(?P(State), Start),
@@ -181,7 +181,7 @@ create(Req, State =
 write(Req, State = #state{path = [Org, <<"metadata">> | Path]}, [{K, V}])
   when is_binary(Org) ->
     Start = now(),
-    libsnarl:org_set(Org, Path ++ [K], jsxd:from_list(V)),
+    ls_org:set(Org, Path ++ [K], jsxd:from_list(V)),
     e2qc:evict(?CACHE, Org),
     e2qc:teardown(?FULL_CACHE),
     ?MSnarl(?P(State), Start),
@@ -193,7 +193,7 @@ write(Req, State = #state{path = [Org, <<"metadata">> | Path]}, [{K, V}])
 
 delete(Req, State = #state{path = [Org, <<"metadata">> | Path]}) ->
     Start = now(),
-    ok = libsnarl:org_set(Org, Path, delete),
+    ok = ls_org:set(Org, Path, delete),
     e2qc:evict(?CACHE, Org),
     e2qc:teardown(?FULL_CACHE),
     ?MSnarl(?P(State), Start),
@@ -201,7 +201,7 @@ delete(Req, State = #state{path = [Org, <<"metadata">> | Path]}) ->
 
 delete(Req, State = #state{path = [Org, <<"triggers">> , Trigger]}) ->
     Start = now(),
-    ok = libsnarl:org_remove_trigger(Org, Trigger),
+    ok = ls_org:remove_trigger(Org, Trigger),
     e2qc:evict(?CACHE, Org),
     e2qc:teardown(?FULL_CACHE),
     ?MSnarl(?P(State), Start),
@@ -209,7 +209,7 @@ delete(Req, State = #state{path = [Org, <<"triggers">> , Trigger]}) ->
 
 delete(Req, State = #state{path = [Org]}) ->
     Start = now(),
-    ok = libsnarl:org_delete(Org),
+    ok = ls_org:delete(Org),
     e2qc:evict(?CACHE, Org),
     e2qc:teardown(?LIST_CACHE),
     e2qc:teardown(?FULL_CACHE),
