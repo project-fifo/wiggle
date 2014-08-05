@@ -217,4 +217,4 @@ delete(Req, State = #state{path = [Hypervisor, <<"metadata">> | Path]}) ->
 %% DELETE
 %%--------------------------------------------------------------------
 path_to_erl(P) ->
-    [{N, C} || [{<<"cost">>, C}, {<<"name">>, N}] <- P].
+    [{N, C} || [{<<"cost">>, C}, {<<"name">>, N}] <- P, is_integer(C), is_binary(N), N /= <<>>].
