@@ -93,7 +93,7 @@ read(Req, State = #state{token = Token, path = [], full_list=FullList, full_list
     ?MSnarl(?P(State), Start),
     Start1 = now(),
     Permission = [{must, 'allowed',
-                   [<<"hypervisors">>, {<<"res">>, <<"name">>}, <<"get">>],
+                   [<<"hypervisors">>, {<<"res">>, <<"uuid">>}, <<"get">>],
                    Permissions}],
     Res = wiggle_handler:list(fun ls_hypervisor:list/2,
                               fun ft_hypervisor:to_json/1, Token, Permission,

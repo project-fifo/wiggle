@@ -180,8 +180,7 @@ create(Req, State = #state{path = [UUID], version = Version}, Decoded) ->
         _ ->
             e2qc:teardown(?LIST_CACHE),
             e2qc:teardown(?FULL_CACHE),
-            D1 = transform_dataset(Decoded),
-            ls_dataset:set(UUID, D1),
+            import_manifest(UUID, Decoded),
             ls_dataset:imported(UUID, 0),
             ls_dataset:status(UUID, <<"pending">>),
             {{true, <<"/api/", Version/binary, "/datasets/", UUID/binary>>},
@@ -276,31 +275,45 @@ delete(Req, State = #state{path = [Dataset]}) ->
 %% Internal
 %%--------------------------------------------------------------------
 
-transform_dataset(D1) ->
-    {ok, ID} = jsxd:get(<<"uuid">>, D1),
-    D2 = jsxd:thread(
-           [{select,[<<"os">>, <<"metadata">>, <<"name">>, <<"version">>,
-                     <<"description">>, <<"disk_driver">>, <<"nic_driver">>,
-                     <<"users">>]},
-            {set, <<"uuid">>, ID},
-            {set, <<"image_size">>,
-             ensure_integer(
-               jsxd:get(<<"image_size">>,
-                        jsxd:get([<<"files">>, 0, <<"size">>], 0, D1), D1))},
-            {set, <<"networks">>,
-             jsxd:get(<<"requirements.networks">>, [], D1)}],
-           D1),
-    D3 = case jsxd:get(<<"homepage">>, D1) of
-             {ok, HomePage} ->
-                 jsxd:set([<<"metadata">>, <<"homepage">>], HomePage, D2);
-             _ ->
-                 D2
-         end,
+do_import([], _UUID, _O) ->
+    ok;
+do_import([{K, F} | R], UUID, O) ->
+    {ok, V} = jsxd:get([K], O),
+    F(UUID, V),
+    do_import(R, UUID, O).
+
+import_manifest(UUID, D1) ->
+    do_import(
+      [
+       {<<"metadata">>, fun ls_dataset:set_metadata/2},
+       {<<"name">>, fun ls_dataset:name/2},
+       {<<"version">>, fun ls_dataset:version/2},
+       {<<"description">>, fun ls_dataset:description/2},
+       {<<"disk_driver">>, fun ls_dataset:disk_driver/2},
+       {<<"nic_driver">>, fun ls_dataset:nic_driver/2},
+       {<<"users">>, fun ls_dataset:users/2}
+      ], UUID, D1),
+    ls_dataset:image_size(
+      UUID,
+      ensure_integer(
+        jsxd:get(<<"image_size">>,
+                 jsxd:get([<<"files">>, 0, <<"size">>], 0, D1), D1))),
+    ls_dataset:networks(
+      UUID,
+      jsxd:get([<<"requirements">>, <<"networks">>], [], D1)),
+    case jsxd:get(<<"homepage">>, D1) of
+        {ok, HomePage} ->
+            ls_dataset:set_metadata(
+              UUID,
+              [{<<"homepage">>, HomePage}]);
+        _ ->
+            ok
+    end,
     case jsxd:get(<<"os">>, D1) of
         {ok, <<"smartos">>} ->
-            jsxd:set(<<"type">>, <<"zone">>, D3);
+            ls_dataset:os(UUID, <<"zone">>);
         {ok, _} ->
-            jsxd:set(<<"type">>, <<"kvm">>, D3)
+            ls_dataset:os(UUID, <<"kvm">>)
     end.
 
 import_dataset(UUID, Idx, TotalSize, Req, WReq) ->
@@ -341,7 +354,7 @@ do_write(UUID, Idx, Data, WReq, Retry) ->
             {ok, WReq1};
         Reason ->
             lager:warning("[~s(~p):~p] Import Error: ~p",
-                         [UUID, Idx, Retry, Reason]),
+                          [UUID, Idx, Retry, Reason]),
             do_write(UUID, Idx, Data, WReq, Retry + 1)
     end.
 
