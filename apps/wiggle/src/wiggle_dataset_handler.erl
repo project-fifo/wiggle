@@ -278,8 +278,12 @@ delete(Req, State = #state{path = [Dataset]}) ->
 do_import([], _UUID, _O) ->
     ok;
 do_import([{K, F} | R], UUID, O) ->
-    {ok, V} = jsxd:get([K], O),
-    F(UUID, V),
+    case jsxd:get([K], O) of
+        {ok, V}  ->
+            F(UUID, V);
+        _ ->
+            ok
+    end,
     do_import(R, UUID, O).
 
 import_manifest(UUID, D1) ->
