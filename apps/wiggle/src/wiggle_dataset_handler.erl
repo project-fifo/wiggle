@@ -315,9 +315,11 @@ import_manifest(UUID, D1) ->
     end,
     case jsxd:get(<<"os">>, D1) of
         {ok, <<"smartos">>} ->
-            ls_dataset:os(UUID, <<"zone">>);
-        {ok, _} ->
-            ls_dataset:os(UUID, <<"kvm">>)
+            ls_dataset:type(UUID, <<"zone">>),
+            ls_dataset:os(UUID, <<"smartos">>);
+        {ok, OS} ->
+            ls_dataset:type(UUID, <<"kvm">>),
+            ls_dataset:os(UUID, OS)
     end.
 
 import_dataset(UUID, Idx, TotalSize, Req, WReq) ->
