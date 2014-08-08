@@ -323,8 +323,8 @@ import_manifest(UUID, D1) ->
     end.
 
 import_dataset(UUID, Idx, TotalSize, Req, WReq) ->
-    case cowboy_req:stream_body(1024*1024, Req) of
-        {ok, Data, Req1} ->
+    case cowboy_req:body(Req, []) of
+        {Res, Data, Req1} ->
             case do_write(UUID, Idx, Data, WReq, 0) of
                 {ok, WReq1} ->
                     Idx1 = Idx + 1,
@@ -335,18 +335,21 @@ import_dataset(UUID, Idx, TotalSize, Req, WReq) ->
                     libhowl:send(UUID,
                                  [{<<"event">>, <<"progress">>},
                                   {<<"data">>, [{<<"imported">>, Done}]}]),
-                    import_dataset(UUID, Idx1, TotalSize, Req1, WReq1);
+                    case Res of
+                        more ->
+                            import_dataset(UUID, Idx1, TotalSize, Req1, WReq1);
+                        ok ->
+                            ls_img:create(UUID, done, <<>>, WReq),
+                            ok = ls_dataset:imported(UUID, 1),
+                            ls_dataset:status(UUID, <<"imported">>),
+                            libhowl:send(UUID,
+                                         [{<<"event">>, <<"progress">>},
+                                          {<<"data">>, [{<<"imported">>, 1}]}]),
+                            {true, Req1}
+                    end;
                 Reason ->
                     fail_import(UUID, Reason, Idx)
             end;
-        {done, Req1} ->
-            ls_img:create(UUID, done, <<>>, WReq),
-            ok = ls_dataset:imported(UUID, 1),
-            ls_dataset:status(UUID, <<"imported">>),
-            libhowl:send(UUID,
-                         [{<<"event">>, <<"progress">>},
-                          {<<"data">>, [{<<"imported">>, 1}]}]),
-            {true, Req1};
         {error, Reason} ->
             fail_import(UUID, Reason, Idx),
             {false, Req}
