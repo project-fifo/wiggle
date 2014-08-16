@@ -19,6 +19,7 @@ e(Code, Req) ->
     e(Code, <<"">>, Req).
 
 e(Code, Msg, Req) ->
+    lager:error("[console:~p] Error: ~s", [Code, Msg]),
     {ok, Req1} = cowboy_req:reply(Code, [], Msg, Req),
     {shutdown, Req1}.
 
