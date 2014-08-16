@@ -18,6 +18,9 @@ init({_Any, http}, _Req, []) ->
 e(Code, Req) ->
     e(Code, <<"">>, Req).
 
+e(Code, Msg, Args, Req) ->
+    e(Code, bf(Msg, Args), Req).
+
 e(Code, Msg, Req) ->
     lager:error("[console:~p] Error: ~s", [Code, Msg]),
     {ok, Req1} = cowboy_req:reply(Code, [], Msg, Req),
@@ -49,19 +52,24 @@ websocket_init(_Any, Req, []) ->
                                             {Host, Port} = ft_hypervisor:endpoint(H),
                                             {ok, Console} = libchunter:console_open(Host, Port, ID, self()),
                                             {ok, Req3, {Console}};
-                                        _ ->
-                                            e(505, <<"could not find hypervisor">>, Req3)
+                                        HVErr ->
+                                            e(505, "could not find hypervisor ~s ~p",
+                                             [HID, HVErr], Req3)
                                     end;
-                                _ ->
-                                    e(505, <<"could not find hypervisor">>, Req3)
+                                NoHV ->
+                                    e(505, "VM ~p has no hypervisor: ~p",
+                                      [ID, NoHV], Req3)
                             end;
                         E ->
-                            e(505, list_to_binary(io_lib:format("~p", [E])), Req3)
+                            e(505, "~p", [E], Req3)
                     end;
                 false ->
                     e(401, Req3)
             end
     end.
+
+bf(F, A) ->
+    list_to_binary(io_lib:format(F, A)).
 
 websocket_handle({text, Msg}, Req, {Console} = State) ->
     libchunter_console_server:send(Console, Msg),
