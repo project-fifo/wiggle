@@ -45,20 +45,15 @@ websocket_init(_Any, Req, []) ->
                 true ->
                     case ls_vm:get(ID) of
                         {ok, VM} ->
-                            case ft_vm:hypervisor(VM) of
-                                {ok, HID} ->
-                                    case ls_hypervisor:get(HID) of
-                                        {ok, H} ->
-                                            {Host, Port} = ft_hypervisor:endpoint(H),
-                                            {ok, Console} = libchunter:console_open(Host, Port, ID, self()),
-                                            {ok, Req3, {Console}};
-                                        HVErr ->
-                                            e(505, "could not find hypervisor ~s ~p",
-                                             [HID, HVErr], Req3)
-                                    end;
-                                NoHV ->
-                                    e(505, "VM ~p has no hypervisor: ~p",
-                                      [ID, NoHV], Req3)
+                            HID = ft_vm:hypervisor(VM),
+                            case ls_hypervisor:get(HID) of
+                                {ok, H} ->
+                                    {Host, Port} = ft_hypervisor:endpoint(H),
+                                    {ok, Console} = libchunter:console_open(Host, Port, ID, self()),
+                                    {ok, Req3, {Console}};
+                                HVErr ->
+                                    e(505, "could not find hypervisor ~s ~p",
+                                      [HID, HVErr], Req3)
                             end;
                         E ->
                             e(505, "~p", [E], Req3)
