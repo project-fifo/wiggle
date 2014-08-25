@@ -181,7 +181,7 @@ create(Req, State =
 write(Req, State = #state{path = [Org, <<"metadata">> | Path]}, [{K, V}])
   when is_binary(Org) ->
     Start = now(),
-    ls_org:set(Org, Path ++ [K], jsxd:from_list(V)),
+    ls_org:set_metadata(Org, [{Path ++ [K], jsxd:from_list(V)}]),
     e2qc:evict(?CACHE, Org),
     e2qc:teardown(?FULL_CACHE),
     ?MSnarl(?P(State), Start),
@@ -193,7 +193,7 @@ write(Req, State = #state{path = [Org, <<"metadata">> | Path]}, [{K, V}])
 
 delete(Req, State = #state{path = [Org, <<"metadata">> | Path]}) ->
     Start = now(),
-    ok = ls_org:set(Org, Path, delete),
+    ok = ls_org:set_metadata(Org, [{Path, delete}]),
     e2qc:evict(?CACHE, Org),
     e2qc:teardown(?FULL_CACHE),
     ?MSnarl(?P(State), Start),

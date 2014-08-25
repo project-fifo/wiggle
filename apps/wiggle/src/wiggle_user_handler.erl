@@ -292,7 +292,7 @@ write(Req, State = #state{method = <<"POST">>, path = []}, _) ->
 
 write(Req, State = #state{path = [User, <<"metadata">> | Path]}, [{K, V}]) ->
     Start = now(),
-    ok = ls_user:set(User, Path ++ [K], jsxd:from_list(V)),
+    ok = ls_user:set_metadata(User, [{Path ++ [K], jsxd:from_list(V)}]),
     e2qc:evict(?CACHE, User),
     e2qc:teardown(?FULL_CACHE),
     ?MSnarl(?P(State), Start),
@@ -379,7 +379,7 @@ write(Req, State = #state{path = [User, <<"permissions">> | Permission]}, _) ->
 
 delete(Req, State = #state{path = [User, <<"metadata">> | Path]}) ->
     Start = now(),
-    ok = ls_user:set(User, Path, delete),
+    ok = ls_user:set_metadata(User, [{Path, delete}]),
     e2qc:evict(?CACHE, User),
     e2qc:teardown(?FULL_CACHE),
     ?MSnarl(?P(State), Start),

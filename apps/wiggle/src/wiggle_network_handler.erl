@@ -24,19 +24,19 @@
               write/3,
               delete/2]).
 
-allowed_methods(_Version, _Token, [_Network, <<"metadata">>|_]) ->
+allowed_methods(_Version, _Token, [?UUID(_Network), <<"metadata">>|_]) ->
     [<<"PUT">>, <<"DELETE">>];
 
-allowed_methods(_Version, _Token, [_Network, <<"ipranges">>, _]) ->
+allowed_methods(_Version, _Token, [?UUID(_Network), <<"ipranges">>, _]) ->
     [<<"PUT">>, <<"DELETE">>];
 
 allowed_methods(_Version, _Token, []) ->
     [<<"GET">>, <<"POST">>];
 
-allowed_methods(_Version, _Token, [_Network]) ->
+allowed_methods(_Version, _Token, [?UUID(_Network)]) ->
     [<<"GET">>, <<"PUT">>, <<"DELETE">>].
 
-get(State = #state{path = [Network | _]}) ->
+get(State = #state{path = [?UUID(Network) | _]}) ->
     Start = now(),
     R = case application:get_env(wiggle, network_ttl) of
             {ok, {TTL1, TTL2}} ->
@@ -55,29 +55,29 @@ permission_required(#state{method = <<"GET">>, path = []}) ->
 permission_required(#state{method = <<"POST">>, path = []}) ->
     {ok, [<<"cloud">>, <<"networks">>, <<"create">>]};
 
-permission_required(#state{method = <<"GET">>, path = [Network]}) ->
+permission_required(#state{method = <<"GET">>, path = [?UUID(Network)]}) ->
     {ok, [<<"networks">>, Network, <<"get">>]};
 
-permission_required(#state{method = <<"DELETE">>, path = [Network]}) ->
+permission_required(#state{method = <<"DELETE">>, path = [?UUID(Network)]}) ->
     {ok, [<<"networks">>, Network, <<"delete">>]};
 
-permission_required(#state{method = <<"PUT">>, path = [_Network]}) ->
+permission_required(#state{method = <<"PUT">>, path = [?UUID(_Network)]}) ->
     {ok, [<<"cloud">>, <<"networks">>, <<"create">>]};
 
 permission_required(#state{method = <<"PUT">>,
-                           path = [Network, <<"ipranges">>,  _]}) ->
+                           path = [?UUID(Network), <<"ipranges">>,  _]}) ->
     {ok, [<<"networks">>, Network, <<"edit">>]};
 
 permission_required(#state{method = <<"DELETE">>,
-                           path = [Network, <<"ipranges">>, _]}) ->
+                           path = [?UUID(Network), <<"ipranges">>, _]}) ->
     {ok, [<<"networks">>, Network, <<"edit">>]};
 
 permission_required(#state{method = <<"PUT">>,
-                           path = [Network, <<"metadata">> | _]}) ->
+                           path = [?UUID(Network), <<"metadata">> | _]}) ->
     {ok, [<<"networks">>, Network, <<"edit">>]};
 
 permission_required(#state{method = <<"DELETE">>,
-                           path = [Network, <<"metadata">> | _]}) ->
+                           path = [?UUID(Network), <<"metadata">> | _]}) ->
     {ok, [<<"networks">>, Network, <<"edit">>]};
 
 permission_required(_State) ->
@@ -102,7 +102,7 @@ read(Req, State = #state{token = Token, path = [], full_list=FullList, full_list
     ?MSniffle(?P(State), Start1),
     {Res, Req, State};
 
-read(Req, State = #state{path = [_Network], obj = Obj}) ->
+read(Req, State = #state{path = [?UUID(_Network)], obj = Obj}) ->
     {ft_network:to_json(Obj), Req, State}.
 
 %%--------------------------------------------------------------------
@@ -125,7 +125,7 @@ create(Req, State = #state{path = [], version = Version}, Data) ->
     end.
 
 write(Req, State = #state{
-                      path = [Network, <<"ipranges">>, IPrange]}, _Data) ->
+                      path = [?UUID(Network), <<"ipranges">>, IPrange]}, _Data) ->
     Start = now(),
     case ls_network:add_iprange(Network, IPrange) of
         ok ->
@@ -141,7 +141,7 @@ write(Req, State = #state{
 write(Req, State = #state{method = <<"POST">>, path = []}, _) ->
     {true, Req, State};
 
-write(Req, State = #state{path = [Network, <<"metadata">> | Path]}, [{K, V}]) ->
+write(Req, State = #state{path = [?UUID(Network), <<"metadata">> | Path]}, [{K, V}]) ->
     Start = now(),
     ok = ls_network:set_metadata(Network, [{Path ++ [K], jsxd:from_list(V)}]),
     e2qc:evict(?CACHE, Network),
@@ -156,7 +156,7 @@ write(Req, State, _Body) ->
 %% DEETE
 %%--------------------------------------------------------------------
 
-delete(Req, State = #state{path = [Network, <<"metadata">> | Path]}) ->
+delete(Req, State = #state{path = [?UUID(Network), <<"metadata">> | Path]}) ->
     Start = now(),
     ok = ls_network:set_metadata(Network, [{Path, delete}]),
     e2qc:evict(?CACHE, Network),
@@ -164,7 +164,7 @@ delete(Req, State = #state{path = [Network, <<"metadata">> | Path]}) ->
     ?MSniffle(?P(State), Start),
     {true, Req, State};
 
-delete(Req, State = #state{path = [Network, <<"ipranges">>, IPRange]}) ->
+delete(Req, State = #state{path = [?UUID(Network), <<"ipranges">>, IPRange]}) ->
     Start = now(),
     ok = ls_network:remove_iprange(Network, IPRange),
     e2qc:evict(?CACHE, Network),
@@ -172,7 +172,7 @@ delete(Req, State = #state{path = [Network, <<"ipranges">>, IPRange]}) ->
     ?MSniffle(?P(State), Start),
     {true, Req, State};
 
-delete(Req, State = #state{path = [Network]}) ->
+delete(Req, State = #state{path = [?UUID(Network)]}) ->
     Start = now(),
     ok = ls_network:delete(Network),
     e2qc:evict(?CACHE, Network),

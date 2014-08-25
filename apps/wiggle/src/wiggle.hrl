@@ -8,4 +8,7 @@
 -define(MSniffle(Path, Start), ?MEx(Path, <<"sniffle">>, Start)).
 -define(MHowl(Path, Start), ?MEx(Path, <<"howl">>, Start)).
 -define(M(Path, Start), ok).
+-define(UUID(N), <<N:36/binary>>).
+
+%-define(M(Path, Start), statman_histogram:record_value({Path, total}, Start)).
 %-define(M(Path, Start), statman_histogram:record_value({Path, total}, Start)).

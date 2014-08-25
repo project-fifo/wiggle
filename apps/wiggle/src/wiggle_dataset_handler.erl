@@ -373,8 +373,7 @@ fail_import(UUID, Reason, Idx) ->
                  [{<<"event">>, <<"error">>},
                   {<<"data">>, [{<<"message">>, Reason},
                                 {<<"index">>, Idx}]}]),
-    ls_dataset:status(UUID, <<"failed">>),
-    ls_dataset:imported(UUID, <<"failed">>).
+    ls_dataset:status(UUID, <<"failed">>).
 
 ensure_integer(I) when is_integer(I) ->
     I;

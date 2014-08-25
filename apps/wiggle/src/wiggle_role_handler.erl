@@ -153,7 +153,7 @@ write(Req, State = #state{path = [Role, <<"metadata">> | Path]}, [{K, V}]) when 
     Start = now(),
     e2qc:evict(?CACHE, Role),
     e2qc:teardown(?LIST_CACHE),
-    ls_role:set(Role, Path ++ [K], jsxd:from_list(V)),
+    ls_role:set_metadata(Role, [{Path ++ [K], jsxd:from_list(V)}]),
     ?MSnarl(?P(State), Start),
     {true, Req, State};
 
@@ -182,7 +182,7 @@ delete(Req, State = #state{path = [Role, <<"metadata">> | Path]}) ->
     Start = now(),
     e2qc:evict(?CACHE, Role),
     e2qc:teardown(?LIST_CACHE),
-    ls_role:set(Role, Path, delete),
+    ls_role:set_metadata(Role, [{Path, delete}]),
     ?MSnarl(?P(State), Start),
     {true, Req, State};
 
