@@ -68,17 +68,18 @@ allowed_methods(_Version, _Token, [_Login, <<"orgs">>, _Org]) ->
     [<<"PUT">>, <<"DELETE">>].
 
 get(State = #state{path = [User, <<"permissions">> | Permission]}) ->
-    case {erlangify_permission(Permission),
+    case {Permission,
           wiggle_user_handler:get(State#state{path = [User]})} of
         {_, not_found} ->
             not_found;
         {[], {ok, Obj}} ->
             {ok, Obj};
         {P, {ok, Obj}} ->
-            case lists:member(P, jsxd:get(<<"permissions">>, [], Obj)) of
+            case lists:member(P, ft_user:permissions(Obj)) of
                 true ->
                     {ok, Obj};
-                _ -> not_found
+                _ ->
+                    not_found
             end
     end;
 
@@ -88,7 +89,7 @@ get(State = #state{method = <<"DELETE">>,
         not_found ->
             not_found;
         {ok, Obj} ->
-            case lists:member(Role, jsxd:get(<<"roles">>, [], Obj)) of
+            case lists:member(Role, ft_user:roles(Obj)) of
                 true ->
                     {ok, Obj};
                 _ ->
@@ -146,13 +147,11 @@ permission_required(#state{method = <<"GET">>,
 
 permission_required(#state{method = <<"PUT">>,
                            path = [User, <<"permissions">> | Permission]}) ->
-    P = erlangify_permission(Permission),
-    {multiple, [[<<"users">>, User, <<"grant">>], P]};
+    {multiple, [[<<"users">>, User, <<"grant">>], Permission]};
 
 permission_required(#state{method = <<"DELETE">>,
                            path = [User, <<"permissions">> | Permission]}) ->
-    P = erlangify_permission(Permission),
-    {multiple, [[<<"users">>, User, <<"revoke">>], P]};
+    {multiple, [[<<"users">>, User, <<"revoke">>], Permission]};
 
 permission_required(#state{method = <<"GET">>,
                            path = [User, <<"roles">>]}) ->
@@ -229,7 +228,8 @@ read(Req, State = #state{token = Token, path = [], full_list=FullList, full_list
     Permission = [{must, 'allowed',
                    [<<"users">>, {<<"res">>, <<"uuid">>}, <<"get">>],
                    Permissions}],
-    Res = wiggle_handler:list(fun ls_user:list/2, Token, Permission,
+    Res = wiggle_handler:list(fun ls_user:list/2,
+                              fun ft_user:to_json/1, Token, Permission,
                               FullList, Filter, user_list_ttl, ?FULL_CACHE,
                               ?LIST_CACHE),
 
@@ -237,27 +237,23 @@ read(Req, State = #state{token = Token, path = [], full_list=FullList, full_list
     {Res, Req, State};
 
 read(Req, State = #state{path = [_User], obj = UserObj}) ->
-    UserObj1 = jsxd:update(<<"permissions">>,
-                           fun (Permissions) ->
-                                   lists:map(fun jsonify_permissions/1, Permissions)
-                           end, [], UserObj),
-    UserObj2 = jsxd:delete(<<"password">>, UserObj1),
+    UserObj2 = jsxd:delete(<<"password">>, ft_user:to_json(UserObj)),
     {UserObj2, Req, State};
 
 read(Req, State = #state{path = [_User, <<"permissions">>], obj = UserObj}) ->
-    {lists:map(fun jsonify_permissions/1, jsxd:get(<<"permissions">>, [], UserObj)), Req, State};
+    {ft_user:permissions(UserObj), Req, State};
 
 read(Req, State = #state{path = [_User, <<"roles">>], obj = UserObj}) ->
-    {jsxd:get(<<"roles">>, [], UserObj), Req, State};
+    {ft_user:roles(UserObj), Req, State};
 
 read(Req, State = #state{path = [_User, <<"orgs">>], obj = UserObj}) ->
-    {jsxd:get(<<"orgs">>, [], UserObj), Req, State};
+    {ft_user:orgs(UserObj), Req, State};
 
 read(Req, State = #state{path = [_User, <<"keys">>], obj = UserObj}) ->
-    {jsxd:get(<<"keys">>, [], UserObj), Req, State};
+    {ft_user:keys(UserObj), Req, State};
 
 read(Req, State = #state{path = [_User, <<"yubikeys">>], obj = UserObj}) ->
-    {jsxd:get(<<"yubikeys">>, [], UserObj), Req, State}.
+    {ft_user:yubikeys(UserObj), Req, State}.
 
 %%--------------------------------------------------------------------
 %% PUT
@@ -281,8 +277,6 @@ create(Req, State = #state{token = Token, path = [], version = Version}, Decoded
 write(Req, State = #state{path =  [User]}, [{<<"password">>, Password}]) ->
     Start = now(),
     ok = ls_user:passwd(User, Password),
-    e2qc:evict(?CACHE, User),
-    e2qc:teardown(?FULL_CACHE),
     ?MSnarl(?P(State), Start),
     {true, Req, State};
 
@@ -292,7 +286,7 @@ write(Req, State = #state{method = <<"POST">>, path = []}, _) ->
 
 write(Req, State = #state{path = [User, <<"metadata">> | Path]}, [{K, V}]) ->
     Start = now(),
-    ok = ls_user:set(User, Path ++ [K], jsxd:from_list(V)),
+    ok = ls_user:set_metadata(User, [{Path ++ [K], jsxd:from_list(V)}]),
     e2qc:evict(?CACHE, User),
     e2qc:teardown(?FULL_CACHE),
     ?MSnarl(?P(State), Start),
@@ -364,9 +358,8 @@ write(Req, State = #state{path = [User, <<"orgs">>, Org]},
     {true, Req, State};
 
 write(Req, State = #state{path = [User, <<"permissions">> | Permission]}, _) ->
-    P = erlangify_permission(Permission),
     Start = now(),
-    ok = ls_user:grant(User, P),
+    ok = ls_user:grant(User, Permission),
     e2qc:evict(?CACHE, User),
     e2qc:teardown(?FULL_CACHE),
     ?MSnarl(?P(State), Start),
@@ -379,7 +372,7 @@ write(Req, State = #state{path = [User, <<"permissions">> | Permission]}, _) ->
 
 delete(Req, State = #state{path = [User, <<"metadata">> | Path]}) ->
     Start = now(),
-    ok = ls_user:set(User, Path, delete),
+    ok = ls_user:set_metadata(User, [{Path, delete}]),
     e2qc:evict(?CACHE, User),
     e2qc:teardown(?FULL_CACHE),
     ?MSnarl(?P(State), Start),
@@ -406,9 +399,8 @@ delete(Req, State = #state{path = [_User, <<"sessions">>]}) ->
     {true, Req1, State};
 
 delete(Req, State = #state{path = [User, <<"permissions">> | Permission]}) ->
-    P = erlangify_permission(Permission),
     Start = now(),
-    ok = ls_user:revoke(User, P),
+    ok = ls_user:revoke(User, Permission),
     e2qc:evict(?CACHE, User),
     e2qc:teardown(?FULL_CACHE),
     ?MSnarl(?P(State), Start),
@@ -440,25 +432,3 @@ delete(Req, State = #state{path = [User, <<"roles">>, Role]}) ->
     {true, Req, State}.
 
 %% Internal Functions
-
-erlangify_permission(P) ->
-    lists:map(fun(E) ->
-                      E
-              end, P).
-
-jsonify_permissions(P) ->
-    lists:map(fun('...') ->
-                      <<"...">>;
-                 ('_') ->
-                      <<"_">>;
-                 (E) ->
-                      E
-              end, P).
-
--ifdef(TEST).
-
-jsonify_permission_test() ->
-    ?assertEqual([<<"_">>, <<"a">>, <<"...">>],
-                 jsonify_permissions(['_', <<"a">>, '...'])).
-
--endif.

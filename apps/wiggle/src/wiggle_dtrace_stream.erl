@@ -63,7 +63,7 @@ websocket_init(_Any, Req, []) ->
                     case ls_dtrace:get(ID) of
                         {ok, Obj} ->
                             lager:debug("[dtrace] Gotten object: ~p", [Obj]),
-                            {ok, Req3, #state{id = ID, config = jsxd:get(<<"config">>, [], Obj),
+                            {ok, Req3, #state{id = ID, config = ft_dtrace:config(Obj),
                                               encoder = Encoder, decoder = Decoder, type = Type}};
                         _ ->
                             lager:info("[dtrace] Not found!"),
@@ -124,10 +124,8 @@ handle(Config, Req, State  = #state{encoder = Enc, type = Type}) ->
                       Config;
                   VMs ->
                       VMs0 = [ls_vm:get(V) || V <- VMs],
-                      VMs1 = [jsxd:get([<<"hypervisor">>], V) || {ok, V} <- VMs0],
-                      Servers2 = [S || {ok, S} <- VMs1],
+                      Servers2 = [ft_vm:hypervisor(V) || {ok, V} <- VMs0],
                       Filter = [[<<"zonename">>, V] || V <- VMs],
-
                       jsxd:thread([{set, [<<"servers">>], lists:usort(Servers2)},
                                    {update, [<<"filter">>],
                                     fun (F) ->

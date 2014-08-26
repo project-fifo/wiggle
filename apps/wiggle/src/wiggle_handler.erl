@@ -16,7 +16,7 @@
          get_persmissions/1,
          timeout_cache_with_invalid/6,
          timeout_cache/5,
-         list/8, list/9
+         list/9
         ]).
 
 initial_state(Req) ->
@@ -235,10 +235,6 @@ timeout_cache_with_invalid(Cache, Value, TTL1, TTL2, Invalid, Fun) ->
         R ->
             R
     end.
-
-list(ListFn, Token, Permission, FullList, Filter, TTLEntry, FullCache, ListCache) ->
-    ConvertFn = fun(E) -> E end,
-    list(ListFn, ConvertFn, Token, Permission, FullList, Filter, TTLEntry, FullCache, ListCache).
 
 list(ListFn, ConvertFn, Token, Permission, FullList, Filter, TTLEntry, FullCache, ListCache) ->
     Fun = list_fn(ListFn, ConvertFn, Permission, FullList, Filter),

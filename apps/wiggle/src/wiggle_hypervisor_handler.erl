@@ -22,22 +22,22 @@
 allowed_methods(_Version, _Token, []) ->
     [<<"GET">>];
 
-allowed_methods(_Version, _Token, [_Hypervisor]) ->
+allowed_methods(_Version, _Token, [?UUID(_Hypervisor)]) ->
     [<<"GET">>, <<"DELETE">>];
 
-allowed_methods(_Version, _Token, [_Hypervisor, <<"config">>|_]) ->
+allowed_methods(_Version, _Token, [?UUID(_Hypervisor), <<"config">>|_]) ->
     [<<"PUT">>];
 
-allowed_methods(_Version, _Token, [_Hypervisor, <<"characteristics">>|_]) ->
+allowed_methods(_Version, _Token, [?UUID(_Hypervisor), <<"characteristics">>|_]) ->
     [<<"PUT">>, <<"DELETE">>];
 
-allowed_methods(_Version, _Token, [_Hypervisor, <<"metadata">>|_]) ->
+allowed_methods(_Version, _Token, [?UUID(_Hypervisor), <<"metadata">>|_]) ->
     [<<"PUT">>, <<"DELETE">>];
 
-allowed_methods(_Version, _Token, [_Hypervisor, <<"services">>]) ->
+allowed_methods(_Version, _Token, [?UUID(_Hypervisor), <<"services">>]) ->
     [<<"PUT">>, <<"GET">>].
 
-get(State = #state{path = [Hypervisor | _]}) ->
+get(State = #state{path = [?UUID(Hypervisor) | _]}) ->
     Start = now(),
     R = case application:get_env(wiggle, hypervisor_ttl) of
             {ok, {TTL1, TTL2}} ->
@@ -53,31 +53,31 @@ get(State = #state{path = [Hypervisor | _]}) ->
 permission_required(#state{path = []}) ->
     {ok, [<<"cloud">>, <<"hypervisors">>, <<"list">>]};
 
-permission_required(#state{method = <<"GET">>, path = [Hypervisor]}) ->
+permission_required(#state{method = <<"GET">>, path = [?UUID(Hypervisor)]}) ->
     {ok, [<<"hypervisors">>, Hypervisor, <<"get">>]};
 
-permission_required(#state{method = <<"DELETE">>, path = [Hypervisor]}) ->
+permission_required(#state{method = <<"DELETE">>, path = [?UUID(Hypervisor)]}) ->
     {ok, [<<"hypervisors">>, Hypervisor, <<"edit">>]};
 
-permission_required(#state{method = <<"PUT">>, path = [Hypervisor, <<"config">> | _]}) ->
+permission_required(#state{method = <<"PUT">>, path = [?UUID(Hypervisor), <<"config">> | _]}) ->
     {ok, [<<"hypervisors">>, Hypervisor, <<"edit">>]};
 
-permission_required(#state{method = <<"PUT">>, path = [Hypervisor, <<"metadata">> | _]}) ->
+permission_required(#state{method = <<"PUT">>, path = [?UUID(Hypervisor), <<"metadata">> | _]}) ->
     {ok, [<<"hypervisors">>, Hypervisor, <<"edit">>]};
 
-permission_required(#state{method = <<"DELETE">>, path = [Hypervisor, <<"metadata">> | _]}) ->
+permission_required(#state{method = <<"DELETE">>, path = [?UUID(Hypervisor), <<"metadata">> | _]}) ->
     {ok, [<<"hypervisors">>, Hypervisor, <<"edit">>]};
 
-permission_required(#state{method = <<"PUT">>, path = [Hypervisor, <<"characteristics">> | _]}) ->
+permission_required(#state{method = <<"PUT">>, path = [?UUID(Hypervisor), <<"characteristics">> | _]}) ->
     {ok, [<<"hypervisors">>, Hypervisor, <<"edit">>]};
 
-permission_required(#state{method = <<"DELETE">>, path = [Hypervisor, <<"characteristics">> | _]}) ->
+permission_required(#state{method = <<"DELETE">>, path = [?UUID(Hypervisor), <<"characteristics">> | _]}) ->
     {ok, [<<"hypervisors">>, Hypervisor, <<"edit">>]};
 
-permission_required(#state{method = <<"GET">>, path = [Hypervisor, <<"services">>]}) ->
+permission_required(#state{method = <<"GET">>, path = [?UUID(Hypervisor), <<"services">>]}) ->
     {ok, [<<"hypervisors">>, Hypervisor, <<"get">>]};
 
-permission_required(#state{method = <<"PUT">>, path = [Hypervisor, <<"services">>]}) ->
+permission_required(#state{method = <<"PUT">>, path = [?UUID(Hypervisor), <<"services">>]}) ->
     {ok, [<<"hypervisors">>, Hypervisor, <<"edit">>]};
 
 permission_required(_State) ->
@@ -102,17 +102,16 @@ read(Req, State = #state{token = Token, path = [], full_list=FullList, full_list
     ?MSniffle(?P(State), Start1),
     {Res, Req, State};
 
-read(Req, State = #state{path = [_Hypervisor, <<"services">>], obj = Obj}) ->
+read(Req, State = #state{path = [?UUID(_Hypervisor), <<"services">>], obj = Obj}) ->
     Services = jsxd:fold(fun(UUID, Snap, Acc) ->
                                  [jsxd:set(<<"uuid">>, UUID, Snap) | Acc]
                          end, [], ft_hypervisor:services(Obj)),
     {Services, Req, State};
 
-read(Req, State = #state{path = [_Hypervisor, <<"services">>, Service],
-                         obj = Obj = [{_,_}|_]}) when is_binary(Service) ->
+read(Req, State = #state{path = [?UUID(_Hypervisor), <<"services">>, Service], obj = Obj}) ->
     {jsxd:get([Service], [{}], ft_hypervisor:services(Obj)), Req, State};
 
-read(Req, State = #state{path = [_Hypervisor], obj = Obj}) ->
+read(Req, State = #state{path = [?UUID(_Hypervisor)], obj = Obj}) ->
     {ft_hypervisor:to_json(Obj), Req, State}.
 
 
@@ -120,7 +119,7 @@ read(Req, State = #state{path = [_Hypervisor], obj = Obj}) ->
 %% PUT
 %%--------------------------------------------------------------------
 
-write(Req, State = #state{path = [Hypervisor, <<"config">>]},
+write(Req, State = #state{path = [?UUID(Hypervisor), <<"config">>]},
       [{<<"alias">>, V}]) when is_binary(V) ->
     Start = now(),
     e2qc:evict(?CACHE, Hypervisor),
@@ -129,7 +128,7 @@ write(Req, State = #state{path = [Hypervisor, <<"config">>]},
     ?MSniffle(?P(State), Start),
     {true, Req, State};
 
-write(Req, State = #state{path = [Hypervisor, <<"config">>]},
+write(Req, State = #state{path = [?UUID(Hypervisor), <<"config">>]},
       [{<<"path">>, P}]) when is_list(P) ->
     Start = now(),
     e2qc:evict(?CACHE, Hypervisor),
@@ -138,7 +137,7 @@ write(Req, State = #state{path = [Hypervisor, <<"config">>]},
     ?MSniffle(?P(State), Start),
     {true, Req, State};
 
-write(Req, State = #state{path = [Hypervisor, <<"characteristics">> | Path]}, [{K, V}]) ->
+write(Req, State = #state{path = [?UUID(Hypervisor), <<"characteristics">> | Path]}, [{K, V}]) ->
     Start = now(),
     e2qc:evict(?CACHE, Hypervisor),
     e2qc:teardown(?FULL_CACHE),
@@ -147,7 +146,7 @@ write(Req, State = #state{path = [Hypervisor, <<"characteristics">> | Path]}, [{
     ?MSniffle(?P(State), Start),
     {true, Req, State};
 
-write(Req, State = #state{path = [Hypervisor, <<"metadata">> | Path]}, [{K, V}]) ->
+write(Req, State = #state{path = [?UUID(Hypervisor), <<"metadata">> | Path]}, [{K, V}]) ->
     Start = now(),
     e2qc:evict(?CACHE, Hypervisor),
     e2qc:teardown(?FULL_CACHE),
@@ -156,7 +155,7 @@ write(Req, State = #state{path = [Hypervisor, <<"metadata">> | Path]}, [{K, V}])
     ?MSniffle(?P(State), Start),
     {true, Req, State};
 
-write(Req, State = #state{path = [Hypervisor, <<"services">>]},
+write(Req, State = #state{path = [?UUID(Hypervisor), <<"services">>]},
       [{<<"action">>, <<"enable">>},
        {<<"service">>, Service}]) ->
     e2qc:evict(?CACHE, Hypervisor),
@@ -164,7 +163,7 @@ write(Req, State = #state{path = [Hypervisor, <<"services">>]},
     ls_hypervisor:service_action(Hypervisor, enable, Service),
     {true, Req, State};
 
-write(Req, State = #state{path = [Hypervisor, <<"services">>]},
+write(Req, State = #state{path = [?UUID(Hypervisor), <<"services">>]},
       [{<<"action">>, <<"disable">>},
        {<<"service">>, Service}]) ->
     e2qc:evict(?CACHE, Hypervisor),
@@ -172,7 +171,7 @@ write(Req, State = #state{path = [Hypervisor, <<"services">>]},
     ls_hypervisor:service_action(Hypervisor, disable, Service),
     {true, Req, State};
 
-write(Req, State = #state{path = [Hypervisor, <<"services">>]},
+write(Req, State = #state{path = [?UUID(Hypervisor), <<"services">>]},
       [{<<"action">>, <<"clear">>},
        {<<"service">>, Service}]) ->
     e2qc:evict(?CACHE, Hypervisor),
@@ -188,7 +187,7 @@ write(Req, State, _Body) ->
 %% DELETE
 %%--------------------------------------------------------------------
 
-delete(Req, State = #state{path = [Hypervisor]}) ->
+delete(Req, State = #state{path = [?UUID(Hypervisor)]}) ->
     Start = now(),
     e2qc:evict(?CACHE, Hypervisor),
     e2qc:teardown(?FULL_CACHE),
@@ -197,7 +196,7 @@ delete(Req, State = #state{path = [Hypervisor]}) ->
     ?MSniffle(?P(State), Start),
     {true, Req, State};
 
-delete(Req, State = #state{path = [Hypervisor, <<"characteristics">> | Path]}) ->
+delete(Req, State = #state{path = [?UUID(Hypervisor), <<"characteristics">> | Path]}) ->
     Start = now(),
     e2qc:evict(?CACHE, Hypervisor),
     e2qc:teardown(?FULL_CACHE),
@@ -205,7 +204,7 @@ delete(Req, State = #state{path = [Hypervisor, <<"characteristics">> | Path]}) -
     ?MSniffle(?P(State), Start),
     {true, Req, State};
 
-delete(Req, State = #state{path = [Hypervisor, <<"metadata">> | Path]}) ->
+delete(Req, State = #state{path = [?UUID(Hypervisor), <<"metadata">> | Path]}) ->
     Start = now(),
     e2qc:evict(?CACHE, Hypervisor),
     e2qc:teardown(?FULL_CACHE),

@@ -101,17 +101,27 @@ read(Req, State = #state{path = [_Package], obj = Obj}) ->
 %%--------------------------------------------------------------------
 
 create(Req, State = #state{path = [], version = Version}, Data) ->
-    Data1 = jsxd:select([<<"cpu_cap">>, <<"quota">>, <<"ram">>,
-                         <<"requirements">>, <<"zfs_io_priority">>,
-                         <<"max_swap">>, <<"blocksize">>, <<"compression">>],
-                        Data),
     {ok, Package} = jsxd:get(<<"name">>, Data),
     case ls_package:create(Package) of
         {ok, UUID} ->
+            do_set(
+              [{<<"cpu_cap">>, fun ls_package:cpu_cap/2},
+               {<<"quota">>, fun ls_package:quota/2},
+               {<<"ram">>, fun ls_package:ram/2},
+               {<<"zfs_io_priority">>, fun ls_package:zfs_io_priority/2},
+               {<<"max_swap">>, fun ls_package:max_swap/2},
+               {<<"blocksize">>, fun ls_package:blocksize/2},
+               {<<"compression">>, fun ls_package:compression/2}
+              ], UUID, Data),
+            case jsxd:get(<<"requirements">>, Data) of
+                {ok, Rs} ->
+                    [ls_package:add_requirement(UUID, R) || R <- Rs];
+                _ ->
+                    ok
+            end,
             e2qc:teardown(?LIST_CACHE),
             e2qc:teardown(?FULL_CACHE),
-            ok = ls_package:set(UUID, Data1),
-            {{true, <<"/api/", Version/binary, "/packages/", UUID/binary>>}, Req, State#state{body = Data1}};
+            {{true, <<"/api/", Version/binary, "/packages/", UUID/binary>>}, Req, State#state{body = Data}};
         duplicate ->
             {ok, Req1} = cowboy_req:reply(409, Req),
             {halt, Req1, State}
@@ -147,3 +157,18 @@ delete(Req, State = #state{path = [Package]}) ->
     e2qc:teardown(?LIST_CACHE),
     e2qc:teardown(?FULL_CACHE),
     {true, Req, State}.
+
+%%--------------------------------------------------------------------
+%% Internal
+%%--------------------------------------------------------------------
+
+do_set([], _UUID, _O) ->
+    ok;
+do_set([{K, F} | R], UUID, O) ->
+    case jsxd:get([K], O) of
+        {ok, V}  ->
+            F(UUID, V);
+        _ ->
+            ok
+    end,
+    do_set(R, UUID, O).
