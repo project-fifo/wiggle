@@ -47,7 +47,7 @@ get(State = #state{path = [Role, <<"permissions">> | Permission]}) ->
         {[], {ok, Obj}} ->
             {ok, Obj};
         {P, {ok, Obj}} ->
-            case lists:member(P, jsxd:get(<<"permissions">>, [], Obj)) of
+            case lists:member(P, ft_role:permissions(Obj)) of
                 true ->
                     {ok, Obj};
                 _ -> not_found
@@ -117,7 +117,8 @@ read(Req, State = #state{token = Token, path = [], full_list=FullList, full_list
     Permission = [{must, 'allowed',
                    [<<"roles">>, {<<"res">>, <<"uuid">>}, <<"get">>],
                    Permissions}],
-    Res = wiggle_handler:list(fun ls_role:list/2, Token, Permission,
+    Res = wiggle_handler:list(fun ls_role:list/2,
+                              fun ft_role:to_json/1, Token, Permission,
                               FullList, Filter, role_list_ttl, ?FULL_CACHE,
                               ?LIST_CACHE),
     ?MSniffle(?P(State), Start1),
@@ -127,11 +128,11 @@ read(Req, State = #state{path = [_Role], obj = RoleObj}) ->
     RoleObj1 = jsxd:update(<<"permissions">>,
                             fun (Permissions) ->
                                     lists:map(fun jsonify_permissions/1, Permissions)
-                            end, [], RoleObj),
+                            end, [], ft_role:to_json(RoleObj)),
     {RoleObj1, Req, State};
 
 read(Req, State = #state{path = [_Role, <<"permissions">>], obj = RoleObj}) ->
-    {lists:map(fun jsonify_permissions/1, jsxd:get(<<"permissions">>, [], RoleObj)), Req, State}.
+    {lists:map(fun jsonify_permissions/1, ft_role:permissions(RoleObj)), Req, State}.
 
 %%--------------------------------------------------------------------
 %% PUT

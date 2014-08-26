@@ -75,10 +75,11 @@ get(State = #state{path = [User, <<"permissions">> | Permission]}) ->
         {[], {ok, Obj}} ->
             {ok, Obj};
         {P, {ok, Obj}} ->
-            case lists:member(P, jsxd:get(<<"permissions">>, [], Obj)) of
+            case lists:member(P, ft_user:permissions(Obj)) of
                 true ->
                     {ok, Obj};
-                _ -> not_found
+                _ ->
+                    not_found
             end
     end;
 
@@ -88,7 +89,7 @@ get(State = #state{method = <<"DELETE">>,
         not_found ->
             not_found;
         {ok, Obj} ->
-            case lists:member(Role, jsxd:get(<<"roles">>, [], Obj)) of
+            case lists:member(Role, ft_user:roles(Obj)) of
                 true ->
                     {ok, Obj};
                 _ ->
@@ -229,7 +230,8 @@ read(Req, State = #state{token = Token, path = [], full_list=FullList, full_list
     Permission = [{must, 'allowed',
                    [<<"users">>, {<<"res">>, <<"uuid">>}, <<"get">>],
                    Permissions}],
-    Res = wiggle_handler:list(fun ls_user:list/2, Token, Permission,
+    Res = wiggle_handler:list(fun ls_user:list/2,
+                              fun ft_user:to_json/1, Token, Permission,
                               FullList, Filter, user_list_ttl, ?FULL_CACHE,
                               ?LIST_CACHE),
 
@@ -240,24 +242,24 @@ read(Req, State = #state{path = [_User], obj = UserObj}) ->
     UserObj1 = jsxd:update(<<"permissions">>,
                            fun (Permissions) ->
                                    lists:map(fun jsonify_permissions/1, Permissions)
-                           end, [], UserObj),
+                           end, [], ft_user:to_json(UserObj)),
     UserObj2 = jsxd:delete(<<"password">>, UserObj1),
     {UserObj2, Req, State};
 
 read(Req, State = #state{path = [_User, <<"permissions">>], obj = UserObj}) ->
-    {lists:map(fun jsonify_permissions/1, jsxd:get(<<"permissions">>, [], UserObj)), Req, State};
+    {lists:map(fun jsonify_permissions/1, ft_user:permissions(UserObj)), Req, State};
 
 read(Req, State = #state{path = [_User, <<"roles">>], obj = UserObj}) ->
-    {jsxd:get(<<"roles">>, [], UserObj), Req, State};
+    {ft_user:roles(UserObj), Req, State};
 
 read(Req, State = #state{path = [_User, <<"orgs">>], obj = UserObj}) ->
-    {jsxd:get(<<"orgs">>, [], UserObj), Req, State};
+    {ft_user:orgs(UserObj), Req, State};
 
 read(Req, State = #state{path = [_User, <<"keys">>], obj = UserObj}) ->
-    {jsxd:get(<<"keys">>, [], UserObj), Req, State};
+    {ft_user:keys(UserObj), Req, State};
 
 read(Req, State = #state{path = [_User, <<"yubikeys">>], obj = UserObj}) ->
-    {jsxd:get(<<"yubikeys">>, [], UserObj), Req, State}.
+    {ft_user:yubikeys(UserObj), Req, State}.
 
 %%--------------------------------------------------------------------
 %% PUT
@@ -281,8 +283,6 @@ create(Req, State = #state{token = Token, path = [], version = Version}, Decoded
 write(Req, State = #state{path =  [User]}, [{<<"password">>, Password}]) ->
     Start = now(),
     ok = ls_user:passwd(User, Password),
-    e2qc:evict(?CACHE, User),
-    e2qc:teardown(?FULL_CACHE),
     ?MSnarl(?P(State), Start),
     {true, Req, State};
 
