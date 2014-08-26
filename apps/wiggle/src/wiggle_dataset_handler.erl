@@ -264,7 +264,7 @@ delete(Req, State = #state{path = [?UUID(Dataset)]}) ->
                     ?MSniffle(?P(State), Start),
                     {409, Req, State};
                 _ ->
-                    ok = ls_dataset:delete(Dataset),
+                    ls_dataset:delete(Dataset),
                     e2qc:evict(?CACHE, Dataset),
                     e2qc:teardown(?LIST_CACHE),
                     e2qc:teardown(?FULL_CACHE),
