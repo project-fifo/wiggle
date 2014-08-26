@@ -146,7 +146,7 @@ read(Req, State = #state{token = Token, path = [], full_list=FullList, full_list
     {Res, Req, State};
 
 read(Req, State = #state{path = [_Org], obj = OrgObj}) ->
-    {OrgObj, Req, State};
+    {ft_org:to_json(OrgObj), Req, State};
 
 read(Req, State = #state{path = [_Org, <<"triggers">>], obj = OrgObj}) ->
     %% can't get the ft_role:triggers since the json conversion would miss
