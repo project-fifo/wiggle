@@ -46,12 +46,8 @@ permission_required(_State) ->
 
 read(Req, State = #state{path = [Session], obj = Obj}) ->
     Obj1 = jsxd:thread([{set, <<"session">>, Session},
-                        {delete, <<"password">>},
-                        {update, <<"permissions">>,
-                         fun (Permissions) ->
-                                 lists:map(fun jsonify_permissions/1, Permissions)
-                         end, []}],
-                       Obj),
+                        {delete, <<"password">>}],
+                       ft_user:to_json(Obj)),
     {Obj1, Req, State}.
 
 %%--------------------------------------------------------------------
@@ -97,12 +93,3 @@ write(Req, State, _) ->
 delete(Req, State = #state{path = [Session]}) ->
     libsnarl:token_delete(Session),
     {true, Req, State}.
-
-jsonify_permissions(P) ->
-    lists:map(fun('...') ->
-                      <<"...">>;
-                 ('_') ->
-                      <<"_">>;
-                 (E) ->
-                      E
-              end, P).

@@ -41,7 +41,7 @@ allowed_methods(_Version, _Token, [_Role, <<"permissions">> | _Permission]) ->
     [<<"PUT">>, <<"DELETE">>].
 
 get(State = #state{path = [Role, <<"permissions">> | Permission]}) ->
-    case {erlangify_permission(Permission), wiggle_role_handler:get(State#state{path = [Role]})} of
+    case {Permission, wiggle_role_handler:get(State#state{path = [Role]})} of
         {_, not_found} ->
             not_found;
         {[], {ok, Obj}} ->
@@ -86,14 +86,12 @@ permission_required(#state{method = <<"GET">>, path = [Role, <<"permissions">>]}
     {ok, [<<"roles">>, Role, <<"get">>]};
 
 permission_required(#state{method = <<"PUT">>, path = [Role, <<"permissions">> | Permission]}) ->
-    P = erlangify_permission(Permission),
     {multiple, [[<<"roles">>, Role, <<"grant">>],
-                [<<"permissions">>, P, <<"grant">>]]};
+                [<<"permissions">>, Permission, <<"grant">>]]};
 
 permission_required(#state{method = <<"DELETE">>, path = [Role, <<"permissions">> | Permission]}) ->
-    P = erlangify_permission(Permission),
     {multiple, [[<<"roles">>, Role, <<"revoke">>],
-                [<<"permissions">>, P, <<"revoke">>]]};
+                [<<"permissions">>, Permission, <<"revoke">>]]};
 
 permission_required(#state{method = <<"PUT">>, path = [Role, <<"metadata">> | _]}) ->
     {ok, [<<"roles">>, Role, <<"edit">>]};
@@ -125,14 +123,10 @@ read(Req, State = #state{token = Token, path = [], full_list=FullList, full_list
     {Res, Req, State};
 
 read(Req, State = #state{path = [_Role], obj = RoleObj}) ->
-    RoleObj1 = jsxd:update(<<"permissions">>,
-                            fun (Permissions) ->
-                                    lists:map(fun jsonify_permissions/1, Permissions)
-                            end, [], ft_role:to_json(RoleObj)),
-    {RoleObj1, Req, State};
+    {ft_role:to_json(RoleObj), Req, State};
 
 read(Req, State = #state{path = [_Role, <<"permissions">>], obj = RoleObj}) ->
-    {lists:map(fun jsonify_permissions/1, ft_role:permissions(RoleObj)), Req, State}.
+    {ft_role:permissions(RoleObj), Req, State}.
 
 %%--------------------------------------------------------------------
 %% PUT
@@ -167,11 +161,10 @@ write(Req, State = #state{path = [Role]}, _Body) ->
     {true, Req, State};
 
 write(Req, State = #state{path = [Role, <<"permissions">> | Permission]}, _Body) ->
-    P = erlangify_permission(Permission),
     Start = now(),
     e2qc:evict(?CACHE, Role),
     e2qc:teardown(?LIST_CACHE),
-    ok = ls_role:grant(Role, P),
+    ok = ls_role:grant(Role, Permission),
     ?MSnarl(?P(State), Start),
     {true, Req, State}.
 
@@ -188,11 +181,10 @@ delete(Req, State = #state{path = [Role, <<"metadata">> | Path]}) ->
     {true, Req, State};
 
 delete(Req, State = #state{path = [Role, <<"permissions">> | Permission]}) ->
-    P = erlangify_permission(Permission),
     Start = now(),
     e2qc:evict(?CACHE, Role),
     e2qc:teardown(?LIST_CACHE),
-    ok = ls_role:revoke(Role, P),
+    ok = ls_role:revoke(Role, Permission),
     ?MSnarl(?P(State), Start),
     {true, Req, State};
 
@@ -203,28 +195,3 @@ delete(Req, State = #state{path = [Role]}) ->
     ok = ls_role:delete(Role),
     ?MSnarl(?P(State), Start),
     {true, Req, State}.
-
-%% Internal Functions
-
-erlangify_permission(P) ->
-    lists:map(fun(E) ->
-                      E
-              end, P).
-
-jsonify_permissions(P) ->
-    lists:map(fun('...') ->
-                      <<"...">>;
-                 ('_') ->
-                      <<"_">>;
-                 (E) ->
-                      E
-              end, P).
-
-
--ifdef(TEST).
-
-jsonify_permission_test() ->
-    ?assertEqual([<<"_">>, <<"a">>, <<"...">>],
-                 jsonify_permissions(['_', <<"a">>, '...'])).
-
--endif.
