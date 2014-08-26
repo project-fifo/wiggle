@@ -48,7 +48,10 @@ get(State = #state{path = [?UUID(Hypervisor) | _]}) ->
                 ls_hypervisor:get(Hypervisor)
         end,
     ?MSniffle(?P(State), Start),
-    R.
+    R;
+
+get(_State) ->
+    not_found.
 
 permission_required(#state{path = []}) ->
     {ok, [<<"cloud">>, <<"hypervisors">>, <<"list">>]};

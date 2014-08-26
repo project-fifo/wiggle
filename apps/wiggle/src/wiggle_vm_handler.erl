@@ -131,7 +131,11 @@ get(State = #state{path = [?UUID(Vm) | _]}) ->
                 ls_vm:get(Vm)
         end,
     ?MSniffle(?P(State), Start),
-    R.
+    R;
+
+get(_State) ->
+    not_found.
+
 
 permission_required(#state{method = <<"PUT">>, path = [<<"dry_run">>]}) ->
     {ok, [<<"cloud">>, <<"vms">>, <<"create">>]};
@@ -322,7 +326,7 @@ create(Req, State = #state{path = [], version = Version, token = Token}, Decoded
                   end,
         try
             {ok, User} = ls_user:get(Token),
-            {ok, Owner} = jsxd:get(<<"uuid">>, User),
+            Owner = ft_user:uuid(User),
             Start = now(),
             {ok, UUID} = ls_vm:create(Package, Dataset, jsxd:set(<<"owner">>, Owner, Config1)),
             e2qc:teardown(?LIST_CACHE),
@@ -422,7 +426,7 @@ write(Req, State = #state{path = [<<"dry_run">>], token = Token}, Decoded) ->
                   end,
         try
             {ok, User} = ls_user:get(Token),
-            {ok, Owner} = jsxd:get(<<"uuid">>, User),
+            Owner = ft_user:uuid(User),
             Start = now(),
             case ls_vm:dry_run(Package, Dataset,
                                     jsxd:set(<<"owner">>, Owner, Config1)) of

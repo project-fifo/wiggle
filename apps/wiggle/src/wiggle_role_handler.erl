@@ -28,20 +28,20 @@
 allowed_methods(_Version, _Token, []) ->
     [<<"GET">>, <<"POST">>];
 
-allowed_methods(_Version, _Token, [_Role]) ->
+allowed_methods(_Version, _Token, [?UUID(_Role)]) ->
     [<<"GET">>, <<"PUT">>, <<"DELETE">>];
 
-allowed_methods(_Version, _Token, [_Role, <<"permissions">>]) ->
+allowed_methods(_Version, _Token, [?UUID(_Role), <<"permissions">>]) ->
     [<<"GET">>];
 
-allowed_methods(_Version, _Token, [_Role, <<"metadata">> | _]) ->
+allowed_methods(_Version, _Token, [?UUID(_Role), <<"metadata">> | _]) ->
     [<<"PUT">>, <<"DELETE">>];
 
-allowed_methods(_Version, _Token, [_Role, <<"permissions">> | _Permission]) ->
+allowed_methods(_Version, _Token, [?UUID(_Role), <<"permissions">> | _Permission]) ->
     [<<"PUT">>, <<"DELETE">>].
 
-get(State = #state{path = [Role, <<"permissions">> | Permission]}) ->
-    case {Permission, wiggle_role_handler:get(State#state{path = [Role]})} of
+get(State = #state{path = [?UUID(Role), <<"permissions">> | Permission]}) ->
+    case {Permission, wiggle_role_handler:get(State#state{path = [?UUID(Role)]})} of
         {_, not_found} ->
             not_found;
         {[], {ok, Obj}} ->
@@ -54,7 +54,7 @@ get(State = #state{path = [Role, <<"permissions">> | Permission]}) ->
             end
     end;
 
-get(State = #state{path = [Role | _]}) ->
+get(State = #state{path = [?UUID(Role) | _]}) ->
     Start = now(),
     R = case application:get_env(wiggle, role_ttl) of
             {ok, {TTL1, TTL2}} ->
@@ -73,30 +73,30 @@ permission_required(#state{method = <<"GET">>, path = []}) ->
 permission_required(#state{method = <<"POST">>, path = []}) ->
     {ok, [<<"cloud">>, <<"roles">>, <<"create">>]};
 
-permission_required(#state{method = <<"GET">>, path = [Role]}) ->
+permission_required(#state{method = <<"GET">>, path = [?UUID(Role)]}) ->
     {ok, [<<"roles">>, Role, <<"get">>]};
 
-permission_required(#state{method = <<"PUT">>, path = [Role]}) ->
+permission_required(#state{method = <<"PUT">>, path = [?UUID(Role)]}) ->
     {ok, [<<"roles">>, Role, <<"create">>]};
 
-permission_required(#state{method = <<"DELETE">>, path = [Role]}) ->
+permission_required(#state{method = <<"DELETE">>, path = [?UUID(Role)]}) ->
     {ok, [<<"roles">>, Role, <<"delete">>]};
 
-permission_required(#state{method = <<"GET">>, path = [Role, <<"permissions">>]}) ->
+permission_required(#state{method = <<"GET">>, path = [?UUID(Role), <<"permissions">>]}) ->
     {ok, [<<"roles">>, Role, <<"get">>]};
 
-permission_required(#state{method = <<"PUT">>, path = [Role, <<"permissions">> | Permission]}) ->
+permission_required(#state{method = <<"PUT">>, path = [?UUID(Role), <<"permissions">> | Permission]}) ->
     {multiple, [[<<"roles">>, Role, <<"grant">>],
                 [<<"permissions">>, Permission, <<"grant">>]]};
 
-permission_required(#state{method = <<"DELETE">>, path = [Role, <<"permissions">> | Permission]}) ->
+permission_required(#state{method = <<"DELETE">>, path = [?UUID(Role), <<"permissions">> | Permission]}) ->
     {multiple, [[<<"roles">>, Role, <<"revoke">>],
                 [<<"permissions">>, Permission, <<"revoke">>]]};
 
-permission_required(#state{method = <<"PUT">>, path = [Role, <<"metadata">> | _]}) ->
+permission_required(#state{method = <<"PUT">>, path = [?UUID(Role), <<"metadata">> | _]}) ->
     {ok, [<<"roles">>, Role, <<"edit">>]};
 
-permission_required(#state{method = <<"DELETE">>, path = [Role, <<"metadata">> | _]}) ->
+permission_required(#state{method = <<"DELETE">>, path = [?UUID(Role), <<"metadata">> | _]}) ->
     {ok, [<<"roles">>, Role, <<"edit">>]};
 
 permission_required(_State) ->
@@ -122,10 +122,10 @@ read(Req, State = #state{token = Token, path = [], full_list=FullList, full_list
     ?MSniffle(?P(State), Start1),
     {Res, Req, State};
 
-read(Req, State = #state{path = [_Role], obj = RoleObj}) ->
+read(Req, State = #state{path = [?UUID(_Role)], obj = RoleObj}) ->
     {ft_role:to_json(RoleObj), Req, State};
 
-read(Req, State = #state{path = [_Role, <<"permissions">>], obj = RoleObj}) ->
+read(Req, State = #state{path = [?UUID(_Role), <<"permissions">>], obj = RoleObj}) ->
     {ft_role:permissions(RoleObj), Req, State}.
 
 %%--------------------------------------------------------------------
@@ -144,7 +144,7 @@ create(Req, State = #state{path = [], version = Version}, Decoded) ->
 write(Req, State = #state{method = <<"POST">>, path = []}, _) ->
     {true, Req, State};
 
-write(Req, State = #state{path = [Role, <<"metadata">> | Path]}, [{K, V}]) when is_binary(Role) ->
+write(Req, State = #state{path = [?UUID(Role), <<"metadata">> | Path]}, [{K, V}]) when is_binary(Role) ->
     Start = now(),
     e2qc:evict(?CACHE, Role),
     e2qc:teardown(?LIST_CACHE),
@@ -152,7 +152,7 @@ write(Req, State = #state{path = [Role, <<"metadata">> | Path]}, [{K, V}]) when 
     ?MSnarl(?P(State), Start),
     {true, Req, State};
 
-write(Req, State = #state{path = [Role]}, _Body) ->
+write(Req, State = #state{path = [?UUID(Role)]}, _Body) ->
     Start = now(),
     e2qc:evict(?CACHE, Role),
     e2qc:teardown(?LIST_CACHE),
@@ -160,7 +160,7 @@ write(Req, State = #state{path = [Role]}, _Body) ->
     ?MSnarl(?P(State), Start),
     {true, Req, State};
 
-write(Req, State = #state{path = [Role, <<"permissions">> | Permission]}, _Body) ->
+write(Req, State = #state{path = [?UUID(Role), <<"permissions">> | Permission]}, _Body) ->
     Start = now(),
     e2qc:evict(?CACHE, Role),
     e2qc:teardown(?LIST_CACHE),
@@ -172,7 +172,7 @@ write(Req, State = #state{path = [Role, <<"permissions">> | Permission]}, _Body)
 %% DEETE
 %%--------------------------------------------------------------------
 
-delete(Req, State = #state{path = [Role, <<"metadata">> | Path]}) ->
+delete(Req, State = #state{path = [?UUID(Role), <<"metadata">> | Path]}) ->
     Start = now(),
     e2qc:evict(?CACHE, Role),
     e2qc:teardown(?LIST_CACHE),
@@ -180,7 +180,7 @@ delete(Req, State = #state{path = [Role, <<"metadata">> | Path]}) ->
     ?MSnarl(?P(State), Start),
     {true, Req, State};
 
-delete(Req, State = #state{path = [Role, <<"permissions">> | Permission]}) ->
+delete(Req, State = #state{path = [?UUID(Role), <<"permissions">> | Permission]}) ->
     Start = now(),
     e2qc:evict(?CACHE, Role),
     e2qc:teardown(?LIST_CACHE),
@@ -188,7 +188,7 @@ delete(Req, State = #state{path = [Role, <<"permissions">> | Permission]}) ->
     ?MSnarl(?P(State), Start),
     {true, Req, State};
 
-delete(Req, State = #state{path = [Role]}) ->
+delete(Req, State = #state{path = [?UUID(Role)]}) ->
     Start = now(),
     e2qc:evict(?CACHE, Role),
     e2qc:teardown(?LIST_CACHE),
