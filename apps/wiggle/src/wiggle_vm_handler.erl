@@ -131,7 +131,11 @@ get(State = #state{path = [?UUID(Vm) | _]}) ->
                 ls_vm:get(Vm)
         end,
     ?MSniffle(?P(State), Start),
-    R.
+    R;
+
+get(_State) ->
+    not_found.
+
 
 permission_required(#state{method = <<"PUT">>, path = [<<"dry_run">>]}) ->
     {ok, [<<"cloud">>, <<"vms">>, <<"create">>]};

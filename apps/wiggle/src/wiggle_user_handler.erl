@@ -31,45 +31,45 @@
 allowed_methods(_Version, _Token, []) ->
     [<<"GET">>, <<"POST">>];
 
-allowed_methods(_Version, _Token, [_Login]) ->
+allowed_methods(_Version, _Token, [?UUID(_User)]) ->
     [<<"GET">>, <<"PUT">>, <<"DELETE">>];
 
-allowed_methods(_Version, _Token, [_Login, <<"metadata">> | _]) ->
+allowed_methods(_Version, _Token, [?UUID(_User), <<"metadata">> | _]) ->
     [<<"PUT">>, <<"DELETE">>];
 
-allowed_methods(_Version, _Token, [_Login, <<"keys">>]) ->
+allowed_methods(_Version, _Token, [?UUID(_User), <<"keys">>]) ->
     [<<"GET">>, <<"PUT">>];
 
-allowed_methods(_Version, _Token, [_Login, <<"keys">>, _]) ->
+allowed_methods(_Version, _Token, [?UUID(_User), <<"keys">>, _]) ->
     [<<"DELETE">>];
 
-allowed_methods(_Version, _Token, [_Login, <<"yubikeys">>]) ->
+allowed_methods(_Version, _Token, [?UUID(_User), <<"yubikeys">>]) ->
     [<<"GET">>, <<"PUT">>];
 
-allowed_methods(_Version, _Token, [_Login, <<"yubikeys">>, _]) ->
+allowed_methods(_Version, _Token, [?UUID(_User), <<"yubikeys">>, _]) ->
     [<<"DELETE">>];
 
-allowed_methods(_Version, _Token, [_Login, <<"permissions">>]) ->
+allowed_methods(_Version, _Token, [?UUID(_User), <<"permissions">>]) ->
     [<<"GET">>];
 
-allowed_methods(_Version, _Token, [_Login, <<"permissions">> | _Permission]) ->
+allowed_methods(_Version, _Token, [?UUID(_User), <<"permissions">> | _Permission]) ->
     [<<"PUT">>, <<"DELETE">>];
 
-allowed_methods(_Version, _Token, [_Login, <<"roles">>]) ->
+allowed_methods(_Version, _Token, [?UUID(_User), <<"roles">>]) ->
     [<<"GET">>];
 
-allowed_methods(_Version, _Token, [_Login, <<"roles">>, _Role]) ->
+allowed_methods(_Version, _Token, [?UUID(_User), <<"roles">>, _Role]) ->
     [<<"PUT">>, <<"DELETE">>];
 
-allowed_methods(_Version, _Token, [_Login, <<"orgs">>]) ->
+allowed_methods(_Version, _Token, [?UUID(_User), <<"orgs">>]) ->
     [<<"GET">>];
 
-allowed_methods(_Version, _Token, [_Login, <<"orgs">>, _Org]) ->
+allowed_methods(_Version, _Token, [?UUID(_User), <<"orgs">>, _Org]) ->
     [<<"PUT">>, <<"DELETE">>].
 
-get(State = #state{path = [User, <<"permissions">> | Permission]}) ->
+get(State = #state{path = [?UUID(User), <<"permissions">> | Permission]}) ->
     case {Permission,
-          wiggle_user_handler:get(State#state{path = [User]})} of
+          wiggle_user_handler:get(State#state{path = [?UUID(User)]})} of
         {_, not_found} ->
             not_found;
         {[], {ok, Obj}} ->
@@ -84,8 +84,8 @@ get(State = #state{path = [User, <<"permissions">> | Permission]}) ->
     end;
 
 get(State = #state{method = <<"DELETE">>,
-                   path = [User, <<"roles">>, Role]}) ->
-    case wiggle_user_handler:get(State#state{path = [User]}) of
+                   path = [?UUID(User), <<"roles">>, Role]}) ->
+    case wiggle_user_handler:get(State#state{path = [?UUID(User)]}) of
         not_found ->
             not_found;
         {ok, Obj} ->
@@ -97,8 +97,8 @@ get(State = #state{method = <<"DELETE">>,
             end
     end;
 
-get(State = #state{method = <<"PUT">>, path = [User, <<"roles">>, Role]}) ->
-    case wiggle_user_handler:get(State#state{path = [User]}) of
+get(State = #state{method = <<"PUT">>, path = [?UUID(User), <<"roles">>, Role]}) ->
+    case wiggle_user_handler:get(State#state{path = [?UUID(User)]}) of
         not_found ->
             not_found;
         {ok, Obj} ->
@@ -113,7 +113,7 @@ get(State = #state{method = <<"PUT">>, path = [User, <<"roles">>, Role]}) ->
             end
     end;
 
-get(State = #state{path = [User | _]}) ->
+get(State = #state{path = [?UUID(User) | _]}) ->
     Start = now(),
     R = case application:get_env(wiggle, user_ttl) of
             {ok, {TTL1, TTL2}} ->
@@ -132,85 +132,85 @@ permission_required(#state{method = <<"GET">>, path = []}) ->
 permission_required(#state{method = <<"POST">>, path = []}) ->
     {ok, [<<"cloud">>, <<"users">>, <<"create">>]};
 
-permission_required(#state{method = <<"GET">>, path = [User]}) ->
+permission_required(#state{method = <<"GET">>, path = [?UUID(User)]}) ->
     {ok, [<<"users">>, User, <<"get">>]};
 
-permission_required(#state{method = <<"PUT">>, path = [User]}) ->
+permission_required(#state{method = <<"PUT">>, path = [?UUID(User)]}) ->
     {ok, [<<"users">>, User, <<"passwd">>]};
 
-permission_required(#state{method = <<"DELETE">>, path = [User]}) ->
+permission_required(#state{method = <<"DELETE">>, path = [?UUID(User)]}) ->
     {ok, [<<"users">>, User, <<"delete">>]};
 
 permission_required(#state{method = <<"GET">>,
-                           path = [User, <<"permissions">>]}) ->
+                           path = [?UUID(User), <<"permissions">>]}) ->
     {ok, [<<"users">>, User, <<"get">>]};
 
 permission_required(#state{method = <<"PUT">>,
-                           path = [User, <<"permissions">> | Permission]}) ->
+                           path = [?UUID(User), <<"permissions">> | Permission]}) ->
     {multiple, [[<<"users">>, User, <<"grant">>], Permission]};
 
 permission_required(#state{method = <<"DELETE">>,
-                           path = [User, <<"permissions">> | Permission]}) ->
+                           path = [?UUID(User), <<"permissions">> | Permission]}) ->
     {multiple, [[<<"users">>, User, <<"revoke">>], Permission]};
 
 permission_required(#state{method = <<"GET">>,
-                           path = [User, <<"roles">>]}) ->
+                           path = [?UUID(User), <<"roles">>]}) ->
     {ok, [<<"users">>, User, <<"get">>]};
 
 permission_required(#state{method = <<"PUT">>,
-                           path = [User, <<"roles">>, Role]}) ->
+                           path = [?UUID(User), <<"roles">>, Role]}) ->
     {multiple, [[<<"users">>, User, <<"join">>],
                 [<<"roles">>, Role, <<"join">>]]};
 
 permission_required(#state{method = <<"DELETE">>,
-                           path = [User, <<"roles">>, Role]}) ->
+                           path = [?UUID(User), <<"roles">>, Role]}) ->
     {multiple, [[<<"users">>, User, <<"leave">>],
                 [<<"roles">>, Role, <<"leave">>]]};
 
 permission_required(#state{method = <<"GET">>,
-                           path = [User, <<"orgs">>]}) ->
+                           path = [?UUID(User), <<"orgs">>]}) ->
     {ok, [<<"users">>, User, <<"get">>]};
 
 permission_required(#state{method = <<"PUT">>,
-                           path = [User, <<"orgs">>, Org]}) ->
+                           path = [?UUID(User), <<"orgs">>, Org]}) ->
     {multiple, [[<<"users">>, User, <<"join">>],
                 [<<"orgs">>, Org, <<"join">>]]};
 
 permission_required(#state{method = <<"DELETE">>,
-                           path = [User, <<"orgs">>, Org]}) ->
+                           path = [?UUID(User), <<"orgs">>, Org]}) ->
     {multiple, [[<<"users">>, User, <<"leave">>],
                 [<<"orgs">>, Org, <<"leave">>]]};
 
 permission_required(#state{method = <<"PUT">>,
-                           path = [User, <<"metadata">> | _]}) ->
+                           path = [?UUID(User), <<"metadata">> | _]}) ->
     {ok, [<<"users">>, User, <<"edit">>]};
 
 permission_required(#state{method = <<"DELETE">>,
-                           path = [User, <<"metadata">> | _]}) ->
+                           path = [?UUID(User), <<"metadata">> | _]}) ->
     {ok, [<<"users">>, User, <<"edit">>]};
 
 permission_required(#state{method = <<"GET">>,
-                           path = [User, <<"keys">>]}) ->
+                           path = [?UUID(User), <<"keys">>]}) ->
     {ok, [<<"users">>, User, <<"get">>]};
 
 permission_required(#state{method = <<"PUT">>,
-                           path = [User, <<"keys">>]}) ->
+                           path = [?UUID(User), <<"keys">>]}) ->
     {ok, [<<"users">>, User, <<"edit">>]};
 
 permission_required(#state{method = <<"DELETE">>,
-                           path = [User, <<"keys">>, _KeyID]}) ->
+                           path = [?UUID(User), <<"keys">>, _KeyID]}) ->
     {ok, [<<"users">>, User, <<"edit">>]};
 
 permission_required(#state{method = <<"GET">>,
-                           path = [User, <<"yubikeys">>]}) ->
+                           path = [?UUID(User), <<"yubikeys">>]}) ->
     {ok, [<<"users">>, User, <<"get">>]};
 
 permission_required(#state{method = <<"PUT">>,
-                           path = [User, <<"yubikeys">>]}) ->
+                           path = [?UUID(User), <<"yubikeys">>]}) ->
     {ok, [<<"users">>, User, <<"edit">>]};
 
 permission_required(#state{method = <<"DELETE">>,
-                           path = [User, <<"yubikeys">>, _KeyID]}) ->
+                           path = [?UUID(User), <<"yubikeys">>, _KeyID]}) ->
     {ok, [<<"users">>, User, <<"edit">>]};
 
 permission_required(_State) ->
@@ -274,7 +274,7 @@ create(Req, State = #state{token = Token, path = [], version = Version}, Decoded
     ?MSnarl(?P(State), Start1),
     {{true, <<"/api/", Version/binary, "/users/", UUID/binary>>}, Req, State#state{body = Decoded}}.
 
-write(Req, State = #state{path =  [User]}, [{<<"password">>, Password}]) ->
+write(Req, State = #state{path =  [?UUID(User)]}, [{<<"password">>, Password}]) ->
     Start = now(),
     ok = ls_user:passwd(User, Password),
     ?MSnarl(?P(State), Start),
@@ -284,7 +284,7 @@ write(Req, State = #state{path =  [User]}, [{<<"password">>, Password}]) ->
 write(Req, State = #state{method = <<"POST">>, path = []}, _) ->
     {true, Req, State};
 
-write(Req, State = #state{path = [User, <<"metadata">> | Path]}, [{K, V}]) ->
+write(Req, State = #state{path = [?UUID(User), <<"metadata">> | Path]}, [{K, V}]) ->
     Start = now(),
     ok = ls_user:set_metadata(User, [{Path ++ [K], jsxd:from_list(V)}]),
     e2qc:evict(?CACHE, User),
@@ -292,7 +292,7 @@ write(Req, State = #state{path = [User, <<"metadata">> | Path]}, [{K, V}]) ->
     ?MSnarl(?P(State), Start),
     {true, Req, State};
 
-write(Req, State = #state{path = [User, <<"keys">>]}, [{KeyID, Key}]) ->
+write(Req, State = #state{path = [?UUID(User), <<"keys">>]}, [{KeyID, Key}]) ->
     case re:split(Key, " ") of
         [_,ID,_] ->
             try
@@ -311,7 +311,7 @@ write(Req, State = #state{path = [User, <<"keys">>]}, [{KeyID, Key}]) ->
             {false, Req, State}
     end;
 
-write(Req, State = #state{path = [User, <<"yubikeys">>]},
+write(Req, State = #state{path = [?UUID(User), <<"yubikeys">>]},
       [{<<"otp">>, <<_:33/binary, _/binary >>= OTP}]) ->
     Start = now(),
     ok = ls_user:yubikey_add(User, OTP),
@@ -323,7 +323,7 @@ write(Req, State = #state{path = [User, <<"yubikeys">>]},
 write(Req, State = #state{path = [_, <<"yubikeys">>]}, _) ->
     {false, Req, State};
 
-write(Req, State = #state{path = [User, <<"roles">>, Role]}, _) ->
+write(Req, State = #state{path = [?UUID(User), <<"roles">>, Role]}, _) ->
     Start = now(),
     ok = ls_user:join(User, Role),
     e2qc:evict(?CACHE, User),
@@ -331,7 +331,7 @@ write(Req, State = #state{path = [User, <<"roles">>, Role]}, _) ->
     ?MSnarl(?P(State), Start),
     {true, Req, State};
 
-write(Req, State = #state{path = [User, <<"orgs">>, Org]}, []) ->
+write(Req, State = #state{path = [?UUID(User), <<"orgs">>, Org]}, []) ->
     Start = now(),
     ok = ls_user:join_org(User, Org),
     e2qc:evict(?CACHE, User),
@@ -339,7 +339,7 @@ write(Req, State = #state{path = [User, <<"orgs">>, Org]}, []) ->
     ?MSnarl(?P(State), Start),
     {true, Req, State};
 
-write(Req, State = #state{path = [User, <<"orgs">>, Org]}, [{}]) ->
+write(Req, State = #state{path = [?UUID(User), <<"orgs">>, Org]}, [{}]) ->
     Start = now(),
     ok = ls_user:join_org(User, Org),
     e2qc:evict(?CACHE, User),
@@ -347,7 +347,7 @@ write(Req, State = #state{path = [User, <<"orgs">>, Org]}, [{}]) ->
     ?MSnarl(?P(State), Start),
     {true, Req, State};
 
-write(Req, State = #state{path = [User, <<"orgs">>, Org]},
+write(Req, State = #state{path = [?UUID(User), <<"orgs">>, Org]},
       [{<<"active">>, true}]) ->
     Start = now(),
     ok = ls_user:join_org(User, Org),
@@ -357,7 +357,7 @@ write(Req, State = #state{path = [User, <<"orgs">>, Org]},
     ?MSnarl(?P(State), Start),
     {true, Req, State};
 
-write(Req, State = #state{path = [User, <<"permissions">> | Permission]}, _) ->
+write(Req, State = #state{path = [?UUID(User), <<"permissions">> | Permission]}, _) ->
     Start = now(),
     ok = ls_user:grant(User, Permission),
     e2qc:evict(?CACHE, User),
@@ -370,7 +370,7 @@ write(Req, State = #state{path = [User, <<"permissions">> | Permission]}, _) ->
 %% DEETE
 %%--------------------------------------------------------------------
 
-delete(Req, State = #state{path = [User, <<"metadata">> | Path]}) ->
+delete(Req, State = #state{path = [?UUID(User), <<"metadata">> | Path]}) ->
     Start = now(),
     ok = ls_user:set_metadata(User, [{Path, delete}]),
     e2qc:evict(?CACHE, User),
@@ -378,7 +378,7 @@ delete(Req, State = #state{path = [User, <<"metadata">> | Path]}) ->
     ?MSnarl(?P(State), Start),
     {true, Req, State};
 
-delete(Req, State = #state{path = [User, <<"keys">>, KeyID]}) ->
+delete(Req, State = #state{path = [?UUID(User), <<"keys">>, KeyID]}) ->
     Start = now(),
     ok = ls_user:key_revoke(User, KeyID),
     e2qc:evict(?CACHE, User),
@@ -386,7 +386,7 @@ delete(Req, State = #state{path = [User, <<"keys">>, KeyID]}) ->
     ?MSnarl(?P(State), Start),
     {true, Req, State};
 
-delete(Req, State = #state{path = [User, <<"yubikeys">>, KeyID]}) ->
+delete(Req, State = #state{path = [?UUID(User), <<"yubikeys">>, KeyID]}) ->
     Start = now(),
     ok = ls_user:yubikey_remove(User, KeyID),
     e2qc:evict(?CACHE, User),
@@ -398,7 +398,7 @@ delete(Req, State = #state{path = [_User, <<"sessions">>]}) ->
     Req1 = cowboy_req:set_resp_cookie(<<"x-snarl-token">>, <<"">>, [{max_age, 0}], Req),
     {true, Req1, State};
 
-delete(Req, State = #state{path = [User, <<"permissions">> | Permission]}) ->
+delete(Req, State = #state{path = [?UUID(User), <<"permissions">> | Permission]}) ->
     Start = now(),
     ok = ls_user:revoke(User, Permission),
     e2qc:evict(?CACHE, User),
@@ -406,7 +406,7 @@ delete(Req, State = #state{path = [User, <<"permissions">> | Permission]}) ->
     ?MSnarl(?P(State), Start),
     {true, Req, State};
 
-delete(Req, State = #state{path = [User]}) ->
+delete(Req, State = #state{path = [?UUID(User)]}) ->
     Start = now(),
     ok = ls_user:delete(User),
     e2qc:evict(?CACHE, User),
@@ -415,7 +415,7 @@ delete(Req, State = #state{path = [User]}) ->
     ?MSnarl(?P(State), Start),
     {true, Req, State};
 
-delete(Req, State = #state{path = [User, <<"orgs">>, Org]}) ->
+delete(Req, State = #state{path = [?UUID(User), <<"orgs">>, Org]}) ->
     Start = now(),
     ok = ls_user:leave_org(User, Org),
     e2qc:evict(?CACHE, User),
@@ -423,7 +423,7 @@ delete(Req, State = #state{path = [User, <<"orgs">>, Org]}) ->
     ?MSnarl(?P(State), Start),
     {true, Req, State};
 
-delete(Req, State = #state{path = [User, <<"roles">>, Role]}) ->
+delete(Req, State = #state{path = [?UUID(User), <<"roles">>, Role]}) ->
     Start = now(),
     ok = ls_user:leave(User, Role),
     e2qc:evict(?CACHE, User),

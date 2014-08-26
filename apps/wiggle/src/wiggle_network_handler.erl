@@ -47,7 +47,10 @@ get(State = #state{path = [?UUID(Network) | _]}) ->
                 ls_network:get(Network)
         end,
     ?MSniffle(?P(State), Start),
-    R.
+    R;
+
+get(_State) ->
+    not_found.
 
 permission_required(#state{method = <<"GET">>, path = []}) ->
     {ok, [<<"cloud">>, <<"networks">>, <<"list">>]};

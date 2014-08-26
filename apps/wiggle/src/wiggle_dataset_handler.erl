@@ -39,19 +39,19 @@
 allowed_methods(_Version, _Token, []) ->
     [<<"GET">>, <<"POST">>];
 
-allowed_methods(_Version, _Token, [_Dataset]) ->
+allowed_methods(_Version, _Token, [?UUID(_Dataset)]) ->
     [<<"GET">>, <<"DELETE">>, <<"PUT">>, <<"POST">>];
 
-allowed_methods(_Version, _Token, [_Dataset, <<"dataset.gz">>]) ->
+allowed_methods(_Version, _Token, [?UUID(_Dataset), <<"dataset.gz">>]) ->
     [<<"PUT">>, <<"GET">>];
 
-allowed_methods(_Version, _Token, [_Dataset, <<"dataset.bz2">>]) ->
+allowed_methods(_Version, _Token, [?UUID(_Dataset), <<"dataset.bz2">>]) ->
     [<<"PUT">>, <<"GET">>];
 
-allowed_methods(_Version, _Token, [_Dataset, <<"metadata">>|_]) ->
+allowed_methods(_Version, _Token, [?UUID(_Dataset), <<"metadata">>|_]) ->
     [<<"PUT">>, <<"DELETE">>].
 
-get(State = #state{path = [Dataset | _]}) ->
+get(State = #state{path = [?UUID(Dataset) | _]}) ->
     Start = now(),
     R = case application:get_env(wiggle, dataset_ttl) of
             {ok, {TTL1, TTL2}} ->
@@ -62,7 +62,11 @@ get(State = #state{path = [Dataset | _]}) ->
                 ls_dataset:get(Dataset)
         end,
     ?MSniffle(?P(State), Start),
-    R.
+    R;
+
+get(_State) ->
+    not_found.
+
 
 permission_required(#state{method = <<"POST">>, path = []}) ->
     {ok, [<<"cloud">>, <<"datasets">>, <<"create">>]};
@@ -70,34 +74,34 @@ permission_required(#state{method = <<"POST">>, path = []}) ->
 permission_required(#state{path = []}) ->
     {ok, [<<"cloud">>, <<"datasets">>, <<"list">>]};
 
-permission_required(#state{method = <<"GET">>, path = [Dataset]}) ->
+permission_required(#state{method = <<"GET">>, path = [?UUID(Dataset)]}) ->
     {ok, [<<"datasets">>, Dataset, <<"get">>]};
 
-permission_required(#state{method = <<"PUT">>, path = [Dataset]}) ->
+permission_required(#state{method = <<"PUT">>, path = [?UUID(Dataset)]}) ->
     {ok, [<<"datasets">>, Dataset, <<"edit">>]};
 
-permission_required(#state{method = <<"POST">>, path = [Dataset]}) ->
+permission_required(#state{method = <<"POST">>, path = [?UUID(Dataset)]}) ->
     {ok, [<<"datasets">>, Dataset, <<"create">>]};
 
-permission_required(#state{method = <<"GET">>, path = [Dataset, <<"dataset.gz">>]}) ->
+permission_required(#state{method = <<"GET">>, path = [?UUID(Dataset), <<"dataset.gz">>]}) ->
     {ok, [<<"datasets">>, Dataset, <<"create">>]};
 
-permission_required(#state{method = <<"GET">>, path = [Dataset, <<"dataset.bz2">>]}) ->
+permission_required(#state{method = <<"GET">>, path = [?UUID(Dataset), <<"dataset.bz2">>]}) ->
     {ok, [<<"datasets">>, Dataset, <<"export">>]};
 
-permission_required(#state{method = <<"PUT">>, path = [Dataset, <<"dataset.gz">>]}) ->
+permission_required(#state{method = <<"PUT">>, path = [?UUID(Dataset), <<"dataset.gz">>]}) ->
     {ok, [<<"datasets">>, Dataset, <<"create">>]};
 
-permission_required(#state{method = <<"PUT">>, path = [Dataset, <<"dataset.bz2">>]}) ->
+permission_required(#state{method = <<"PUT">>, path = [?UUID(Dataset), <<"dataset.bz2">>]}) ->
     {ok, [<<"datasets">>, Dataset, <<"create">>]};
 
-permission_required(#state{method = <<"DELETE">>, path = [Dataset]}) ->
+permission_required(#state{method = <<"DELETE">>, path = [?UUID(Dataset)]}) ->
     {ok, [<<"datasets">>, Dataset, <<"delete">>]};
 
-permission_required(#state{method = <<"PUT">>, path = [Dataset, <<"metadata">> | _]}) ->
+permission_required(#state{method = <<"PUT">>, path = [?UUID(Dataset), <<"metadata">> | _]}) ->
     {ok, [<<"datasets">>, Dataset, <<"edit">>]};
 
-permission_required(#state{method = <<"DELETE">>, path = [Dataset, <<"metadata">> | _]}) ->
+permission_required(#state{method = <<"DELETE">>, path = [?UUID(Dataset), <<"metadata">> | _]}) ->
     {ok, [<<"datasets">>, Dataset, <<"edit">>]};
 
 permission_required(_State) ->
@@ -142,7 +146,7 @@ read(Req, State = #state{token = Token, path = [], full_list=FullList, full_list
     ?MSniffle(?P(State), Start1),
     {Res, Req, State};
 
-read(Req, State = #state{path = [_Dataset], obj = Obj}) ->
+read(Req, State = #state{path = [?UUID(_Dataset)], obj = Obj}) ->
     {ft_dataset:to_json(Obj), Req, State};
 
 read(Req, State = #state{path = [UUID, <<"dataset.gz">>], obj = _Obj}) ->
@@ -216,7 +220,7 @@ write(Req, State = #state{path = [UUID, <<"dataset.gz">>]}, _) ->
             {false, Req, State}
     end;
 
-write(Req, State = #state{path = [Dataset, <<"metadata">> | Path]}, [{K, V}]) ->
+write(Req, State = #state{path = [?UUID(Dataset), <<"metadata">> | Path]}, [{K, V}]) ->
     Start = now(),
     ok = ls_dataset:set_metadata(Dataset, [{Path ++ [K], jsxd:from_list(V)}]),
     e2qc:evict(?CACHE, Dataset),
@@ -224,7 +228,7 @@ write(Req, State = #state{path = [Dataset, <<"metadata">> | Path]}, [{K, V}]) ->
     ?MSniffle(?P(State), Start),
     {true, Req, State};
 
-write(Req, State = #state{path = [_Dataset]}, [{_K, _V}]) ->
+write(Req, State = #state{path = [?UUID(_Dataset)]}, [{_K, _V}]) ->
     %%Start = now(),
     %% TODO: Cut this down in smaller pices.
     %%ok = libsniffle:dataset_set(Dataset, [K], jsxd:from_list(V)),
@@ -243,7 +247,7 @@ write(Req, State, _Body) ->
 %% DELETE
 %%--------------------------------------------------------------------
 
-delete(Req, State = #state{path = [Dataset, <<"metadata">> | Path]}) ->
+delete(Req, State = #state{path = [?UUID(Dataset), <<"metadata">> | Path]}) ->
     Start = now(),
     ok = ls_dataset:set_metadata(Dataset, [{Path, delete}]),
     e2qc:evict(?CACHE, Dataset),
@@ -251,7 +255,7 @@ delete(Req, State = #state{path = [Dataset, <<"metadata">> | Path]}) ->
     ?MSniffle(?P(State), Start),
     {true, Req, State};
 
-delete(Req, State = #state{path = [Dataset]}) ->
+delete(Req, State = #state{path = [?UUID(Dataset)]}) ->
     Start = now(),
     case ls_dataset:get(Dataset) of
         {ok, D} ->

@@ -27,13 +27,13 @@
 allowed_methods(_Version, _Token, []) ->
     [<<"GET">>, <<"POST">>];
 
-allowed_methods(_Version, _Token, [_Package, <<"metadata">>|_]) ->
+allowed_methods(_Version, _Token, [?UUID(_Package), <<"metadata">>|_]) ->
     [<<"PUT">>, <<"DELETE">>];
 
-allowed_methods(_Version, _Token, [_Package]) ->
+allowed_methods(_Version, _Token, [?UUID(_Package)]) ->
     [<<"GET">>, <<"PUT">>, <<"DELETE">>].
 
-get(State = #state{path = [Package | _]}) ->
+get(State = #state{path = [?UUID(Package) | _]}) ->
     Start = now(),
     R = case application:get_env(wiggle, package_ttl) of
             {ok, {TTL1, TTL2}} ->
@@ -55,19 +55,19 @@ permission_required(#state{method= <<"GET">>, path = []}) ->
 permission_required(#state{method= <<"POST">>, path = []}) ->
     {ok, [<<"cloud">>, <<"packages">>, <<"create">>]};
 
-permission_required(#state{method = <<"GET">>, path = [Package]}) ->
+permission_required(#state{method = <<"GET">>, path = [?UUID(Package)]}) ->
     {ok, [<<"packages">>, Package, <<"get">>]};
 
-permission_required(#state{method = <<"DELETE">>, path = [Package]}) ->
+permission_required(#state{method = <<"DELETE">>, path = [?UUID(Package)]}) ->
     {ok, [<<"packages">>, Package, <<"delete">>]};
 
-permission_required(#state{method = <<"PUT">>, path = [_Package]}) ->
+permission_required(#state{method = <<"PUT">>, path = [?UUID(_Package)]}) ->
     {ok, [<<"cloud">>, <<"packages">>, <<"create">>]};
 
-permission_required(#state{method = <<"PUT">>, path = [Package, <<"metadata">> | _]}) ->
+permission_required(#state{method = <<"PUT">>, path = [?UUID(Package), <<"metadata">> | _]}) ->
     {ok, [<<"packages">>, Package, <<"edit">>]};
 
-permission_required(#state{method = <<"DELETE">>, path = [Package, <<"metadata">> | _]}) ->
+permission_required(#state{method = <<"DELETE">>, path = [?UUID(Package), <<"metadata">> | _]}) ->
     {ok, [<<"packages">>, Package, <<"edit">>]};
 
 permission_required(_State) ->
@@ -92,7 +92,7 @@ read(Req, State = #state{token = Token, path = [], full_list=FullList, full_list
     ?MSniffle(?P(State), Start1),
     {Res, Req, State};
 
-read(Req, State = #state{path = [_Package], obj = Obj}) ->
+read(Req, State = #state{path = [?UUID(_Package)], obj = Obj}) ->
     {ft_package:to_json(Obj), Req, State}.
 
 
@@ -132,7 +132,7 @@ create(Req, State = #state{path = [], version = Version}, Data) ->
 write(Req, State = #state{method = <<"POST">>, path = []}, _) ->
     {true, Req, State};
 
-write(Req, State = #state{path = [Package, <<"metadata">> | Path]}, [{K, V}]) ->
+write(Req, State = #state{path = [?UUID(Package), <<"metadata">> | Path]}, [{K, V}]) ->
     ok = ls_package:set_metadata(Package, [{Path ++ [K], jsxd:from_list(V)}]),
     e2qc:evict(?CACHE, Package),
     e2qc:teardown(?FULL_CACHE),
@@ -145,13 +145,13 @@ write(Req, State, _Body) ->
 %% DEETE
 %%--------------------------------------------------------------------
 
-delete(Req, State = #state{path = [Package, <<"metadata">> | Path]}) ->
+delete(Req, State = #state{path = [?UUID(Package), <<"metadata">> | Path]}) ->
     ok = ls_package:set_metadata(Package, [{Path, delete}]),
     e2qc:evict(?CACHE, Package),
     e2qc:teardown(?FULL_CACHE),
     {true, Req, State};
 
-delete(Req, State = #state{path = [Package]}) ->
+delete(Req, State = #state{path = [?UUID(Package)]}) ->
     ok = ls_package:delete(Package),
     e2qc:evict(?CACHE, Package),
     e2qc:teardown(?LIST_CACHE),

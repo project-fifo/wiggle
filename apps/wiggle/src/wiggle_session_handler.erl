@@ -27,15 +27,18 @@
 allowed_methods(_Version, _Token, []) ->
     [<<"POST">>];
 
-allowed_methods(_Version, _Token, [_Session]) ->
+allowed_methods(_Version, _Token, [?UUID(_Session)]) ->
     [<<"GET">>, <<"POST">>, <<"DELETE">>].
 
 
-get(State = #state{path = [Session]}) ->
+get(State = #state{path = [?UUID(Session)]}) ->
     Start = now(),
     R = ls_user:get({token, Session}),
     ?MSnarl(?P(State), Start),
-    R.
+    R;
+
+get(_State) ->
+    not_found.
 
 permission_required(_State) ->
     {ok, always}.
@@ -44,7 +47,7 @@ permission_required(_State) ->
 %% GET
 %%--------------------------------------------------------------------
 
-read(Req, State = #state{path = [Session], obj = Obj}) ->
+read(Req, State = #state{path = [?UUID(Session)], obj = Obj}) ->
     Obj1 = jsxd:thread([{set, <<"session">>, Session},
                         {delete, <<"password">>}],
                        ft_user:to_json(Obj)),
@@ -90,6 +93,6 @@ write(Req, State, _) ->
 %% DEETE
 %%--------------------------------------------------------------------
 
-delete(Req, State = #state{path = [Session]}) ->
+delete(Req, State = #state{path = [?UUID(Session)]}) ->
     libsnarl:token_delete(Session),
     {true, Req, State}.
