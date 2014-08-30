@@ -16,7 +16,7 @@
          get_persmissions/1,
          timeout_cache_with_invalid/6,
          timeout_cache/5,
-         list/8
+         list/9
         ]).
 
 initial_state(Req) ->
@@ -199,7 +199,7 @@ get_persmissions(Token) ->
     {TTL1, TTL2} = application:get_env(wiggle, token_ttl,
                                        {1000*1000, 10*1000*1000}),
     timeout_cache_(permissions, Token, TTL1, TTL2,
-                   fun () -> libsnarl:user_cache(Token) end).
+                   fun () -> ls_user:cache(Token) end).
 
 timeout_cache(Cache, Value, TTL1, TTL2, Fun) ->
     case application:get_env(wiggle, caching, true) of
@@ -236,8 +236,8 @@ timeout_cache_with_invalid(Cache, Value, TTL1, TTL2, Invalid, Fun) ->
             R
     end.
 
-list(ListFn, Token, Permission, FullList, Filter, TTLEntry, FullCache, ListCache) ->
-    Fun = list_fn(ListFn, Permission, FullList, Filter),
+list(ListFn, ConvertFn, Token, Permission, FullList, Filter, TTLEntry, FullCache, ListCache) ->
+    Fun = list_fn(ListFn, ConvertFn, Permission, FullList, Filter),
     case application:get_env(wiggle, TTLEntry) of
         {ok, {TTL1, TTL2}} ->
             case FullList of
@@ -250,15 +250,15 @@ list(ListFn, Token, Permission, FullList, Filter, TTLEntry, FullCache, ListCache
             Fun()
     end.
 
-list_fn(ListFn, Permission, FullList, Filter) ->
+list_fn(ListFn, ConvertFn, Permission, FullList, Filter) ->
     fun () ->
             {ok, Res} = ListFn(Permission, FullList),
             case {Filter, FullList} of
                 {_, false} ->
                     [ID || {_, ID} <- Res];
                 {[], _} ->
-                    [ID || {_, ID} <- Res];
+                    [ConvertFn(Obj) || {_, Obj} <- Res];
                 _ ->
-                    [jsxd:select(Filter, ID) || {_, ID} <- Res]
+                    [jsxd:select(Filter, ConvertFn(Obj)) || {_, Obj} <- Res]
             end
     end.

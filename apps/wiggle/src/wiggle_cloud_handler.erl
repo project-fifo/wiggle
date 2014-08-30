@@ -67,7 +67,7 @@ read(Req, State = #state{path = []}) ->
         case {libsniffle:version(), libsniffle:cloud_status()} of
             {{ok, SniVer}, {ok, {MetricsSni, WarningsSni}}}
               when is_binary(SniVer) ->
-                {ok, Vms} = libsniffle:vm_list(),
+                {ok, Vms} = ls_vm:list(),
                 {[{sniffle, SniVer} | Versions2],
                  [{<<"vms">>, length(Vms)} | MetricsSni] ++ Metrics2,
                  WarningsSni ++ Warnings2};

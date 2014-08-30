@@ -27,21 +27,21 @@
 allowed_methods(_Version, _Token, []) ->
     [<<"GET">>, <<"POST">>];
 
-allowed_methods(_Version, _Token, [_Package, <<"metadata">>|_]) ->
+allowed_methods(_Version, _Token, [?UUID(_Package), <<"metadata">>|_]) ->
     [<<"PUT">>, <<"DELETE">>];
 
-allowed_methods(_Version, _Token, [_Package]) ->
+allowed_methods(_Version, _Token, [?UUID(_Package)]) ->
     [<<"GET">>, <<"PUT">>, <<"DELETE">>].
 
-get(State = #state{path = [Package | _]}) ->
+get(State = #state{path = [?UUID(Package) | _]}) ->
     Start = now(),
     R = case application:get_env(wiggle, package_ttl) of
             {ok, {TTL1, TTL2}} ->
                 wiggle_handler:timeout_cache_with_invalid(
                   ?CACHE, Package, TTL1, TTL2, not_found,
-                  fun() -> libsniffle:package_get(Package) end);
+                  fun() -> ls_package:get(Package) end);
             _ ->
-                libsniffle:package_get(Package)
+                ls_package:get(Package)
         end,
     ?MSniffle(?P(State), Start),
     R;
@@ -55,19 +55,19 @@ permission_required(#state{method= <<"GET">>, path = []}) ->
 permission_required(#state{method= <<"POST">>, path = []}) ->
     {ok, [<<"cloud">>, <<"packages">>, <<"create">>]};
 
-permission_required(#state{method = <<"GET">>, path = [Package]}) ->
+permission_required(#state{method = <<"GET">>, path = [?UUID(Package)]}) ->
     {ok, [<<"packages">>, Package, <<"get">>]};
 
-permission_required(#state{method = <<"DELETE">>, path = [Package]}) ->
+permission_required(#state{method = <<"DELETE">>, path = [?UUID(Package)]}) ->
     {ok, [<<"packages">>, Package, <<"delete">>]};
 
-permission_required(#state{method = <<"PUT">>, path = [_Package]}) ->
+permission_required(#state{method = <<"PUT">>, path = [?UUID(_Package)]}) ->
     {ok, [<<"cloud">>, <<"packages">>, <<"create">>]};
 
-permission_required(#state{method = <<"PUT">>, path = [Package, <<"metadata">> | _]}) ->
+permission_required(#state{method = <<"PUT">>, path = [?UUID(Package), <<"metadata">> | _]}) ->
     {ok, [<<"packages">>, Package, <<"edit">>]};
 
-permission_required(#state{method = <<"DELETE">>, path = [Package, <<"metadata">> | _]}) ->
+permission_required(#state{method = <<"DELETE">>, path = [?UUID(Package), <<"metadata">> | _]}) ->
     {ok, [<<"packages">>, Package, <<"edit">>]};
 
 permission_required(_State) ->
@@ -85,14 +85,15 @@ read(Req, State = #state{token = Token, path = [], full_list=FullList, full_list
     Permission = [{must, 'allowed',
                    [<<"packages">>, {<<"res">>, <<"uuid">>}, <<"get">>],
                    Permissions}],
-    Res = wiggle_handler:list(fun libsniffle:package_list/2, Token, Permission,
+    Res = wiggle_handler:list(fun ls_package:list/2,
+                              fun ft_package:to_json/1, Token, Permission,
                               FullList, Filter, package_list_ttl, ?FULL_CACHE,
                               ?LIST_CACHE),
     ?MSniffle(?P(State), Start1),
     {Res, Req, State};
 
-read(Req, State = #state{path = [_Package], obj = Obj}) ->
-    {Obj, Req, State}.
+read(Req, State = #state{path = [?UUID(_Package)], obj = Obj}) ->
+    {ft_package:to_json(Obj), Req, State}.
 
 
 %%--------------------------------------------------------------------
@@ -100,17 +101,27 @@ read(Req, State = #state{path = [_Package], obj = Obj}) ->
 %%--------------------------------------------------------------------
 
 create(Req, State = #state{path = [], version = Version}, Data) ->
-    Data1 = jsxd:select([<<"cpu_cap">>, <<"quota">>, <<"ram">>,
-                         <<"requirements">>, <<"zfs_io_priority">>,
-                         <<"max_swap">>, <<"blocksize">>, <<"compression">>],
-                        Data),
     {ok, Package} = jsxd:get(<<"name">>, Data),
-    case libsniffle:package_create(Package) of
+    case ls_package:create(Package) of
         {ok, UUID} ->
+            do_set(
+              [{<<"cpu_cap">>, fun ls_package:cpu_cap/2},
+               {<<"quota">>, fun ls_package:quota/2},
+               {<<"ram">>, fun ls_package:ram/2},
+               {<<"zfs_io_priority">>, fun ls_package:zfs_io_priority/2},
+               {<<"max_swap">>, fun ls_package:max_swap/2},
+               {<<"blocksize">>, fun ls_package:blocksize/2},
+               {<<"compression">>, fun ls_package:compression/2}
+              ], UUID, Data),
+            case jsxd:get(<<"requirements">>, Data) of
+                {ok, Rs} ->
+                    [ls_package:add_requirement(UUID, R) || R <- Rs];
+                _ ->
+                    ok
+            end,
             e2qc:teardown(?LIST_CACHE),
             e2qc:teardown(?FULL_CACHE),
-            ok = libsniffle:package_set(UUID, Data1),
-            {{true, <<"/api/", Version/binary, "/packages/", UUID/binary>>}, Req, State#state{body = Data1}};
+            {{true, <<"/api/", Version/binary, "/packages/", UUID/binary>>}, Req, State#state{body = Data}};
         duplicate ->
             {ok, Req1} = cowboy_req:reply(409, Req),
             {halt, Req1, State}
@@ -121,8 +132,8 @@ create(Req, State = #state{path = [], version = Version}, Data) ->
 write(Req, State = #state{method = <<"POST">>, path = []}, _) ->
     {true, Req, State};
 
-write(Req, State = #state{path = [Package, <<"metadata">> | Path]}, [{K, V}]) ->
-    ok = libsniffle:package_set(Package, [<<"metadata">> | Path] ++ [K], jsxd:from_list(V)),
+write(Req, State = #state{path = [?UUID(Package), <<"metadata">> | Path]}, [{K, V}]) ->
+    ok = ls_package:set_metadata(Package, [{Path ++ [K], jsxd:from_list(V)}]),
     e2qc:evict(?CACHE, Package),
     e2qc:teardown(?FULL_CACHE),
     {true, Req, State};
@@ -134,15 +145,30 @@ write(Req, State, _Body) ->
 %% DEETE
 %%--------------------------------------------------------------------
 
-delete(Req, State = #state{path = [Package, <<"metadata">> | Path]}) ->
-    ok = libsniffle:package_set(Package, [<<"metadata">> | Path], delete),
+delete(Req, State = #state{path = [?UUID(Package), <<"metadata">> | Path]}) ->
+    ok = ls_package:set_metadata(Package, [{Path, delete}]),
     e2qc:evict(?CACHE, Package),
     e2qc:teardown(?FULL_CACHE),
     {true, Req, State};
 
-delete(Req, State = #state{path = [Package]}) ->
-    ok = libsniffle:package_delete(Package),
+delete(Req, State = #state{path = [?UUID(Package)]}) ->
+    ok = ls_package:delete(Package),
     e2qc:evict(?CACHE, Package),
     e2qc:teardown(?LIST_CACHE),
     e2qc:teardown(?FULL_CACHE),
     {true, Req, State}.
+
+%%--------------------------------------------------------------------
+%% Internal
+%%--------------------------------------------------------------------
+
+do_set([], _UUID, _O) ->
+    ok;
+do_set([{K, F} | R], UUID, O) ->
+    case jsxd:get([K], O) of
+        {ok, V}  ->
+            F(UUID, V);
+        _ ->
+            ok
+    end,
+    do_set(R, UUID, O).

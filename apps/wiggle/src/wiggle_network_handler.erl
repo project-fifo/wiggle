@@ -24,30 +24,33 @@
               write/3,
               delete/2]).
 
-allowed_methods(_Version, _Token, [_Network, <<"metadata">>|_]) ->
+allowed_methods(_Version, _Token, [?UUID(_Network), <<"metadata">>|_]) ->
     [<<"PUT">>, <<"DELETE">>];
 
-allowed_methods(_Version, _Token, [_Network, <<"ipranges">>, _]) ->
+allowed_methods(_Version, _Token, [?UUID(_Network), <<"ipranges">>, _]) ->
     [<<"PUT">>, <<"DELETE">>];
 
 allowed_methods(_Version, _Token, []) ->
     [<<"GET">>, <<"POST">>];
 
-allowed_methods(_Version, _Token, [_Network]) ->
+allowed_methods(_Version, _Token, [?UUID(_Network)]) ->
     [<<"GET">>, <<"PUT">>, <<"DELETE">>].
 
-get(State = #state{path = [Network | _]}) ->
+get(State = #state{path = [?UUID(Network) | _]}) ->
     Start = now(),
     R = case application:get_env(wiggle, network_ttl) of
             {ok, {TTL1, TTL2}} ->
                 wiggle_handler:timeout_cache_with_invalid(
                   ?CACHE, Network, TTL1, TTL2, not_found,
-                  fun() -> libsniffle:network_get(Network) end);
+                  fun() -> ls_network:get(Network) end);
             _ ->
-                libsniffle:network_get(Network)
+                ls_network:get(Network)
         end,
     ?MSniffle(?P(State), Start),
-    R.
+    R;
+
+get(_State) ->
+    not_found.
 
 permission_required(#state{method = <<"GET">>, path = []}) ->
     {ok, [<<"cloud">>, <<"networks">>, <<"list">>]};
@@ -55,29 +58,29 @@ permission_required(#state{method = <<"GET">>, path = []}) ->
 permission_required(#state{method = <<"POST">>, path = []}) ->
     {ok, [<<"cloud">>, <<"networks">>, <<"create">>]};
 
-permission_required(#state{method = <<"GET">>, path = [Network]}) ->
+permission_required(#state{method = <<"GET">>, path = [?UUID(Network)]}) ->
     {ok, [<<"networks">>, Network, <<"get">>]};
 
-permission_required(#state{method = <<"DELETE">>, path = [Network]}) ->
+permission_required(#state{method = <<"DELETE">>, path = [?UUID(Network)]}) ->
     {ok, [<<"networks">>, Network, <<"delete">>]};
 
-permission_required(#state{method = <<"PUT">>, path = [_Network]}) ->
+permission_required(#state{method = <<"PUT">>, path = [?UUID(_Network)]}) ->
     {ok, [<<"cloud">>, <<"networks">>, <<"create">>]};
 
 permission_required(#state{method = <<"PUT">>,
-                           path = [Network, <<"ipranges">>,  _]}) ->
+                           path = [?UUID(Network), <<"ipranges">>,  _]}) ->
     {ok, [<<"networks">>, Network, <<"edit">>]};
 
 permission_required(#state{method = <<"DELETE">>,
-                           path = [Network, <<"ipranges">>, _]}) ->
+                           path = [?UUID(Network), <<"ipranges">>, _]}) ->
     {ok, [<<"networks">>, Network, <<"edit">>]};
 
 permission_required(#state{method = <<"PUT">>,
-                           path = [Network, <<"metadata">> | _]}) ->
+                           path = [?UUID(Network), <<"metadata">> | _]}) ->
     {ok, [<<"networks">>, Network, <<"edit">>]};
 
 permission_required(#state{method = <<"DELETE">>,
-                           path = [Network, <<"metadata">> | _]}) ->
+                           path = [?UUID(Network), <<"metadata">> | _]}) ->
     {ok, [<<"networks">>, Network, <<"edit">>]};
 
 permission_required(_State) ->
@@ -95,14 +98,15 @@ read(Req, State = #state{token = Token, path = [], full_list=FullList, full_list
     Permission = [{must, 'allowed',
                    [<<"networks">>, {<<"res">>, <<"uuid">>}, <<"get">>],
                    Permissions}],
-    Res = wiggle_handler:list(fun libsniffle:network_list/2, Token, Permission,
+    Res = wiggle_handler:list(fun ls_network:list/2,
+                              fun ft_network:to_json/1, Token, Permission,
                               FullList, Filter, network_list_ttl, ?FULL_CACHE,
                               ?LIST_CACHE),
     ?MSniffle(?P(State), Start1),
     {Res, Req, State};
 
-read(Req, State = #state{path = [_Network], obj = Obj}) ->
-    {Obj, Req, State}.
+read(Req, State = #state{path = [?UUID(_Network)], obj = Obj}) ->
+    {ft_network:to_json(Obj), Req, State}.
 
 %%--------------------------------------------------------------------
 %% PUT
@@ -111,7 +115,7 @@ read(Req, State = #state{path = [_Network], obj = Obj}) ->
 create(Req, State = #state{path = [], version = Version}, Data) ->
     {ok, Network} = jsxd:get(<<"name">>, Data),
     Start = now(),
-    case libsniffle:network_create(Network) of
+    case ls_network:create(Network) of
         {ok, UUID} ->
             ?MSniffle(?P(State), Start),
             e2qc:teardown(?LIST_CACHE),
@@ -124,9 +128,9 @@ create(Req, State = #state{path = [], version = Version}, Data) ->
     end.
 
 write(Req, State = #state{
-                      path = [Network, <<"ipranges">>, IPrange]}, _Data) ->
+                      path = [?UUID(Network), <<"ipranges">>, IPrange]}, _Data) ->
     Start = now(),
-    case libsniffle:network_add_iprange(Network, IPrange) of
+    case ls_network:add_iprange(Network, IPrange) of
         ok ->
             ?MSniffle(?P(State), Start),
             e2qc:evict(?CACHE, Network),
@@ -140,9 +144,9 @@ write(Req, State = #state{
 write(Req, State = #state{method = <<"POST">>, path = []}, _) ->
     {true, Req, State};
 
-write(Req, State = #state{path = [Network, <<"metadata">> | Path]}, [{K, V}]) ->
+write(Req, State = #state{path = [?UUID(Network), <<"metadata">> | Path]}, [{K, V}]) ->
     Start = now(),
-    ok = libsniffle:network_set(Network, Path ++ [K], jsxd:from_list(V)),
+    ok = ls_network:set_metadata(Network, [{Path ++ [K], jsxd:from_list(V)}]),
     e2qc:evict(?CACHE, Network),
     e2qc:teardown(?FULL_CACHE),
     ?MSniffle(?P(State), Start),
@@ -155,25 +159,25 @@ write(Req, State, _Body) ->
 %% DEETE
 %%--------------------------------------------------------------------
 
-delete(Req, State = #state{path = [Network, <<"metadata">> | Path]}) ->
+delete(Req, State = #state{path = [?UUID(Network), <<"metadata">> | Path]}) ->
     Start = now(),
-    ok = libsniffle:network_set(Network, Path, delete),
+    ok = ls_network:set_metadata(Network, [{Path, delete}]),
     e2qc:evict(?CACHE, Network),
     e2qc:teardown(?FULL_CACHE),
     ?MSniffle(?P(State), Start),
     {true, Req, State};
 
-delete(Req, State = #state{path = [Network, <<"ipranges">>, IPRange]}) ->
+delete(Req, State = #state{path = [?UUID(Network), <<"ipranges">>, IPRange]}) ->
     Start = now(),
-    ok = libsniffle:network_remove_iprange(Network, IPRange),
+    ok = ls_network:remove_iprange(Network, IPRange),
     e2qc:evict(?CACHE, Network),
     e2qc:teardown(?FULL_CACHE),
     ?MSniffle(?P(State), Start),
     {true, Req, State};
 
-delete(Req, State = #state{path = [Network]}) ->
+delete(Req, State = #state{path = [?UUID(Network)]}) ->
     Start = now(),
-    ok = libsniffle:network_delete(Network),
+    ok = ls_network:delete(Network),
     e2qc:evict(?CACHE, Network),
     e2qc:teardown(?LIST_CACHE),
     e2qc:teardown(?FULL_CACHE),
