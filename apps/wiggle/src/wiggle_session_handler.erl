@@ -47,7 +47,7 @@ permission_required(_State) ->
 %% GET
 %%--------------------------------------------------------------------
 
-read(Req, State = #state{path = [?UUID(Session)], obj = Obj}) ->
+read(Req, State = #state{token = Session, path = [?UUID(Session)], obj = Obj}) ->
     Obj1 = jsxd:thread([{set, <<"session">>, Session},
                         {delete, <<"password">>}],
                        ft_user:to_json(Obj)),
