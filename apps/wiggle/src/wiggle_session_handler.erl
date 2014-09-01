@@ -47,15 +47,11 @@ permission_required(_State) ->
 %% GET
 %%--------------------------------------------------------------------
 
-read(Req, State = #state{token = {token, Session}, path = [?UUID(Session)], obj = Obj}) ->
+read(Req, State = #state{path = [?UUID(Session)], obj = Obj}) ->
     Obj1 = jsxd:thread([{set, <<"session">>, Session},
                         {delete, <<"password">>}],
                        ft_user:to_json(Obj)),
-    {Obj1, Req, State};
-
-read(Req, State) ->
-	{ok, Req1} = cowboy_req:reply(404, [], <<"Not found!">>, Req),
-	{halt, Req1, State}.
+    {Obj1, Req, State}.
 
 %%--------------------------------------------------------------------
 %% PUT
