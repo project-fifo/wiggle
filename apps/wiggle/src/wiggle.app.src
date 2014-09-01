@@ -20,6 +20,7 @@
                   uuid,
                   eplugin,
                   e2qc,
+                  fifo_s3,
                   cowboy
                  ]},
   {mod, { wiggle_app, []}},
