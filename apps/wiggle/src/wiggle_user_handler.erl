@@ -261,7 +261,7 @@ read(Req, State = #state{path = [_User, <<"yubikeys">>], obj = UserObj}) ->
 
 create(Req, State = #state{token = Token, path = [], version = Version}, Decoded) ->
     {ok, Creator} = ls_user:get(Token),
-    {ok, CUUID} = jsxd:get(<<"uuid">>, Creator),
+    CUUID = ft_user:uuid(Creator),
     {ok, User} = jsxd:get(<<"user">>, Decoded),
     {ok, Pass} = jsxd:get(<<"password">>, Decoded),
     Start = now(),
