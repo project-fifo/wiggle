@@ -21,6 +21,7 @@
                   eplugin,
                   e2qc,
                   fifo_s3,
+				  folsom_ddb,
                   cowboy
                  ]},
   {mod, { wiggle_app, []}},
