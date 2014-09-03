@@ -391,6 +391,6 @@ do_strea(SendChunk, D) ->
         {ok, done} ->
             ok;
         {ok, Data} ->
-            SendChunk(Data),
+            SendChunk(binary:copy(Data)),
             do_strea(SendChunk,D)
     end.
