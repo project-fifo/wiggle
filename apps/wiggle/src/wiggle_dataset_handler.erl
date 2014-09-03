@@ -360,7 +360,7 @@ import_dataset_s3(UUID, Idx, TotalSize, {State, Req}, ChunkSize, Upload, Acc)
 
 	end;
 
-import_dataset_s3(UUID, _Idx, _TotalSize, {done, Req},
+import_dataset_s3(UUID, _Idx, _TotalSize, {ok, Req},
 				  _ChunkSize, Upload, Acc) ->
 	case fifo_s3_upload:part(Upload, binary:copy(Acc)) of
 		ok ->
