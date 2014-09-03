@@ -327,6 +327,100 @@ import_manifest(UUID, D1) ->
     end.
 
 import_dataset(UUID, Idx, TotalSize, Req, WReq) ->
+	case ls_img:list(UUID) of
+		{ok, _} ->
+			import_dataset_internal(UUID, Idx, TotalSize, Req, WReq);
+		{ok, AKey, SKey, S3Host, S3Port, Bucket, UUID} ->
+			ChunkSize = 5242880,
+			{ok, Upload} = fifo_s3_upload:new(AKey, SKey, S3Host, S3Port,
+											  Bucket, UUID),
+			import_dataset_s3(UUID, Idx, TotalSize, Req, ChunkSize, Upload, <<>>)
+	end.
+
+
+import_dataset_s3(UUID, Idx, TotalSize, Req, ChunkSize, Upload, Acc) ->
+    case cowboy_req:body(Req, []) of
+        {more, Data, Req1} ->
+			case <<Acc/binary, Data/binary>> of
+				<<Chunk:ChunkSize/binary, Acc1/binary>> ->
+					case fifo_s3_upload:part(Upload, binary:copy(Chunk)) of
+						ok ->
+							Idx1 = Idx + 1,
+							Done = (Idx1 * ChunkSize) / TotalSize,
+							ls_dataset:imported(UUID, Done),
+							import_dataset_s3(UUID, Idx1, TotalSize, Req1,
+											  ChunkSize, Upload, Acc1);
+						{error, E} ->
+							fifo_s3_upload:abort(Upload),
+							lager:error("Upload error: ~p", [E]),
+							ls_dataset:status(UUID, <<"failed">>),
+							{false, Req1}
+					end;
+				Acc1 ->
+					import_dataset_s3(UUID, Idx+1, TotalSize, Req1,
+									  ChunkSize, Upload, Acc1)
+			end;
+        {ok, Data, Req1} ->
+			case <<Acc/binary, Data/binary>> of
+				<<Chunk:ChunkSize/binary>> ->
+					case fifo_s3_upload:part(Upload, binary:copy(Chunk)) of
+						ok ->
+							Done = ((Idx + 1) * ChunkSize) / TotalSize,
+							ls_dataset:imported(UUID, Done),
+							fifo_s3_upload:done(Upload),
+                            ls_dataset:imported(UUID, 1),
+                            ls_dataset:status(UUID, <<"imported">>),
+							{true, Req1};
+						{error, E} ->
+							fifo_s3_upload:abort(Upload),
+							lager:error("Upload error: ~p", [E]),
+							ls_dataset:status(UUID, <<"failed">>),
+							{false, Req1}
+					end;
+				<<Chunk:ChunkSize/binary, Acc1/binary>> ->
+					case fifo_s3_upload:part(Upload, binary:copy(Chunk)) of
+						ok ->
+							case fifo_s3_upload:part(Upload, binary:copy(Acc1)) of
+								ok ->
+									fifo_s3_upload:done(Upload),
+									ls_dataset:imported(UUID, 1),
+									ls_dataset:status(UUID, <<"imported">>),
+									{true, Req1};
+								{error, E} ->
+									fifo_s3_upload:abort(Upload),
+									lager:error("Upload error: ~p", [E]),
+									ls_dataset:status(UUID, <<"failed">>),
+									{false, Req1}
+							end;
+						{error, E} ->
+							fifo_s3_upload:abort(Upload),
+							lager:error("Upload error: ~p", [E]),
+							ls_dataset:status(UUID, <<"failed">>),
+							{false, Req1}
+					end;
+				<<>> ->
+					fifo_s3_upload:done(Upload),
+					ls_dataset:imported(UUID, 1),
+					ls_dataset:status(UUID, <<"imported">>),
+					{true, Req1};
+				Acc1 ->
+					case fifo_s3_upload:part(Upload, binary:copy(Acc1)) of
+						ok ->
+							fifo_s3_upload:done(Upload),
+                            ls_dataset:imported(UUID, 1),
+                            ls_dataset:status(UUID, <<"imported">>),
+							{true, Req1};
+						{error, E} ->
+							fifo_s3_upload:abort(Upload),
+							lager:error("Upload error: ~p", [E]),
+							ls_dataset:status(UUID, <<"failed">>),
+							{false, Req1}
+					end
+			end
+	end.
+
+
+import_dataset_internal(UUID, Idx, TotalSize, Req, WReq) ->
     case cowboy_req:body(Req, []) of
         {Res, Data, Req1} ->
             case do_write(UUID, Idx, Data, WReq, 0) of
@@ -341,7 +435,7 @@ import_dataset(UUID, Idx, TotalSize, Req, WReq) ->
                                   {<<"data">>, [{<<"imported">>, Done}]}]),
                     case Res of
                         more ->
-                            import_dataset(UUID, Idx1, TotalSize, Req1, WReq1);
+                            import_dataset_internal(UUID, Idx1, TotalSize, Req1, WReq1);
                         ok ->
                             ls_img:create(UUID, done, <<>>, WReq),
                             ok = ls_dataset:imported(UUID, 1),
