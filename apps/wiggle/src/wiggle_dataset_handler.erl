@@ -367,7 +367,7 @@ import_dataset_s3(UUID, _Idx, _TotalSize, {ok, Req},
 			fifo_s3_upload:done(Upload),
 			ls_dataset:imported(UUID, 1),
 			ls_dataset:status(UUID, <<"imported">>),
-			{ture, Req};
+			{true, Req};
 		{error, E} ->
 			fifo_s3_upload:abort(Upload),
 			lager:error("Upload error: ~p", [E]),
