@@ -7,6 +7,7 @@
 -define(CACHE, dataset).
 -define(LIST_CACHE, dataset_list).
 -define(FULL_CACHE, dataset_full_list).
+-define(CHUNK_SIZE, 5242880).
 
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
@@ -162,7 +163,7 @@ read(Req, State = #state{path = [UUID, <<"dataset.gz">>], obj = _Obj}) ->
         {ok, AKey, SKey, Host, Port, Bucket, Key} ->
             Config = [{host, Host},
                       {port, Port},
-                      {chunk_size, 5242880},
+                      {chunk_size, ?CHUNK_SIZE},
                       {bucket, Bucket},
                       {access_key, AKey},
                       {secret_key, SKey}],
@@ -327,6 +328,61 @@ import_manifest(UUID, D1) ->
     end.
 
 import_dataset(UUID, Idx, TotalSize, Req, WReq) ->
+	case ls_img:list(UUID) of
+		{ok, _} ->
+			import_dataset_internal(UUID, Idx, TotalSize, Req, WReq);
+		{ok, AKey, SKey, S3Host, S3Port, Bucket, UUID} ->
+			ChunkSize = ?CHUNK_SIZE,
+			{ok, Upload} = fifo_s3_upload:new(AKey, SKey, S3Host, S3Port,
+											  Bucket, UUID),
+			import_dataset_s3(UUID, Idx, TotalSize, {more, Req},
+							  ChunkSize, Upload, <<>>)
+	end.
+
+
+
+
+import_dataset_s3(UUID, Idx, TotalSize, {State, Req}, ChunkSize, Upload, Acc)
+  when byte_size(Acc) >= ChunkSize ->
+	<<Chunk:ChunkSize/binary, Acc1/binary>> = Acc,
+	case fifo_s3_upload:part(Upload, binary:copy(Chunk)) of
+		ok ->
+			Idx1 = Idx + 1,
+			Done = (Idx1 * ChunkSize) / TotalSize,
+			ls_dataset:imported(UUID, Done),
+			import_dataset_s3(UUID, Idx1, TotalSize, {State, Req},
+							  ChunkSize, Upload, Acc1);
+		{error, E} ->
+			fifo_s3_upload:abort(Upload),
+			lager:error("Upload error: ~p", [E]),
+			ls_dataset:status(UUID, <<"failed">>),
+			{false, Req}
+
+	end;
+
+import_dataset_s3(UUID, _Idx, _TotalSize, {ok, Req},
+				  _ChunkSize, Upload, Acc) ->
+	case fifo_s3_upload:part(Upload, binary:copy(Acc)) of
+		ok ->
+			fifo_s3_upload:done(Upload),
+			ls_dataset:imported(UUID, 1),
+			ls_dataset:status(UUID, <<"imported">>),
+			{true, Req};
+		{error, E} ->
+			fifo_s3_upload:abort(Upload),
+			lager:error("Upload error: ~p", [E]),
+			ls_dataset:status(UUID, <<"failed">>),
+			{false, Req}
+	end;
+
+
+import_dataset_s3(UUID, Idx, TotalSize, {more, Req}, ChunkSize, Upload, Acc) ->
+    {State, Data, Req1} = cowboy_req:body(Req, []),
+	Acc1 = <<Acc/binary, Data/binary>>,
+	import_dataset_s3(UUID, Idx, TotalSize, {State, Req1},
+					  ChunkSize, Upload, Acc1).
+
+import_dataset_internal(UUID, Idx, TotalSize, Req, WReq) ->
     case cowboy_req:body(Req, []) of
         {Res, Data, Req1} ->
             case do_write(UUID, Idx, Data, WReq, 0) of
@@ -341,7 +397,7 @@ import_dataset(UUID, Idx, TotalSize, Req, WReq) ->
                                   {<<"data">>, [{<<"imported">>, Done}]}]),
                     case Res of
                         more ->
-                            import_dataset(UUID, Idx1, TotalSize, Req1, WReq1);
+                            import_dataset_internal(UUID, Idx1, TotalSize, Req1, WReq1);
                         ok ->
                             ls_img:create(UUID, done, <<>>, WReq),
                             ok = ls_dataset:imported(UUID, 1),
