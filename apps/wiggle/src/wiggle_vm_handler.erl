@@ -325,10 +325,8 @@ create(Req, State = #state{path = [], version = Version, token = Token}, Decoded
                           jsxd:set(<<"requirements">>, [], Config)
                   end,
         try
-            {ok, User} = ls_user:get(Token),
-            Owner = ft_user:uuid(User),
             Start = now(),
-            {ok, UUID} = ls_vm:create(Package, Dataset, jsxd:set(<<"owner">>, Owner, Config1)),
+            {ok, UUID} = ls_vm:create(Package, Dataset, jsxd:set(<<"owner">>, user(State), Config1)),
             e2qc:teardown(?LIST_CACHE),
             e2qc:teardown(?FULL_CACHE),
             ?MSniffle(?P(State), Start),
@@ -375,7 +373,7 @@ create(Req, State = #state{path = [?UUID(Vm), <<"backups">>], version = Version}
                          e2qc:evict(?CACHE, Vm),
                          e2qc:teardown(?FULL_CACHE),
                          ls_vm:incremental_backup(Vm, Parent, Comment,
-                                                          Opts1);
+                                                  Opts1);
                      _ ->
                          Opts1 = case jsxd:get(<<"delete">>, false, Decoded) of
                                      true ->
@@ -429,7 +427,7 @@ write(Req, State = #state{path = [<<"dry_run">>], token = Token}, Decoded) ->
             Owner = ft_user:uuid(User),
             Start = now(),
             case ls_vm:dry_run(Package, Dataset,
-                                    jsxd:set(<<"owner">>, Owner, Config1)) of
+                               jsxd:set(<<"owner">>, Owner, Config1)) of
                 {ok, success} ->
                     {true, Req, State#state{body = Decoded}};
                 E ->
@@ -446,8 +444,8 @@ write(Req, State = #state{path = [<<"dry_run">>], token = Token}, Decoded) ->
     end;
 
 write(Req, State = #state{path = [?UUID(Vm), <<"services">>]},
-      [{<<"action">>, <<"enable">>},
-       {<<"service">>, Service}]) ->
+       [{<<"action">>, <<"enable">>},
+        {<<"service">>, Service}]) ->
     e2qc:evict(?CACHE, Vm),
     e2qc:teardown(?FULL_CACHE),
     ls_vm:service_enable(Vm, Service),
@@ -479,7 +477,7 @@ write(Req, State = #state{path = [?UUID(Vm), <<"owner">>]}, [{<<"org">>, Org}]) 
         {ok, _} ->
             e2qc:evict(?CACHE, Vm),
             e2qc:teardown(?FULL_CACHE),
-            R = ls_vm:owner(Vm, Org),
+            R = ls_vm:owner(user(State), Vm, Org),
             ?MSniffle(?P(State), Start),
             {R =:= ok, Req, State};
         E ->
@@ -531,20 +529,20 @@ write(Req, State = #state{path = [?UUID(Vm)]},
     ?LIB(ls_vm:reboot(Vm, [force]));
 
 write(Req, State = #state{path = [?UUID(Vm)]}, [{<<"config">>, Config},
-                                         {<<"package">>, Package}]) ->
+                                                {<<"package">>, Package}]) ->
     e2qc:evict(?CACHE, Vm),
     e2qc:teardown(?FULL_CACHE),
-    ?LIB(ls_vm:update(Vm, Package, Config));
+    ?LIB(ls_vm:update(user(State), Vm, Package, Config));
 
 write(Req, State = #state{path = [?UUID(Vm)]}, [{<<"config">>, Config}]) ->
     e2qc:evict(?CACHE, Vm),
     e2qc:teardown(?FULL_CACHE),
-    ?LIB(ls_vm:update(Vm, undefined, Config));
+    ?LIB(ls_vm:update(user(State), Vm, undefined, Config));
 
 write(Req, State = #state{path = [?UUID(Vm)]}, [{<<"package">>, Package}]) ->
     e2qc:evict(?CACHE, Vm),
     e2qc:teardown(?FULL_CACHE),
-    ?LIB(ls_vm:update(Vm, Package, []));
+    ?LIB(ls_vm:update(user(State), Vm, Package, []));
 
 write(Req, State = #state{path = []}, _Body) ->
     {true, Req, State};
@@ -566,7 +564,7 @@ write(Req, State = #state{path = [?UUID(Vm), <<"backups">>, UUID]},
        {<<"hypervisor">>, Hypervisor}]) ->
     e2qc:evict(?CACHE, Vm),
     e2qc:teardown(?FULL_CACHE),
-    ?LIB(ls_vm:restore_backup(Vm, UUID, Hypervisor));
+    ?LIB(ls_vm:restore_backup(user(State), Vm, UUID, Hypervisor));
 
 write(Req, State = #state{path = [?UUID(Vm), <<"backups">>, UUID]},
       [{<<"action">>, <<"rollback">>}]) ->
@@ -618,7 +616,7 @@ delete(Req, State = #state{path = [?UUID(Vm), <<"nics">>, Mac]}) ->
 delete(Req, State = #state{path = [?UUID(Vm)],
                            body=[{<<"location">>, <<"hypervisor">>}]}) ->
     Start = now(),
-    ok = ls_vm:store(Vm),
+    ok = ls_vm:store(user(State), Vm),
     e2qc:evict(?CACHE, Vm),
     e2qc:teardown(?FULL_CACHE),
     ?MSniffle(?P(State), Start),
@@ -626,7 +624,7 @@ delete(Req, State = #state{path = [?UUID(Vm)],
 
 delete(Req, State = #state{path = [?UUID(Vm), <<"hypervisor">>]}) ->
     Start = now(),
-    ok = ls_vm:store(Vm),
+    ok = ls_vm:store(user(State), Vm),
     e2qc:evict(?CACHE, Vm),
     e2qc:teardown(?FULL_CACHE),
     ?MSniffle(?P(State), Start),
@@ -634,7 +632,7 @@ delete(Req, State = #state{path = [?UUID(Vm), <<"hypervisor">>]}) ->
 
 delete(Req, State = #state{path = [?UUID(Vm)]}) ->
     Start = now(),
-    ok = ls_vm:delete(Vm),
+    ok = ls_vm:delete(user(State), Vm),
     e2qc:evict(?CACHE, Vm),
     e2qc:teardown(?LIST_CACHE),
     e2qc:teardown(?FULL_CACHE),
@@ -648,3 +646,7 @@ delete(Req, State = #state{path = [?UUID(Vm), <<"metadata">> | Path]}) ->
     e2qc:teardown(?FULL_CACHE),
     ?MSniffle(?P(State), Start),
     {true, Req, State}.
+
+user(#state{token = Token}) ->
+    {ok, User} = ls_user:get(Token),
+    ft_user:uuid(User).
