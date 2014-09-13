@@ -152,14 +152,6 @@ write(Req, State = #state{path = [?UUID(Role), <<"metadata">> | Path]}, [{K, V}]
     ?MSnarl(?P(State), Start),
     {true, Req, State};
 
-write(Req, State = #state{path = [?UUID(Role)]}, _Body) ->
-    Start = now(),
-    e2qc:evict(?CACHE, Role),
-    e2qc:teardown(?LIST_CACHE),
-    ok = ls_role:add(Role),
-    ?MSnarl(?P(State), Start),
-    {true, Req, State};
-
 write(Req, State = #state{path = [?UUID(Role), <<"permissions">> | Permission]}, _Body) ->
     Start = now(),
     e2qc:evict(?CACHE, Role),
