@@ -139,8 +139,8 @@ create(Req, State = #state{path = [], version = Version, token=Token},
             e2qc:teardown(?LIST_CACHE),
             e2qc:teardown(?FULL_CACHE),
             {ok, User} = ls_user:get(Token),
-            case jsxd:get(<<"org">>, User) of
-                {ok, <<Org:36/binary>>} ->
+            case ft_user:active_org(User) of
+                <<Org:36/binary>> ->
                     ls_org:execute_trigger(Org, grouping_create, UUID);
                 _ ->
                     ok
