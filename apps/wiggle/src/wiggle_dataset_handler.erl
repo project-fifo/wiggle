@@ -307,6 +307,11 @@ import_manifest(UUID, D1) ->
       ensure_integer(
         jsxd:get(<<"image_size">>,
                  jsxd:get([<<"files">>, 0, <<"size">>], 0, D1), D1))),
+    ls_dataset:sha1(
+      UUID,
+      ensure_integer(
+        jsxd:get(<<"sha1">>,
+                 jsxd:get([<<"files">>, 0, <<"sha1">>], <<>>, D1), D1))),
     ls_dataset:networks(
       UUID,
       jsxd:get([<<"requirements">>, <<"networks">>], [], D1)),
@@ -335,14 +340,16 @@ import_dataset(UUID, Idx, TotalSize, Req, WReq) ->
 			ChunkSize = ?CHUNK_SIZE,
 			{ok, Upload} = fifo_s3_upload:new(AKey, SKey, S3Host, S3Port,
 											  Bucket, UUID),
+            Ctx = crypto:hash_init(sha),
 			import_dataset_s3(UUID, Idx, TotalSize, {more, Req},
-							  ChunkSize, Upload, <<>>)
+							  ChunkSize, Upload, Ctx, <<>>)
 	end.
 
 
 
 
-import_dataset_s3(UUID, Idx, TotalSize, {State, Req}, ChunkSize, Upload, Acc)
+import_dataset_s3(UUID, Idx, TotalSize, {State, Req}, ChunkSize, Upload, Ctx,
+                  Acc)
   when byte_size(Acc) >= ChunkSize ->
 	<<Chunk:ChunkSize/binary, Acc1/binary>> = Acc,
 	case fifo_s3_upload:part(Upload, binary:copy(Chunk)) of
@@ -351,7 +358,7 @@ import_dataset_s3(UUID, Idx, TotalSize, {State, Req}, ChunkSize, Upload, Acc)
 			Done = (Idx1 * ChunkSize) / TotalSize,
 			ls_dataset:imported(UUID, Done),
 			import_dataset_s3(UUID, Idx1, TotalSize, {State, Req},
-							  ChunkSize, Upload, Acc1);
+							  ChunkSize, Upload, Ctx, Acc1);
 		{error, E} ->
 			fifo_s3_upload:abort(Upload),
 			lager:error("Upload error: ~p", [E]),
@@ -361,13 +368,27 @@ import_dataset_s3(UUID, Idx, TotalSize, {State, Req}, ChunkSize, Upload, Acc)
 	end;
 
 import_dataset_s3(UUID, _Idx, _TotalSize, {ok, Req},
-				  _ChunkSize, Upload, Acc) ->
+				  _ChunkSize, Upload, Ctx, Acc) ->
 	case fifo_s3_upload:part(Upload, binary:copy(Acc)) of
 		ok ->
 			fifo_s3_upload:done(Upload),
 			ls_dataset:imported(UUID, 1),
-			ls_dataset:status(UUID, <<"imported">>),
-			{true, Req};
+
+            {ok, D} = ls_dataset:get(UUID),
+            SHA1 = ft_dataset:sha1(D),
+            case base16:encode(crypto:hash_final(Ctx)) of
+                Digest when Digest == SHA1 ->
+                    ls_dataset:status(UUID, <<"imported">>),
+                    {true, Req};
+                Digest when SHA1 == <<>> ->
+                    ls_dataset:sha1(UUID, Digest),
+                    ls_dataset:status(UUID, <<"imported">>),
+                    {true, Req};
+                Digest ->
+                    ls_dataset:sha1(UUID, Digest),
+                    ls_dataset:status(UUID, <<"imported">>),
+                    {false, Req}
+                end;
 		{error, E} ->
 			fifo_s3_upload:abort(Upload),
 			lager:error("Upload error: ~p", [E]),
@@ -376,11 +397,13 @@ import_dataset_s3(UUID, _Idx, _TotalSize, {ok, Req},
 	end;
 
 
-import_dataset_s3(UUID, Idx, TotalSize, {more, Req}, ChunkSize, Upload, Acc) ->
+import_dataset_s3(UUID, Idx, TotalSize, {more, Req}, ChunkSize, Upload, Ctx,
+                  Acc) ->
     {State, Data, Req1} = cowboy_req:body(Req, []),
+    Ctx1 = crypto:hash_update(Ctx, Data),
 	Acc1 = <<Acc/binary, Data/binary>>,
 	import_dataset_s3(UUID, Idx, TotalSize, {State, Req1},
-					  ChunkSize, Upload, Acc1).
+					  ChunkSize, Upload, Ctx1, Acc1).
 
 import_dataset_internal(UUID, Idx, TotalSize, Req, WReq) ->
     case cowboy_req:body(Req, []) of
