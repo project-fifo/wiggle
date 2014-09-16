@@ -1,7 +1,7 @@
 {application, wiggle,
  [
   {description, ""},
-  {vsn, "0.6.0p4"},
+  {vsn, "0.6.0p5"},
   {registered, []},
   {applications, [
                   kernel,
