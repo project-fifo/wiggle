@@ -186,7 +186,7 @@ write(Req, State = #state{method = <<"POST">>, path = []}, _) ->
 
 write(Req, State = #state{path = [?UUID(Grouping), <<"metadata">> | Path]}, [{K, V}]) ->
     Start = now(),
-    ok = ls_grouping:metadata_set(Grouping, [{Path ++ [K], jsxd:from_list(V)}]),
+    ok = ls_grouping:set_metadata(Grouping, [{Path ++ [K], jsxd:from_list(V)}]),
     e2qc:evict(?CACHE, Grouping),
     e2qc:teardown(?FULL_CACHE),
     ?MSniffle(?P(State), Start),
@@ -201,7 +201,7 @@ write(Req, State, _Body) ->
 
 delete(Req, State = #state{path = [?UUID(Grouping), <<"metadata">> | Path]}) ->
     Start = now(),
-    ok = ls_grouping:metadata_set(Grouping, [{Path, delete}]),
+    ok = ls_grouping:set_metadata(Grouping, [{Path, delete}]),
     e2qc:evict(?CACHE, Grouping),
     e2qc:teardown(?FULL_CACHE),
     ?MSniffle(?P(State), Start),
