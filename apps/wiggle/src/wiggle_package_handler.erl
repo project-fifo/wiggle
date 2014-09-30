@@ -115,7 +115,8 @@ create(Req, State = #state{path = [], version = Version}, Data) ->
               ], UUID, Data),
             case jsxd:get(<<"requirements">>, Data) of
                 {ok, Rs} ->
-                    [ls_package:add_requirement(UUID, R) || R <- Rs];
+                    [ls_package:add_requirement(UUID, fifo_dt:js2req(R))
+                     || R <- Rs];
                 _ ->
                     ok
             end,
