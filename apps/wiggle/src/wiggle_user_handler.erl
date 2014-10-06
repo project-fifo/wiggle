@@ -229,7 +229,7 @@ read(Req, State = #state{token = Token, path = [], full_list=FullList, full_list
                    [<<"users">>, {<<"res">>, <<"uuid">>}, <<"get">>],
                    Permissions}],
     Res = wiggle_handler:list(fun ls_user:list/2,
-                              fun ft_user:to_json/1, Token, Permission,
+                              fun to_json/1, Token, Permission,
                               FullList, Filter, user_list_ttl, ?FULL_CACHE,
                               ?LIST_CACHE),
 
@@ -237,7 +237,7 @@ read(Req, State = #state{token = Token, path = [], full_list=FullList, full_list
     {Res, Req, State};
 
 read(Req, State = #state{path = [_User], obj = UserObj}) ->
-    UserObj2 = jsxd:delete(<<"password">>, ft_user:to_json(UserObj)),
+    UserObj2 = jsxd:delete(<<"password">>, to_json(UserObj)),
     {UserObj2, Req, State};
 
 read(Req, State = #state{path = [_User, <<"permissions">>], obj = UserObj}) ->
@@ -286,7 +286,7 @@ write(Req, State = #state{method = <<"POST">>, path = []}, _) ->
 
 write(Req, State = #state{path = [?UUID(User), <<"metadata">> | Path]}, [{K, V}]) ->
     Start = now(),
-    ok = ls_user:set_metadata(User, [{Path ++ [K], jsxd:from_list(V)}]),
+    ok = ls_user:set_metadata(User, [{[<<"public">> | Path] ++ [K], jsxd:from_list(V)}]),
     e2qc:evict(?CACHE, User),
     e2qc:teardown(?FULL_CACHE),
     ?MSnarl(?P(State), Start),
@@ -372,7 +372,7 @@ write(Req, State = #state{path = [?UUID(User), <<"permissions">> | Permission]},
 
 delete(Req, State = #state{path = [?UUID(User), <<"metadata">> | Path]}) ->
     Start = now(),
-    ok = ls_user:set_metadata(User, [{Path, delete}]),
+    ok = ls_user:set_metadata(User, [{[<<"public">> | Path], delete}]),
     e2qc:evict(?CACHE, User),
     e2qc:teardown(?FULL_CACHE),
     ?MSnarl(?P(State), Start),
@@ -431,4 +431,14 @@ delete(Req, State = #state{path = [?UUID(User), <<"roles">>, Role]}) ->
     ?MSnarl(?P(State), Start),
     {true, Req, State}.
 
+%%--------------------------------------------------------------------
 %% Internal Functions
+%%--------------------------------------------------------------------
+
+to_json(U) ->
+    U1 = ft_user:to_json(U),
+    U2 = jsxd:delete([<<"password">>], U1),
+    jsxd:update([<<"metadata">>],
+                fun(M) ->
+                        jsxd:get([<<"public">>], [{}], M)
+                end, [{}], U2).
