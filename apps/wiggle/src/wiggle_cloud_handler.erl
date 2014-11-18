@@ -35,10 +35,11 @@ permission_required(_State) ->
 %% GET
 %%--------------------------------------------------------------------
 read(Req, State = #state{path = [<<"connection">>]}) ->
-    Res = jsxd:thread([{set, <<"sniffle">>, length(libsniffle:servers())},
-                       {set, <<"snarl">>, length(libsnarl:servers())},
-                       {set, <<"howl">>, length(libhowl:servers())}],
-                      []),
+    Res = [
+           {<<"sniffle">>, length(libsniffle:servers())},
+           {<<"snarl">>, length(libsnarl:servers())},
+           {<<"howl">>, length(libhowl:servers())}
+          ],
     {Res, Req, State};
 
 read(Req, State = #state{path = []}) ->
