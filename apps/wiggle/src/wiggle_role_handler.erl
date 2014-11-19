@@ -116,14 +116,14 @@ read(Req, State = #state{token = Token, path = [], full_list=FullList, full_list
                    [<<"roles">>, {<<"res">>, <<"uuid">>}, <<"get">>],
                    Permissions}],
     Res = wiggle_handler:list(fun ls_role:list/2,
-                              fun ft_role:to_json/1, Token, Permission,
+                              fun to_json/1, Token, Permission,
                               FullList, Filter, role_list_ttl, ?FULL_CACHE,
                               ?LIST_CACHE),
     ?MSniffle(?P(State), Start1),
     {Res, Req, State};
 
 read(Req, State = #state{path = [?UUID(_Role)], obj = RoleObj}) ->
-    {ft_role:to_json(RoleObj), Req, State};
+    {to_json(RoleObj), Req, State};
 
 read(Req, State = #state{path = [?UUID(_Role), <<"permissions">>], obj = RoleObj}) ->
     {ft_role:permissions(RoleObj), Req, State}.
@@ -148,7 +148,7 @@ write(Req, State = #state{path = [?UUID(Role), <<"metadata">> | Path]}, [{K, V}]
     Start = now(),
     e2qc:evict(?CACHE, Role),
     e2qc:teardown(?LIST_CACHE),
-    ls_role:set_metadata(Role, [{Path ++ [K], jsxd:from_list(V)}]),
+    ls_role:set_metadata(Role, [{[<<"public">> | Path] ++ [K], jsxd:from_list(V)}]),
     ?MSnarl(?P(State), Start),
     {true, Req, State};
 
@@ -168,7 +168,7 @@ delete(Req, State = #state{path = [?UUID(Role), <<"metadata">> | Path]}) ->
     Start = now(),
     e2qc:evict(?CACHE, Role),
     e2qc:teardown(?LIST_CACHE),
-    ls_role:set_metadata(Role, [{Path, delete}]),
+    ls_role:set_metadata(Role, [{[<<"public">> | Path], delete}]),
     ?MSnarl(?P(State), Start),
     {true, Req, State};
 
@@ -187,3 +187,14 @@ delete(Req, State = #state{path = [?UUID(Role)]}) ->
     ok = ls_role:delete(Role),
     ?MSnarl(?P(State), Start),
     {true, Req, State}.
+
+%%--------------------------------------------------------------------
+%% Internal Functions
+%%--------------------------------------------------------------------
+
+to_json(E) ->
+    E1 = ft_role:to_json(E),
+    jsxd:update([<<"metadata">>],
+                fun(M) ->
+                        jsxd:get([<<"public">>], [{}], M)
+                end, [{}], E1).
