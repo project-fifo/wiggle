@@ -76,7 +76,7 @@
                                               {count, 5}]}]
     end,
 
-    WatchdogHandler = case cuttlefish_util:filter_by_variable_starts_with("log.watchdog.host", Conf) of
+    WatchdogHandler = case cuttlefish_variable:filter_by_prefix("log.watchdog.host", Conf) of
       undefined -> [];
       [] -> [];
       WatchdogLogServers ->
