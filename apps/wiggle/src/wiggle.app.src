@@ -14,6 +14,7 @@
                   libchunter,
                   jsx,
                   lager,
+                  lager_watchdog,
                   mimetypes,
                   snmp,
                   mnesia,
@@ -21,7 +22,7 @@
                   eplugin,
                   e2qc,
                   fifo_s3,
-				  folsom_ddb,
+                  folsom_ddb,
                   cowboy
                  ]},
   {mod, { wiggle_app, []}},
