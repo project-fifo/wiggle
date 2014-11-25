@@ -52,7 +52,7 @@
 
 %% @doc the log level of the watchdog log
 {mapping, "log.watchdog.service", "lager.handlers", [
-  {default, "sniffle"},
+  {default, "wiggle"},
   {datatype, string}]}.
 
 %% @doc The ip of the watchdog server
