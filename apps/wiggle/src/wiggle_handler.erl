@@ -43,12 +43,12 @@ set_access_header(Req) ->
     Req1 = cowboy_req:set_resp_header(<<"access-control-allow-origin">>, <<"*">>, Req),
     Req2 = cowboy_req:set_resp_header(
              <<"access-control-allow-headers">>,
-             <<"Authorization, content-type, x-snarl-token, x-full-list, x-full-fields">>, Req1),
+             <<"Authorization, content-type, x-snarl-token, x-full-list, x-full-list-fields">>, Req1),
     Req3 = cowboy_req:set_resp_header(
              <<"access-control-expose-headers">>,
-             <<"x-snarl-token, x-full-list, x-full-fields">>, Req2),
+             <<"x-snarl-token, x-full-list, x-full-list-fields">>, Req2),
     cowboy_req:set_resp_header(
-      <<"allow-access-control-credentials">>,
+      <<"access-control-allow-credentials">>,
       <<"true">>, Req3).
 
 get_token(Req) ->
