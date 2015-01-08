@@ -13,6 +13,8 @@
 -include_lib("eunit/include/eunit.hrl").
 -endif.
 
+-behaviour(wiggle_rest_handler).
+
 -export([allowed_methods/3,
          get/1,
          permission_required/1,
@@ -24,16 +26,9 @@
          content_types_accepted/1,
          content_types_provided/1]).
 
--ignore_xref([allowed_methods/3,
-              get/1,
-              permission_required/1,
-              read/2,
-              create/3,
-              write/3,
-              delete/2,
-              raw_body/1,
-              content_types_accepted/1,
-              content_types_provided/1]).
+-ignore_xref([content_types_accepted/1,
+              content_types_provided/1,
+              raw_body/1]).
 
 -define(WRETRY, 5).
 
@@ -113,6 +108,7 @@ raw_body(#state{path=[_, <<"dataset.gz">>], method = <<"PUT">>}) ->
     true;
 raw_body(_) ->
     false.
+
 content_types_accepted(#state{path=[_, <<"dataset.gz">>], method = <<"PUT">>}) ->
     [
      {{<<"application">>, <<"x-gzip">>, '*'}, write}
@@ -179,18 +175,20 @@ read(Req, State = #state{path = [UUID, <<"dataset.gz">>], obj = _Obj}) ->
 %%--------------------------------------------------------------------
 
 create(Req, State = #state{path = [UUID], version = Version}, Decoded) ->
-    case ls_dataset:create(UUID) of
-        duplicate ->
-            {false, Req, State};
-        _ ->
+    %%case
+        %%ls_dataset:create(UUID),
+    %%of
+        %%duplicate ->
+        %%{false, Req, State};
+    %%_ ->
             e2qc:teardown(?LIST_CACHE),
             e2qc:teardown(?FULL_CACHE),
             import_manifest(UUID, Decoded),
             ls_dataset:imported(UUID, 0),
             ls_dataset:status(UUID, <<"pending">>),
             {{true, <<"/api/", Version/binary, "/datasets/", UUID/binary>>},
-             Req, State#state{body = Decoded}}
-    end;
+             Req, State#state{body = Decoded}};
+%%end;
 
 create(Req, State = #state{path = [], version = Version}, Decoded) ->
     e2qc:teardown(?LIST_CACHE),
@@ -282,6 +280,7 @@ delete(Req, State = #state{path = [?UUID(Dataset)]}) ->
 
 do_import([], _UUID, _O) ->
     ok;
+
 do_import([{K, F} | R], UUID, O) ->
     case jsxd:get([K], O) of
         {ok, V}  ->
@@ -333,17 +332,17 @@ import_manifest(UUID, D1) ->
     end.
 
 import_dataset(UUID, Idx, TotalSize, Req, WReq) ->
-	case ls_img:list(UUID) of
-		{ok, _} ->
-			import_dataset_internal(UUID, Idx, TotalSize, Req, WReq);
-		{ok, AKey, SKey, S3Host, S3Port, Bucket, UUID} ->
-			ChunkSize = ?CHUNK_SIZE,
-			{ok, Upload} = fifo_s3_upload:new(AKey, SKey, S3Host, S3Port,
-											  Bucket, UUID),
+    case ls_img:list(UUID) of
+        {ok, _} ->
+            import_dataset_internal(UUID, Idx, TotalSize, Req, WReq);
+        {ok, AKey, SKey, S3Host, S3Port, Bucket, UUID} ->
+            ChunkSize = ?CHUNK_SIZE,
+            {ok, Upload} = fifo_s3_upload:new(AKey, SKey, S3Host, S3Port,
+                                              Bucket, UUID),
             Ctx = crypto:hash_init(sha),
-			import_dataset_s3(UUID, Idx, TotalSize, {more, Req},
-							  ChunkSize, Upload, Ctx, <<>>)
-	end.
+            import_dataset_s3(UUID, Idx, TotalSize, {more, Req},
+                              ChunkSize, Upload, Ctx, <<>>)
+    end.
 
 
 
@@ -351,28 +350,28 @@ import_dataset(UUID, Idx, TotalSize, Req, WReq) ->
 import_dataset_s3(UUID, Idx, TotalSize, {State, Req}, ChunkSize, Upload, Ctx,
                   Acc)
   when byte_size(Acc) >= ChunkSize ->
-	<<Chunk:ChunkSize/binary, Acc1/binary>> = Acc,
-	case fifo_s3_upload:part(Upload, binary:copy(Chunk)) of
-		ok ->
-			Idx1 = Idx + 1,
-			Done = (Idx1 * ChunkSize) / TotalSize,
-			ls_dataset:imported(UUID, Done),
-			import_dataset_s3(UUID, Idx1, TotalSize, {State, Req},
-							  ChunkSize, Upload, Ctx, Acc1);
-		{error, E} ->
-			fifo_s3_upload:abort(Upload),
-			lager:error("Upload error: ~p", [E]),
-			ls_dataset:status(UUID, <<"failed">>),
-			{false, Req}
+    <<Chunk:ChunkSize/binary, Acc1/binary>> = Acc,
+    case fifo_s3_upload:part(Upload, binary:copy(Chunk)) of
+        ok ->
+            Idx1 = Idx + 1,
+            Done = (Idx1 * ChunkSize) / TotalSize,
+            ls_dataset:imported(UUID, Done),
+            import_dataset_s3(UUID, Idx1, TotalSize, {State, Req},
+                              ChunkSize, Upload, Ctx, Acc1);
+        {error, E} ->
+            fifo_s3_upload:abort(Upload),
+            lager:error("Upload error: ~p", [E]),
+            ls_dataset:status(UUID, <<"failed">>),
+            {false, Req}
 
-	end;
+    end;
 
 import_dataset_s3(UUID, _Idx, _TotalSize, {ok, Req},
-				  _ChunkSize, Upload, Ctx, Acc) ->
-	case fifo_s3_upload:part(Upload, binary:copy(Acc)) of
-		ok ->
-			fifo_s3_upload:done(Upload),
-			ls_dataset:imported(UUID, 1),
+                  _ChunkSize, Upload, Ctx, Acc) ->
+    case fifo_s3_upload:part(Upload, binary:copy(Acc)) of
+        ok ->
+            fifo_s3_upload:done(Upload),
+            ls_dataset:imported(UUID, 1),
 
             {ok, D} = ls_dataset:get(UUID),
             SHA1 = ft_dataset:sha1(D),
@@ -388,22 +387,22 @@ import_dataset_s3(UUID, _Idx, _TotalSize, {ok, Req},
                     ls_dataset:sha1(UUID, Digest),
                     ls_dataset:status(UUID, <<"imported">>),
                     {false, Req}
-                end;
-		{error, E} ->
-			fifo_s3_upload:abort(Upload),
-			lager:error("Upload error: ~p", [E]),
-			ls_dataset:status(UUID, <<"failed">>),
-			{false, Req}
-	end;
+            end;
+        {error, E} ->
+            fifo_s3_upload:abort(Upload),
+            lager:error("Upload error: ~p", [E]),
+            ls_dataset:status(UUID, <<"failed">>),
+            {false, Req}
+    end;
 
 
 import_dataset_s3(UUID, Idx, TotalSize, {more, Req}, ChunkSize, Upload, Ctx,
                   Acc) ->
     {State, Data, Req1} = cowboy_req:body(Req, []),
     Ctx1 = crypto:hash_update(Ctx, Data),
-	Acc1 = <<Acc/binary, Data/binary>>,
-	import_dataset_s3(UUID, Idx, TotalSize, {State, Req1},
-					  ChunkSize, Upload, Ctx1, Acc1).
+    Acc1 = <<Acc/binary, Data/binary>>,
+    import_dataset_s3(UUID, Idx, TotalSize, {State, Req1},
+                      ChunkSize, Upload, Ctx1, Acc1).
 
 import_dataset_internal(UUID, Idx, TotalSize, Req, WReq) ->
     case cowboy_req:body(Req, []) of
