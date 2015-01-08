@@ -14,14 +14,7 @@
          write/3,
          delete/2]).
 
--ignore_xref([allowed_methods/3,
-              get/1,
-              permission_required/1,
-              read/2,
-              create/3,
-              write/3,
-              delete/2]).
-
+-behaviour(wiggle_rest_handler).
 
 -define(GUARD_CALL(Call),
         case Call of

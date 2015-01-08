@@ -2,6 +2,8 @@
 
 -behaviour(application).
 
+-include("wiggle_version.hrl").
+
 %% Application callbacks
 -export([start/2, stop/1]).
 
@@ -92,6 +94,8 @@ start(_StartType, _StartArgs) ->
             ok
     end,
     R = wiggle_sup:start_link(),
+    lager_watchdog_srv:set_version(?VERSION),
+
     wiggle_snmp_handler:start(),
     R.
 
