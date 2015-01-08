@@ -519,3 +519,13 @@
          {ok, {A, B, C, D}}
  end
 }.
+
+{mapping, "folsom_ddb.bucket", "folsom_ddb.bucket", [
+    merge,
+    {default, "fifo"}
+]}.
+
+{mapping, "folsom_ddb.prefix", "folsom_ddb.prefix", [
+    merge,
+    {default, "sniffle"}
+]}.
