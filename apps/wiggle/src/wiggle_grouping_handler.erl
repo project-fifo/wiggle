@@ -16,15 +16,12 @@
          write/3,
          delete/2]).
 
--ignore_xref([allowed_methods/3,
-              get/1,
-              permission_required/1,
-              read/2,
-              create/3,
-              write/3,
-              delete/2]).
+-behaviour(wiggle_rest_handler).
 
 allowed_methods(_Version, _Token, [?UUID(_Grouping), <<"metadata">>|_]) ->
+    [<<"PUT">>, <<"DELETE">>];
+
+allowed_methods(_Version, _Token, [?UUID(_Grouping), <<"config">>|_]) ->
     [<<"PUT">>, <<"DELETE">>];
 
 allowed_methods(_Version, _Token, [?UUID(_Grouping), <<"elements">>, _]) ->
@@ -92,6 +89,14 @@ permission_required(#state{method = <<"PUT">>,
 
 permission_required(#state{method = <<"DELETE">>,
                            path = [?UUID(Grouping), <<"metadata">> | _]}) ->
+    {ok, [<<"groupings">>, Grouping, <<"edit">>]};
+
+permission_required(#state{method = <<"PUT">>,
+                           path = [?UUID(Grouping), <<"config">> | _]}) ->
+    {ok, [<<"groupings">>, Grouping, <<"edit">>]};
+
+permission_required(#state{method = <<"DELETE">>,
+                           path = [?UUID(Grouping), <<"confing">> | _]}) ->
     {ok, [<<"groupings">>, Grouping, <<"edit">>]};
 
 permission_required(_State) ->
@@ -186,7 +191,15 @@ write(Req, State = #state{method = <<"POST">>, path = []}, _) ->
 
 write(Req, State = #state{path = [?UUID(Grouping), <<"metadata">> | Path]}, [{K, V}]) ->
     Start = now(),
-    ok = ls_grouping:metadata_set(Grouping, [{Path ++ [K], jsxd:from_list(V)}]),
+    ok = ls_grouping:set_metadata(Grouping, [{Path ++ [K], jsxd:from_list(V)}]),
+    e2qc:evict(?CACHE, Grouping),
+    e2qc:teardown(?FULL_CACHE),
+    ?MSniffle(?P(State), Start),
+    {true, Req, State};
+
+write(Req, State = #state{path = [?UUID(Grouping), <<"config">> | Path]}, [{K, V}]) ->
+    Start = now(),
+    ok = ls_grouping:set_config(Grouping, [{Path ++ [K], jsxd:from_list(V)}]),
     e2qc:evict(?CACHE, Grouping),
     e2qc:teardown(?FULL_CACHE),
     ?MSniffle(?P(State), Start),
@@ -201,7 +214,15 @@ write(Req, State, _Body) ->
 
 delete(Req, State = #state{path = [?UUID(Grouping), <<"metadata">> | Path]}) ->
     Start = now(),
-    ok = ls_grouping:metadata_set(Grouping, [{Path, delete}]),
+    ok = ls_grouping:set_metadata(Grouping, [{Path, delete}]),
+    e2qc:evict(?CACHE, Grouping),
+    e2qc:teardown(?FULL_CACHE),
+    ?MSniffle(?P(State), Start),
+    {true, Req, State};
+
+delete(Req, State = #state{path = [?UUID(Grouping), <<"config">> | Path]}) ->
+    Start = now(),
+    ok = ls_grouping:set_config(Grouping, [{Path, delete}]),
     e2qc:evict(?CACHE, Grouping),
     e2qc:teardown(?FULL_CACHE),
     ?MSniffle(?P(State), Start),

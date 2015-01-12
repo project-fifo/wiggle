@@ -10,14 +10,10 @@
          get/1,
          read/2,
          write/3,
+         create/3,
          delete/2]).
 
--ignore_xref([allowed_methods/3,
-              get/1,
-              permission_required/1,
-              read/2,
-              write/3,
-              delete/2]).
+-behaviour(wiggle_rest_handler).
 
 allowed_methods(_Version, _Token, []) ->
     [<<"GET">>];
@@ -121,6 +117,9 @@ read(Req, State = #state{path = [?UUID(_Hypervisor)], obj = Obj}) ->
 %%--------------------------------------------------------------------
 %% PUT
 %%--------------------------------------------------------------------
+
+create(Req, State, _Data) ->
+    {halt, Req, State}.
 
 write(Req, State = #state{path = [?UUID(Hypervisor), <<"config">>]},
       [{<<"alias">>, V}]) when is_binary(V) ->

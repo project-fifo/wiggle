@@ -34,7 +34,33 @@
               options/2,
               service_available/2,
               resource_exists/2,
-              rest_init/2]).
+              rest_init/2,
+              behaviour_info/1]).
+
+
+-type handler_state() :: #state{}.
+
+-callback allowed_methods(Version :: binary(), Token :: binary(),
+                          Path :: [binary()]) ->
+    [binary()].
+
+-callback get(handler_state()) ->
+    not_found | term().
+
+-callback permission_required(handler_state()) ->
+    {ok, [binary()] | always} | undefined.
+
+-callback read(Req :: term(), handler_state()) ->
+    {term(), Req :: term(), handler_state()}.
+
+-callback create(Req :: term(), handler_state(), jsxd:object()) ->
+    {term(), Req :: term(), handler_state()}.
+
+-callback write(Req :: term(), handler_state(), jsxd:object()) ->
+    {term(), Req :: term(), handler_state()}.
+
+-callback delete(Req :: term(), handler_state()) ->
+    {term(), Req :: term(), handler_state()}.
 
 init(_Transport, _Req, _) ->
     {upgrade, protocol, cowboy_rest}.

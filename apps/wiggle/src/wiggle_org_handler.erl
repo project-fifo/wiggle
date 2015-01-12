@@ -17,13 +17,7 @@
          write/3,
          delete/2]).
 
--ignore_xref([allowed_methods/3,
-              get/1,
-              permission_required/1,
-              read/2,
-              create/3,
-              write/3,
-              delete/2]).
+-behaviour(wiggle_rest_handler).
 
 allowed_methods(_Version, _Token, []) ->
     [<<"GET">>, <<"POST">>];
@@ -141,7 +135,7 @@ read(Req, State = #state{token = Token, path = [], full_list=FullList, full_list
                    [<<"orgs">>, {<<"res">>, <<"uuid">>}, <<"get">>],
                    Permissions}],
     Res = wiggle_handler:list(fun ls_org:list/2,
-                              fun ft_org:to_json/1, Token, Permission,
+                              fun to_json/1, Token, Permission,
                               FullList, Filter, org_list_ttl, ?FULL_CACHE,
                               ?LIST_CACHE),
 
@@ -149,11 +143,11 @@ read(Req, State = #state{token = Token, path = [], full_list=FullList, full_list
     {Res, Req, State};
 
 read(Req, State = #state{path = [?UUID(_Org)], obj = OrgObj}) ->
-    {ft_org:to_json(OrgObj), Req, State};
+    {to_json(OrgObj), Req, State};
 
 read(Req, State = #state{path = [?UUID(_Org), <<"triggers">>], obj = OrgObj}) ->
     %% can't get the ft_role:triggers since the json conversion would miss
-    {jsxd:get(<<"triggers">>, [], ft_org:to_json(OrgObj)), Req, State}.
+    {jsxd:get(<<"triggers">>, [], to_json(OrgObj)), Req, State}.
 
 %%--------------------------------------------------------------------
 %% PUT
@@ -186,7 +180,7 @@ create(Req, State =
 write(Req, State = #state{path = [?UUID(Org), <<"metadata">> | Path]}, [{K, V}])
   when is_binary(Org) ->
     Start = now(),
-    ls_org:set_metadata(Org, [{Path ++ [K], jsxd:from_list(V)}]),
+    ls_org:set_metadata(Org, [{[<<"public">> | Path] ++ [K], jsxd:from_list(V)}]),
     e2qc:evict(?CACHE, Org),
     e2qc:teardown(?FULL_CACHE),
     ?MSnarl(?P(State), Start),
@@ -198,7 +192,7 @@ write(Req, State = #state{path = [?UUID(Org), <<"metadata">> | Path]}, [{K, V}])
 
 delete(Req, State = #state{path = [?UUID(Org), <<"metadata">> | Path]}) ->
     Start = now(),
-    ok = ls_org:set_metadata(Org, [{Path, delete}]),
+    ok = ls_org:set_metadata(Org, [{[<<"public">> | Path], delete}]),
     e2qc:evict(?CACHE, Org),
     e2qc:teardown(?FULL_CACHE),
     ?MSnarl(?P(State), Start),
@@ -221,7 +215,16 @@ delete(Req, State = #state{path = [?UUID(Org)]}) ->
     ?MSnarl(?P(State), Start),
     {true, Req, State}.
 
+%%--------------------------------------------------------------------
 %% Internal Functions
+%%--------------------------------------------------------------------
+
+to_json(E) ->
+    E1 = ft_org:to_json(E),
+    jsxd:update([<<"metadata">>],
+                fun(M) ->
+                        jsxd:get([<<"public">>], [{}], M)
+                end, [{}], E1).
 
 erlangify_trigger(<<"user_create">>, Event) ->
     {user_create,
@@ -256,7 +259,3 @@ erlangify_trigger([{<<"action">>, <<"user_grant">>},
                    {<<"target">>, Target}]) ->
     {grant, user, Target,
      [Base, placeholder | Permission]}.
-
--ifdef(TEST).
-
--endif.

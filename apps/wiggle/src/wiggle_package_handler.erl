@@ -16,13 +16,7 @@
          write/3,
          delete/2]).
 
--ignore_xref([allowed_methods/3,
-              get/1,
-              permission_required/1,
-              read/2,
-              create/3,
-              write/3,
-              delete/2]).
+-behaviour(wiggle_rest_handler).
 
 allowed_methods(_Version, _Token, []) ->
     [<<"GET">>, <<"POST">>];
@@ -115,7 +109,8 @@ create(Req, State = #state{path = [], version = Version}, Data) ->
               ], UUID, Data),
             case jsxd:get(<<"requirements">>, Data) of
                 {ok, Rs} ->
-                    [ls_package:add_requirement(UUID, R) || R <- Rs];
+                    [ls_package:add_requirement(UUID, fifo_dt:js2req(R))
+                     || R <- Rs];
                 _ ->
                     ok
             end,
