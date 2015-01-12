@@ -18,7 +18,8 @@
          read/2,
          create/3,
          write/3,
-         delete/2]).
+         delete/2,
+         to_json/1]).
 
 -behaviour(wiggle_rest_handler).
 
