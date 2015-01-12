@@ -42,9 +42,8 @@ permission_required(_State) ->
 %%--------------------------------------------------------------------
 
 read(Req, State = #state{path = [?UUID(Session)], obj = Obj}) ->
-    Obj1 = jsxd:thread([{set, <<"session">>, Session},
-                        {delete, <<"password">>}],
-                       ft_user:to_json(Obj)),
+    Obj1 = jsxd:thread([{set, <<"session">>, Session}],
+                       wiggle_user_handler:to_json(Obj)),
     {Obj1, Req, State}.
 
 %%--------------------------------------------------------------------
