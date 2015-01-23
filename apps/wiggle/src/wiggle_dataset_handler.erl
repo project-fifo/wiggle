@@ -175,20 +175,18 @@ read(Req, State = #state{path = [UUID, <<"dataset.gz">>], obj = _Obj}) ->
 %%--------------------------------------------------------------------
 
 create(Req, State = #state{path = [UUID], version = Version}, Decoded) ->
-    %%case
-        %%ls_dataset:create(UUID),
-    %%of
-        %%duplicate ->
-        %%{false, Req, State};
-    %%_ ->
+    case ls_dataset:create(UUID) of
+        duplicate ->
+            {false, Req, State};
+        _ ->
             e2qc:teardown(?LIST_CACHE),
             e2qc:teardown(?FULL_CACHE),
             import_manifest(UUID, Decoded),
             ls_dataset:imported(UUID, 0),
             ls_dataset:status(UUID, <<"pending">>),
             {{true, <<"/api/", Version/binary, "/datasets/", UUID/binary>>},
-             Req, State#state{body = Decoded}};
-%%end;
+             Req, State#state{body = Decoded}}
+    end;
 
 create(Req, State = #state{path = [], version = Version}, Decoded) ->
     e2qc:teardown(?LIST_CACHE),
