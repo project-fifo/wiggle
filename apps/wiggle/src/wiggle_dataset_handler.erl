@@ -308,9 +308,8 @@ import_manifest(UUID, D1) ->
                  jsxd:get([<<"files">>, 0, <<"size">>], 0, D1), D1))),
     ls_dataset:sha1(
       UUID,
-      ensure_integer(
-        jsxd:get(<<"sha1">>,
-                 jsxd:get([<<"files">>, 0, <<"sha1">>], <<>>, D1), D1))),
+      jsxd:get(<<"sha1">>,
+               jsxd:get([<<"files">>, 0, <<"sha1">>], <<>>, D1), D1)),
     ls_dataset:networks(
       UUID,
       jsxd:get([<<"requirements">>, <<"networks">>], [], D1)),
