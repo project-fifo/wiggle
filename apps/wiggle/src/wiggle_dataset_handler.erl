@@ -147,28 +147,18 @@ read(Req, State = #state{path = [?UUID(_Dataset)], obj = Obj}) ->
     {ft_dataset:to_json(Obj), Req, State};
 
 read(Req, State = #state{path = [UUID, <<"dataset.gz">>], obj = _Obj}) ->
-    case ls_img:list(UUID) of
-        {ok, Idxs} ->
-            StreamFun = fun(SendChunk) ->
-                                [begin
-                                     {ok, Data} = ls_img:get(UUID, Idx),
-                                     SendChunk(Data)
-                                 end || Idx <- lists:sort(Idxs)]
-                        end,
-            {{chunked, StreamFun}, Req, State};
-        {ok, AKey, SKey, Host, Port, Bucket, Key} ->
-            Config = [{host, Host},
-                      {port, Port},
-                      {chunk_size, ?CHUNK_SIZE},
-                      {bucket, Bucket},
-                      {access_key, AKey},
-                      {secret_key, SKey}],
-            {ok, D} = fifo_s3_download:new(Key, Config),
-            StreamFun = fun(SendChunk) ->
-                                do_strea(SendChunk, D)
-                        end,
-            {{chunked, StreamFun}, Req, State}
-    end.
+    {ok, {Host, Port, AKey, SKey, Bucket}} = libsniffle:s3(image),
+    Config = [{host, Host},
+              {port, Port},
+              {chunk_size, ?CHUNK_SIZE},
+              {bucket, Bucket},
+              {access_key, AKey},
+              {secret_key, SKey}],
+    {ok, D} = fifo_s3_download:new(UUID, Config),
+    StreamFun = fun(SendChunk) ->
+                        do_strea(SendChunk, D)
+                end,
+    {{chunked, StreamFun}, Req, State}.
 
 %%--------------------------------------------------------------------
 %% PUT
@@ -211,7 +201,7 @@ write(Req, State = #state{path = [UUID, <<"dataset.gz">>]}, _) ->
         {ok, R} ->
             Size = ft_dataset:image_size(R),
             ls_dataset:status(UUID, <<"importing">>),
-            {Res, Req1} = import_dataset(UUID, 0, ensure_integer(Size), Req, undefined),
+            {Res, Req1} = import_dataset(UUID, 0, ensure_integer(Size), Req),
             {Res, Req1, State};
         _ ->
             {false, Req, State}
@@ -328,19 +318,15 @@ import_manifest(UUID, D1) ->
             ls_dataset:os(UUID, OS)
     end.
 
-import_dataset(UUID, Idx, TotalSize, Req, WReq) ->
-    case ls_img:list(UUID) of
-        {ok, _} ->
-            import_dataset_internal(UUID, Idx, TotalSize, Req, WReq);
-        {ok, AKey, SKey, S3Host, S3Port, Bucket, UUID} ->
-            ChunkSize = ?CHUNK_SIZE,
-            {ok, Upload} = fifo_s3_upload:new(AKey, SKey, S3Host, S3Port,
-                                              Bucket, UUID),
-            Ctx = crypto:hash_init(sha),
-            import_dataset_s3(UUID, Idx, TotalSize, {more, Req},
-                              ChunkSize, Upload, Ctx, <<>>)
-    end.
+import_dataset(UUID, Idx, TotalSize, Req) ->
+    {ok, {Host, Port, AKey, SKey, Bucket}} = libsniffle:s3(image),
 
+    ChunkSize = ?CHUNK_SIZE,
+    {ok, Upload} = fifo_s3_upload:new(AKey, SKey, Host, Port,
+                                      Bucket, UUID),
+    Ctx = crypto:hash_init(sha),
+    import_dataset_s3(UUID, Idx, TotalSize, {more, Req},
+                      ChunkSize, Upload, Ctx, <<>>).
 
 
 
@@ -400,59 +386,6 @@ import_dataset_s3(UUID, Idx, TotalSize, {more, Req}, ChunkSize, Upload, Ctx,
     Acc1 = <<Acc/binary, Data/binary>>,
     import_dataset_s3(UUID, Idx, TotalSize, {State, Req1},
                       ChunkSize, Upload, Ctx1, Acc1).
-
-import_dataset_internal(UUID, Idx, TotalSize, Req, WReq) ->
-    case cowboy_req:body(Req, []) of
-        {Res, Data, Req1} ->
-            case do_write(UUID, Idx, Data, WReq, 0) of
-                {ok, WReq1} ->
-                    Idx1 = Idx + 1,
-                    Done = (Idx1 * 1024*1024) / TotalSize,
-                    ls_dataset:imported(UUID, Done),
-                    e2qc:evict(?CACHE, UUID),
-                    e2qc:teardown(?FULL_CACHE),
-                    libhowl:send(UUID,
-                                 [{<<"event">>, <<"progress">>},
-                                  {<<"data">>, [{<<"imported">>, Done}]}]),
-                    case Res of
-                        more ->
-                            import_dataset_internal(UUID, Idx1, TotalSize, Req1, WReq1);
-                        ok ->
-                            ls_img:create(UUID, done, <<>>, WReq),
-                            ok = ls_dataset:imported(UUID, 1),
-                            ls_dataset:status(UUID, <<"imported">>),
-                            libhowl:send(UUID,
-                                         [{<<"event">>, <<"progress">>},
-                                          {<<"data">>, [{<<"imported">>, 1}]}]),
-                            {true, Req1}
-                    end;
-                Reason ->
-                    fail_import(UUID, Reason, Idx)
-            end;
-        {error, Reason} ->
-            fail_import(UUID, Reason, Idx),
-            {false, Req}
-    end.
-
-do_write(_, _, _, _, ?WRETRY) ->
-    {error, retry_exceeded};
-do_write(UUID, Idx, Data, WReq, Retry) ->
-    case ls_img:create(UUID, Idx, Data, WReq) of
-        {ok, WReq1} ->
-            {ok, WReq1};
-        Reason ->
-            lager:warning("[~s(~p):~p] Import Error: ~p",
-                          [UUID, Idx, Retry, Reason]),
-            do_write(UUID, Idx, Data, WReq, Retry + 1)
-    end.
-
-fail_import(UUID, Reason, Idx) ->
-    lager:error("[~s] Could not import dataset: ~p", [UUID, Reason]),
-    libhowl:send(UUID,
-                 [{<<"event">>, <<"error">>},
-                  {<<"data">>, [{<<"message">>, Reason},
-                                {<<"index">>, Idx}]}]),
-    ls_dataset:status(UUID, <<"failed">>).
 
 ensure_integer(I) when is_integer(I) ->
     I;
