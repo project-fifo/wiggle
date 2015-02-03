@@ -460,6 +460,21 @@ write(Req, State = #state{path = [?UUID(Vm), <<"services">>]},
     ls_vm:service_clear(Vm, Service),
     {true, Req, State};
 
+write(Req, State = #state{path = [?UUID(Vm), <<"services">>]},
+      [{<<"action">>, <<"refresh">>},
+       {<<"service">>, Service}]) ->
+    e2qc:evict(?CACHE, Vm),
+    e2qc:teardown(?FULL_CACHE),
+    ls_vm:service_refresh(Vm, Service),
+    {true, Req, State};
+
+write(Req, State = #state{path = [?UUID(Vm), <<"services">>]},
+      [{<<"action">>, <<"restart">>},
+       {<<"service">>, Service}]) ->
+    e2qc:evict(?CACHE, Vm),
+    e2qc:teardown(?FULL_CACHE),
+    ls_vm:service_restart(Vm, Service),
+    {true, Req, State};
 
 write(Req, State = #state{path = [_, <<"nics">>]}, _Body) ->
     {true, Req, State};

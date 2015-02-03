@@ -181,9 +181,24 @@ write(Req, State = #state{path = [?UUID(Hypervisor), <<"services">>]},
     ls_hypervisor:service_action(Hypervisor, clear, Service),
     {true, Req, State};
 
+write(Req, State = #state{path = [?UUID(Hypervisor), <<"services">>]},
+      [{<<"action">>, <<"refresh">>},
+       {<<"service">>, Service}]) ->
+    e2qc:evict(?CACHE, Hypervisor),
+    e2qc:teardown(?FULL_CACHE),
+    ls_hypervisor:service_action(Hypervisor, refresh, Service),
+    {true, Req, State};
+
+write(Req, State = #state{path = [?UUID(Hypervisor), <<"services">>]},
+      [{<<"action">>, <<"restart">>},
+       {<<"service">>, Service}]) ->
+    e2qc:evict(?CACHE, Hypervisor),
+    e2qc:teardown(?FULL_CACHE),
+    ls_hypervisor:service_action(Hypervisor, restart, Service),
+    {true, Req, State};
+
 write(Req, State, _Body) ->
     {false, Req, State}.
-
 
 %%--------------------------------------------------------------------
 %% DELETE
