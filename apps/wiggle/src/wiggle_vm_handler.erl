@@ -70,6 +70,12 @@ allowed_methods(_Version, _Token, [?UUID(_Vm), <<"snapshots">>, _ID]) ->
 allowed_methods(_Version, _Token, [?UUID(_Vm), <<"snapshots">>]) ->
     [<<"GET">>, <<"POST">>];
 
+allowed_methods(_Version, _Token, [?UUID(_Vm), <<"fw_rules">>, _ID]) ->
+    [<<"GET">>, <<"DELETE">>]; %% We might need to add PUT later.
+
+allowed_methods(_Version, _Token, [?UUID(_Vm), <<"fw_rules">>]) ->
+    [<<"GET">>, <<"POST">>];
+
 allowed_methods(_Version, _Token, [?UUID(_Vm), <<"backups">>, _ID]) ->
     [<<"GET">>, <<"PUT">>, <<"DELETE">>];
 
@@ -105,6 +111,19 @@ get(State = #state{path = [?UUID(Vm), <<"nics">>, Mac]}) ->
                        N <- jsxd:get([<<"networks">>], [], ft_vm:config(Obj))],
             case lists:member(Mac, Macs) of
                 true ->
+                    {ok, Obj};
+                _ ->
+                    not_found
+            end;
+        E ->
+            E
+    end;
+
+get(State = #state{path = [?UUID(Vm), <<"fw_rules">>, ID]}) ->
+    case wiggle_vm_handler:get(State#state{path=[?UUID(Vm)]}) of
+        {ok, Obj} ->
+            case find_rule(ID, Obj) of
+                {ok, _} ->
                     {ok, Obj};
                 _ ->
                     not_found
@@ -596,6 +615,16 @@ delete(Req, State = #state{path = [?UUID(Vm), <<"snapshots">>, UUID]}) ->
     ?MSniffle(?P(State), Start),
     {true, Req, State};
 
+delete(Req, State = #state{path = [?UUID(Vm), <<"fw_rules">>, RuleID],
+                           obj = Obj}) ->
+    Start = now(),
+    {ok, Rule} = find_rule(RuleID, Obj),
+    ok = ls_vm:remove_fw_rule(Vm, Rule),
+    e2qc:evict(?CACHE, Vm),
+    e2qc:teardown(?FULL_CACHE),
+    ?MSniffle(?P(State), Start),
+    {true, Req, State};
+
 delete(Req, State = #state{path = [?UUID(Vm), <<"backups">>, UUID],
                            body=[{<<"location">>, <<"hypervisor">>}]}) ->
     Start = now(),
@@ -665,3 +694,16 @@ to_json(VM) ->
                         [ [{<<"id">>, erlang:phash2(Rule)} | Rule] ||
                             Rule <- Rules]
                 end, ft_vm:to_json(VM)).
+
+find_rule(ID, VM) ->
+    Rules = jsxd:get(<<"fw_rules">>, [], ft_vm:to_json(VM)),
+    Found = lists:filter(fun(Rule) ->
+                                 ID == erlang:phash2(Rule)
+                         end, Rules),
+    case Found of
+        [Rule] ->
+            {ok, ft_vm:json_to_fw_rule(Rule)};
+        _ ->
+            {error, oh_shit}
+    end.
+
