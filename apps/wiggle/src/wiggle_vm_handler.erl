@@ -365,6 +365,16 @@ create(Req, State = #state{path = [?UUID(Vm), <<"snapshots">>], version = Versio
     ?MSniffle(?P(State), Start),
     {{true, <<"/api/", Version/binary, "/vms/", Vm/binary, "/snapshots/", UUID/binary>>}, Req, State#state{body = Decoded}};
 
+create(Req, State = #state{path = [?UUID(Vm), <<"fw_rules">>],
+                           version = Version}, RuleJSON) ->
+    Start = now(),
+    Rule = ft_vm:json_to_fw_rule(RuleJSON),
+    ls_vm:add_fw_rule(Vm, Rule),
+    e2qc:evict(?CACHE, Vm),
+    e2qc:teardown(?FULL_CACHE),
+    ?MSniffle(?P(State), Start),
+    {{true, <<"/api/", Version/binary, "/vms/", Vm/binary>>}, Req, State#state{body = RuleJSON}};
+
 create(Req, State = #state{path = [?UUID(Vm), <<"backups">>], version = Version}, Decoded) ->
     Comment = jsxd:get(<<"comment">>, <<"">>, Decoded),
     Opts = case jsxd:get(<<"xml">>, true, Decoded) of
