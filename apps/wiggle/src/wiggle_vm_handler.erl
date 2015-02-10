@@ -162,7 +162,6 @@ permission_required(#state{method = <<"POST">>, path = []}) ->
 permission_required(#state{method = <<"GET">>, path = [?UUID(Vm)]}) ->
     {ok, [<<"vms">>, Vm, <<"get">>]};
 
-
 permission_required(#state{method = <<"DELETE">>, path = [?UUID(Vm)]}) ->
     {ok, [<<"vms">>, Vm, <<"delete">>]};
 
@@ -183,6 +182,15 @@ permission_required(#state{method = <<"GET">>, path = [?UUID(Vm), <<"snapshots">
 
 permission_required(#state{method = <<"POST">>, path = [?UUID(Vm), <<"snapshots">>]}) ->
     {ok, [<<"vms">>, Vm, <<"snapshot">>]};
+
+permission_required(#state{method = <<"GET">>, path = [?UUID(Vm), <<"fw_rules">>]}) ->
+    {ok, [<<"vms">>, Vm, <<"get">>]};
+
+permission_required(#state{method = <<"POST">>, path = [?UUID(Vm), <<"fw_rules">>]}) ->
+    {ok, [<<"vms">>, Vm, <<"edit">>]};
+
+permission_required(#state{method = <<"DELETE">>, path = [?UUID(Vm), <<"fw_rules">>, _FWID]}) ->
+    {ok, [<<"vms">>, Vm, <<"edit">>]};
 
 permission_required(#state{method = <<"GET">>, path = [?UUID(Vm), <<"services">>]}) ->
     {ok, [<<"vms">>, Vm, <<"get">>]};
