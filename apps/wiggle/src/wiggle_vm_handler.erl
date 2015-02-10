@@ -70,6 +70,12 @@ allowed_methods(_Version, _Token, [?UUID(_Vm), <<"snapshots">>, _ID]) ->
 allowed_methods(_Version, _Token, [?UUID(_Vm), <<"snapshots">>]) ->
     [<<"GET">>, <<"POST">>];
 
+allowed_methods(_Version, _Token, [?UUID(_Vm), <<"fw_rules">>, _ID]) ->
+    [<<"GET">>, <<"DELETE">>]; %% We might need to add PUT later.
+
+allowed_methods(_Version, _Token, [?UUID(_Vm), <<"fw_rules">>]) ->
+    [<<"GET">>, <<"POST">>];
+
 allowed_methods(_Version, _Token, [?UUID(_Vm), <<"backups">>, _ID]) ->
     [<<"GET">>, <<"PUT">>, <<"DELETE">>];
 
@@ -113,6 +119,20 @@ get(State = #state{path = [?UUID(Vm), <<"nics">>, Mac]}) ->
             E
     end;
 
+get(State = #state{path = [?UUID(Vm), <<"fw_rules">>, IDB]}) ->
+    case wiggle_vm_handler:get(State#state{path=[?UUID(Vm)]}) of
+        {ok, Obj} ->
+            ID = binary_to_integer(IDB),
+            case find_rule(ID, Obj) of
+                {ok, _} ->
+                    {ok, Obj};
+                _ ->
+                    not_found
+            end;
+        E ->
+            E
+    end;
+
 get(State = #state{path = [?UUID(Vm) | _]}) ->
     Start = now(),
     R = case application:get_env(wiggle, vm_ttl) of
@@ -142,7 +162,6 @@ permission_required(#state{method = <<"POST">>, path = []}) ->
 permission_required(#state{method = <<"GET">>, path = [?UUID(Vm)]}) ->
     {ok, [<<"vms">>, Vm, <<"get">>]};
 
-
 permission_required(#state{method = <<"DELETE">>, path = [?UUID(Vm)]}) ->
     {ok, [<<"vms">>, Vm, <<"delete">>]};
 
@@ -163,6 +182,15 @@ permission_required(#state{method = <<"GET">>, path = [?UUID(Vm), <<"snapshots">
 
 permission_required(#state{method = <<"POST">>, path = [?UUID(Vm), <<"snapshots">>]}) ->
     {ok, [<<"vms">>, Vm, <<"snapshot">>]};
+
+permission_required(#state{method = <<"GET">>, path = [?UUID(Vm), <<"fw_rules">>]}) ->
+    {ok, [<<"vms">>, Vm, <<"get">>]};
+
+permission_required(#state{method = <<"POST">>, path = [?UUID(Vm), <<"fw_rules">>]}) ->
+    {ok, [<<"vms">>, Vm, <<"edit">>]};
+
+permission_required(#state{method = <<"DELETE">>, path = [?UUID(Vm), <<"fw_rules">>, _FWID]}) ->
+    {ok, [<<"vms">>, Vm, <<"edit">>]};
 
 permission_required(#state{method = <<"GET">>, path = [?UUID(Vm), <<"services">>]}) ->
     {ok, [<<"vms">>, Vm, <<"get">>]};
@@ -253,7 +281,7 @@ read(Req, State = #state{token = Token, path = [], full_list=FullList, full_list
                    [<<"vms">>, {<<"res">>, <<"uuid">>}, <<"get">>],
                    Permissions}],
     Res = wiggle_handler:list(fun ls_vm:list/2,
-                              fun ft_vm:to_json/1, Token, Permission,
+                              fun to_json/1, Token, Permission,
                               FullList, Filter, vm_list_ttl, ?FULL_CACHE,
                               ?LIST_CACHE),
     ?MSniffle(?P(State), Start1),
@@ -295,7 +323,7 @@ read(Req, State = #state{path = [?UUID(_Vm), <<"services">>, Service], obj = Obj
     {jsxd:get([Service], [{}], ft_vm:services(Obj)), Req, State};
 
 read(Req, State = #state{path = [?UUID(_Vm)], obj = Obj}) ->
-    {ft_vm:to_json(Obj), Req, State}.
+    {to_json(Obj), Req, State}.
 
 %%--------------------------------------------------------------------
 %% PUT
@@ -345,6 +373,16 @@ create(Req, State = #state{path = [?UUID(Vm), <<"snapshots">>], version = Versio
     e2qc:teardown(?FULL_CACHE),
     ?MSniffle(?P(State), Start),
     {{true, <<"/api/", Version/binary, "/vms/", Vm/binary, "/snapshots/", UUID/binary>>}, Req, State#state{body = Decoded}};
+
+create(Req, State = #state{path = [?UUID(Vm), <<"fw_rules">>],
+                           version = Version}, RuleJSON) ->
+    Start = now(),
+    Rule = ft_vm:json_to_fw_rule(RuleJSON),
+    ls_vm:add_fw_rule(Vm, Rule),
+    e2qc:evict(?CACHE, Vm),
+    e2qc:teardown(?FULL_CACHE),
+    ?MSniffle(?P(State), Start),
+    {{true, <<"/api/", Version/binary, "/vms/", Vm/binary>>}, Req, State#state{body = RuleJSON}};
 
 create(Req, State = #state{path = [?UUID(Vm), <<"backups">>], version = Version}, Decoded) ->
     Comment = jsxd:get(<<"comment">>, <<"">>, Decoded),
@@ -596,6 +634,17 @@ delete(Req, State = #state{path = [?UUID(Vm), <<"snapshots">>, UUID]}) ->
     ?MSniffle(?P(State), Start),
     {true, Req, State};
 
+delete(Req, State = #state{path = [?UUID(Vm), <<"fw_rules">>, RuleIDs],
+                           obj = Obj}) ->
+    Start = now(),
+    RuleID = binary_to_integer(RuleIDs),
+    {ok, Rule} = find_rule(RuleID, Obj),
+    ok = ls_vm:remove_fw_rule(Vm, Rule),
+    e2qc:evict(?CACHE, Vm),
+    e2qc:teardown(?FULL_CACHE),
+    ?MSniffle(?P(State), Start),
+    {true, Req, State};
+
 delete(Req, State = #state{path = [?UUID(Vm), <<"backups">>, UUID],
                            body=[{<<"location">>, <<"hypervisor">>}]}) ->
     Start = now(),
@@ -658,3 +707,23 @@ delete(Req, State = #state{path = [?UUID(Vm), <<"metadata">> | Path]}) ->
 user(#state{token = Token}) ->
     {ok, User} = ls_user:get(Token),
     ft_user:uuid(User).
+
+to_json(VM) ->
+    jsxd:update(<<"fw_rules">>,
+                fun (Rules) ->
+                        [ [{<<"id">>, erlang:phash2(Rule)} | Rule] ||
+                            Rule <- Rules]
+                end, ft_vm:to_json(VM)).
+
+find_rule(ID, VM) ->
+    Rules = jsxd:get(<<"fw_rules">>, [], ft_vm:to_json(VM)),
+    Found = lists:filter(fun(Rule) ->
+                                 ID == erlang:phash2(Rule)
+                         end, Rules),
+    case Found of
+        [Rule] ->
+            {ok, ft_vm:json_to_fw_rule(Rule)};
+        _ ->
+            {error, oh_shit}
+    end.
+
