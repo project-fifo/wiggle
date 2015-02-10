@@ -253,7 +253,7 @@ read(Req, State = #state{token = Token, path = [], full_list=FullList, full_list
                    [<<"vms">>, {<<"res">>, <<"uuid">>}, <<"get">>],
                    Permissions}],
     Res = wiggle_handler:list(fun ls_vm:list/2,
-                              fun ft_vm:to_json/1, Token, Permission,
+                              fun to_json/1, Token, Permission,
                               FullList, Filter, vm_list_ttl, ?FULL_CACHE,
                               ?LIST_CACHE),
     ?MSniffle(?P(State), Start1),
@@ -295,7 +295,7 @@ read(Req, State = #state{path = [?UUID(_Vm), <<"services">>, Service], obj = Obj
     {jsxd:get([Service], [{}], ft_vm:services(Obj)), Req, State};
 
 read(Req, State = #state{path = [?UUID(_Vm)], obj = Obj}) ->
-    {ft_vm:to_json(Obj), Req, State}.
+    {to_json(Obj), Req, State}.
 
 %%--------------------------------------------------------------------
 %% PUT
@@ -658,3 +658,10 @@ delete(Req, State = #state{path = [?UUID(Vm), <<"metadata">> | Path]}) ->
 user(#state{token = Token}) ->
     {ok, User} = ls_user:get(Token),
     ft_user:uuid(User).
+
+to_json(VM) ->
+    jsxd:update(<<"fw_rules">>,
+                fun (Rules) ->
+                        [ [{<<"id">>, erlang:phash2(Rule)} | Rule] ||
+                            Rule <- Rules]
+                end, ft_vm:to_json(VM)).
