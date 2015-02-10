@@ -119,9 +119,10 @@ get(State = #state{path = [?UUID(Vm), <<"nics">>, Mac]}) ->
             E
     end;
 
-get(State = #state{path = [?UUID(Vm), <<"fw_rules">>, ID]}) ->
+get(State = #state{path = [?UUID(Vm), <<"fw_rules">>, IDB]}) ->
     case wiggle_vm_handler:get(State#state{path=[?UUID(Vm)]}) of
         {ok, Obj} ->
+            ID = binary_to_integer(IDB),
             case find_rule(ID, Obj) of
                 {ok, _} ->
                     {ok, Obj};
@@ -625,9 +626,10 @@ delete(Req, State = #state{path = [?UUID(Vm), <<"snapshots">>, UUID]}) ->
     ?MSniffle(?P(State), Start),
     {true, Req, State};
 
-delete(Req, State = #state{path = [?UUID(Vm), <<"fw_rules">>, RuleID],
+delete(Req, State = #state{path = [?UUID(Vm), <<"fw_rules">>, RuleIDs],
                            obj = Obj}) ->
     Start = now(),
+    RuleID = binary_to_integer(RuleIDs),
     {ok, Rule} = find_rule(RuleID, Obj),
     ok = ls_vm:remove_fw_rule(Vm, Rule),
     e2qc:evict(?CACHE, Vm),
