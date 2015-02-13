@@ -117,7 +117,7 @@ do_request(#auth_req{}, Req) ->
 redirected_authorization_code_response(Uri, Code, State, Req) ->
     Params = [{<<"code">>, Code}, {<<"state">>, State}],
     Location = <<Uri/binary, "?", (cow_qs:qs(Params))/binary>>,
-    cowboy_req:reply(302, <<>>, [{location, Location}], Req).
+    cowboy_req:reply(302, [{location, Location}], <<>>, Req).
 
 
 json_error_response(Error, Req) ->
@@ -126,23 +126,22 @@ json_error_response(Error, Req) ->
         invalid_client ->
             H1 = [{<<"WWW-Authenticate">>, <<"Basic">>} | H],
             cowboy_req:reply(
-              401, <<"{\"error\":\"invalid_client\"}">>, H1, Req);
+              401, H1, <<"{\"error\":\"invalid_client\"}">>, Req);
         unauthorized_client ->
             cowboy_req:reply(
-              403, <<"{\"error\":\"unauthorized_client\"}">>, H, Req);
+              403, H, <<"{\"error\":\"unauthorized_client\"}">>, Req);
         Other ->
             Error = jsx:encode([{error, atom_to_binary(Other, utf8)}]),
-            cowboy_req:reply(
-              400, Error, H, Req)
+            cowboy_req:reply(400, H, Error, Req)
     end.
 
 redirected_error_response(Uri, Error, undefined, Req) ->
     Params = [{<<"error">>, atom_to_binary(Error, utf8)}],
     Location = <<Uri/binary, "?", (cow_qs:qs(Params))/binary>>,
-    cowboy_req:reply(302, <<>>, [{location, Location}], Req);
+    cowboy_req:reply(302, [{location, Location}], <<>>, Req);
 
 redirected_error_response(Uri, Error, State, Req) ->
     Params = [{<<"error">>, atom_to_binary(Error, utf8)}, {<<"state">>, State}],
     Location = <<Uri/binary, "?", (cow_qs:qs(Params))/binary>>,
-    cowboy_req:reply(302, <<>>, [{location, Location}], Req).
+    cowboy_req:reply(302, [{location, Location}], <<>>, Req).
 

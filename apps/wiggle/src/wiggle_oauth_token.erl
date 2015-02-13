@@ -93,14 +93,13 @@ json_error_response(Error, Req) ->
         invalid_client ->
             H1 = [{<<"WWW-Authenticate">>, <<"Basic">>} | H],
             cowboy_req:reply(
-              401, <<"{\"error\":\"invalid_client\"}">>, H1, Req);
+              401, H1, <<"{\"error\":\"invalid_client\"}">>, Req);
         unauthorized_client ->
             cowboy_req:reply(
-              403, <<"{\"error\":\"unauthorized_client\"}">>, H, Req);
+              403, H, <<"{\"error\":\"unauthorized_client\"}">>, Req);
         Other ->
             Error = jsx:encode([{error, atom_to_binary(Other, utf8)}]),
-            cowboy_req:reply(
-              400, Error, H, Req)
+            cowboy_req:reply(400, H, Error, Req)
     end.
 
 
@@ -111,4 +110,4 @@ access_refresh_token_response(AccessToken, Type, Expires, RefreshToken, Scope,
             {<<"expires_in">>, Expires},
             {<<"refresh_token">>, RefreshToken},
             {<<"scope">>, Scope}],
-    cowboy_req:reply(200, jsx:encode(JSON), Req).
+    cowboy_req:reply(200, [], jsx:encode(JSON), Req).
