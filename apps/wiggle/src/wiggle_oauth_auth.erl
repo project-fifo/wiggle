@@ -62,7 +62,7 @@ do_vals(Vals, Req) ->
                  redirect_uri = RedirectURI,
                  username = Username,
                  password = Password,
-                 scope = string:tokens(Scope, " "),
+                 scope = Scope,
                  state = State},
     do_basic_auth(AuthReq, Req).
 
