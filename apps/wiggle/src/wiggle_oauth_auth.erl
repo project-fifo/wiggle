@@ -18,6 +18,7 @@
           password,
           state,
           method,
+          user_name,
           bearer
          }).
 
@@ -79,9 +80,25 @@ do_basic_auth(AuthReq, Req) ->
             update_scope(AuthReq1, Req1);
         {<<"bearer">>, Bearer} ->
             AuthReq1 = AuthReq#auth_req{bearer = Bearer},
-            update_scope(AuthReq1, Req1);
+            check_token(AuthReq1, Req1);
         _ ->
             update_scope(AuthReq, Req1)
+    end.
+
+
+check_token(AuthReq = #auth_req{bearer = Bearer}, Req) ->
+    case ls_oauth:verify_access_token(Bearer) of
+        {ok, Context} ->
+            case proplists:get_value(<<"resource_owner">>, Context) of
+                undefined ->
+                    wiggle_oauth:json_error_response(access_denied, Req);
+                OwnerUUID ->
+                    {ok, User} = ls_user:lookup(OwnerUUID),
+                    AuthReq1 = AuthReq#auth_req{user_name = ft_user:name(User)},
+                    update_scope(AuthReq1, Req)
+          end;
+        _ ->
+            wiggle_oauth:json_error_response(access_denied, Req)
     end.
 
 update_scope(AuthReq = #auth_req{scope = Scope}, Req) ->
@@ -89,7 +106,7 @@ update_scope(AuthReq = #auth_req{scope = Scope}, Req) ->
                  scope = wiggle_oauth:list_to_scope(Scope)
                 }, Req).
 
-  do_request(AuthReq = #auth_req{method = get}, Req) ->
+do_request(AuthReq = #auth_req{method = get}, Req) ->
     Params = build_params(AuthReq),
     {ok, Reply}  = oauth_login_form_dtl:render(Params),
     cowboy_req:reply(200, [], Reply, Req);
@@ -189,9 +206,15 @@ build_params2(R = #auth_req{scope = Scope}, Acc)
 build_params2(R, Acc) ->
     build_params3(R, Acc).
 
-build_params3(#auth_req{state = State}, Acc)
+build_params3(R = #auth_req{user_name = Name}, Acc)
+  when Name =/= undefined ->
+    build_params4(R, [{user_name, Name} | Acc]);
+build_params3(R, Acc) ->
+    build_params4(R, Acc).
+
+build_params4(#auth_req{state = State}, Acc)
   when State =/= undefined ->
     [{state, State} | Acc];
-build_params3(_R, Acc) ->
+build_params4(_R, Acc) ->
     Acc.
 

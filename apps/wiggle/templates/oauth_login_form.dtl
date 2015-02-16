@@ -251,7 +251,7 @@ a:hover{
         <div class="inner-screen">
           <div class="form">
             <form action="/api/0.1.0/oauth/auth" method="post">
-              {% if bearer %}
+              {% if user_name %}
               Welcome back {{user_name}},
               {% else %}
               <input type="text" name="username" class="username" placeholder="Enter your email" />
@@ -262,7 +262,7 @@ a:hover{
                 <b>{{client_name}}</b><br/>
                 requests the following permissions:
               </center>
-              
+
               <ul>
                 {% for scope_desc in scope_list %}
                 <li>{{ scope_desc }}</li>
