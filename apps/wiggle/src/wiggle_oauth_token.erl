@@ -159,8 +159,8 @@ do_client_credentials(_, Req) ->
     wiggle_oauth:json_error_response(invalid_request, Req).
 
 
-do_refresh_token(#token_req{ refresh_token = RefreshToken, client_id = ClientId,
-                             client_secret = ClientSecret, scope = Scope}, Req)
+do_refresh_token(#token_req{refresh_token = RefreshToken, client_id = ClientId,
+                            client_secret = ClientSecret, scope = Scope}, Req)
   when is_binary(ClientId),
        is_binary(ClientSecret),
        is_binary(RefreshToken) ->

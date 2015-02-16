@@ -124,6 +124,26 @@ do_request(#auth_req{}, Req) ->
 do_code(#auth_req{
            client_id = ClientID,
            redirect_uri = URI,
+           user_uuid = UserUUID,
+           scope = Scope,
+           state = State}, Req)
+  when is_binary(UserUUID),
+       is_binary(ClientID) ->
+    case ls_oauth:authorize_code_request({UserUUID}, ClientID, URI, Scope) of
+        {ok, Authorization} ->
+            {ok, Response} = ls_oauth:issue_code(Authorization),
+            {ok, Code} = oauth2_response:access_code(Response),
+            wiggle_oauth:redirected_authorization_code_response(URI, Code, State, Req);
+        {error, unauthorized_client} ->
+            %% cliend_id is not registered or redirection_uri is not valid
+            wiggle_oauth:json_error_response(unauthorized_client, Req);
+        {error, Error} ->
+            wiggle_oauth:redirected_error_response(URI, Error, State, Req)
+    end;
+
+do_code(#auth_req{
+           client_id = ClientID,
+           redirect_uri = URI,
            username = Username,
            password = Password,
            scope = Scope,
@@ -150,10 +170,36 @@ do_code(#auth_req{redirect_uri = Uri, state = State}, Req) ->
 do_token(#auth_req{
             client_id = ClientID,
             redirect_uri = URI,
+            user_uuid = UserUUID,
+            scope = Scope,
+            state = State}, Req)
+  when is_binary(UserUUID),
+       is_binary(ClientID) ->
+    case
+        ls_oauth:authorize_password({UserUUID}, ClientID, URI, Scope) of
+        {ok, Authorization} ->
+            {ok, Response} = ls_oauth:issue_token(Authorization),
+            {ok, AccessToken} = oauth2_response:access_token(Response),
+            {ok, Type} = oauth2_response:token_type(Response),
+            {ok, Expires} = oauth2_response:expires_in(Response),
+            {ok, VerifiedScope} = oauth2_response:scope(Response),
+            wiggle_oauth:redirected_access_token_response(URI,
+                                                          AccessToken,
+                                                          Type,
+                                                          Expires,
+                                                          VerifiedScope,
+                                                          State,
+                                                          Req);
+        {error, Error} ->
+            wiggle_oauth:redirected_error_response(URI, Error, State, Req)
+    end;
+do_token(#auth_req{
+            client_id = ClientID,
+            redirect_uri = URI,
             username = Username,
             password = Password,
             scope = Scope,
-            state = State}, Req) 
+            state = State}, Req)
   when is_binary(Username),
        is_binary(Password),
        is_binary(ClientID) ->
