@@ -257,10 +257,12 @@ a:hover{
               <input type="text" name="username" class="username" placeholder="Enter your email" />
               <input type="password" name="password" placeholder="Password" />
               {% endif %}
-
-              The client <br/>
-              <b>{{client_name}}</b><br/>
-              requests the following permissions:
+              <center>
+                The client <br/>
+                <b>{{client_name}}</b><br/>
+                requests the following permissions:
+              </center>
+              
               <ul>
                 {% for scope_desc in scope_list %}
                 <li>{{ scope_desc }}</li>
