@@ -13,7 +13,12 @@
           code,
           client_id,
           client_secret,
-          redirect_uri
+          redirect_uri,
+          username,
+          password,
+          refresh_token,
+          scope,
+          payload
          }).
 
 init(_Transport, Req, []) ->
@@ -36,17 +41,28 @@ do_post(Req) ->
     do_vals(PostVals, Req2).
 
 do_vals(Vals, Req) ->
-    GrantType = proplists:get_value(<<"grant_type">>, Vals),
+    GrantType = wiggle_oauth:decode_grant_type(
+                  proplists:get_value(<<"grant_type">>, Vals)),
     Code = proplists:get_value(<<"code">>, Vals),
     RedirectURI = proplists:get_value(<<"redirect_uri">>, Vals),
     ClientID = proplists:get_value(<<"client_id">>, Vals),
     ClientSecret = proplists:get_value(<<"client_secret">>, Vals),
+    %% Those are only used for the 4.3.2 Password grand
+    Username = proplists:get_value(<<"username">>, Vals),
+    Password = proplists:get_value(<<"password">>, Vals),
+    Scope = proplists:get_value(<<"scope">>, Vals),
+    %% Used for 6 - refresh access tokens
+    RefreshToken = proplists:get_value(<<"refresh_token">>, Vals),
     TokenReq = #token_req{
                   grant_type = GrantType,
                   code = Code,
                   redirect_uri = RedirectURI,
                   client_id = ClientID,
-                  client_secret = ClientSecret
+                  client_secret = ClientSecret,
+                  username = Username,
+                  password = Password,
+                  scope = Scope,
+                  refresh_token = RefreshToken
                  },
     do_basic_auth(TokenReq, Req).
 
@@ -60,9 +76,27 @@ do_basic_auth(TokenReq, Req) ->
             do_request(TokenReq, Req)
     end.
 
-do_request(#token_req{grant_type = <<"authorization_code">>, code = Code,
-                      client_id = ClientId, client_secret = ClientSecret,
-                      redirect_uri = RedirectURI},
+do_request(TokenReq = #token_req{grant_type = authorization_code}, Req) ->
+    do_authorization_code(TokenReq, Req);
+
+%% 4.3.2
+do_request(TokenReq = #token_req{grant_type = password}, Req) ->
+    do_password(TokenReq, Req);
+
+do_request(TokenReq = #token_req{grant_type = client_credentials}, Req) ->
+    do_client_credentials(TokenReq, Req);
+
+do_request(TokenReq = #token_req{grant_type = refresh_token}, Req) ->
+    do_refresh_token(TokenReq, Req);
+
+
+
+do_request(_, Req) ->
+    wiggle_oauth:json_error_response(invalid_request, Req).
+
+do_authorization_code(#token_req{code = Code, client_id = ClientId,
+                                 client_secret = ClientSecret,
+                                 redirect_uri = RedirectURI},
            Req) when is_binary(Code),
                      is_binary(ClientId),
                      is_binary(ClientSecret) ->
@@ -75,39 +109,80 @@ do_request(#token_req{grant_type = <<"authorization_code">>, code = Code,
             {ok, Expires} = oauth2_response:expires_in(Response),
             {ok, RefreshToken} = oauth2_response:refresh_token(Response),
             {ok, Scope} = oauth2_response:scope(Response),
-            access_refresh_token_response(
+            wiggle_oauth:access_refresh_token_response(
               AccessToken, Type, Expires, RefreshToken, Scope, Req);
         {error, Error} ->
-            json_error_response(Error, Req)
+            wiggle_oauth:json_error_response(Error, Req)
     end;
 
-do_request(#token_req{grant_type = <<"authorization_code">>}, Req) ->
-    json_error_response(invalid_request, Req);
+do_authorization_code(_, Req) ->
+    wiggle_oauth:json_error_response(invalid_request, Req).
 
-do_request(_, Req) ->
-    json_error_response(invalid_request, Req).
+%% 4.3.2
+do_password(#token_req{username = Username, password = Password,
+                        scope = Scope}, Req)
+  when is_binary(Username),
+       is_binary(Password) ->
+    case ls_oauth:authorize_password(Username, Password, Scope) of
+        {ok, {_AppContext, Authorization}} ->
+            {ok, {_AppContext, Response}} =
+                ls_oauth:issue_token(Authorization),
+            {ok, AccessToken} = oauth2_response:access_token(Response),
+            {ok, Type} = oauth2_response:token_type(Response),
+            {ok, Expires} = oauth2_response:expires_in(Response),
+            {ok, RefreshToken} = oauth2_response:refresh_token(Response),
+            {ok, VerifiedScope} = oauth2_response:scope(Response),
+            wiggle_oauth:access_refresh_token_response(
+              AccessToken, Type, Expires, RefreshToken, VerifiedScope, Req);
+        {error, Error} ->
+            wiggle_oauth:json_error_response(Error, Req)
+    end;
 
-json_error_response(Error, Req) ->
-    H = [{<<"content-type">>, <<"application/json">>}],
-    case Error of
-        invalid_client ->
-            H1 = [{<<"WWW-Authenticate">>, <<"Basic">>} | H],
-            cowboy_req:reply(
-              401, H1, <<"{\"error\":\"invalid_client\"}">>, Req);
-        unauthorized_client ->
-            cowboy_req:reply(
-              403, H, <<"{\"error\":\"unauthorized_client\"}">>, Req);
-        Other ->
-            Error = jsx:encode([{error, atom_to_binary(Other, utf8)}]),
-            cowboy_req:reply(400, H, Error, Req)
+do_password(_, Req) ->
+    wiggle_oauth:json_error_response(invalid_request, Req).
+
+do_client_credentials(#token_req{client_id = ClientId,
+                                 client_secret = ClientSecret,
+                                 scope = Scope}, Req)
+  when is_binary(ClientId),
+       is_binary(ClientSecret) ->
+    case ls_oauth:authorize_client_credentials(ClientId, ClientSecret, Scope) of
+        {ok, {_AppContext, Authorization}} ->
+            {ok, {_AppContext, Response}} =
+                ls_oauth:issue_token(Authorization),
+            {ok, Token} =
+                oauth2_response:access_token(Response),
+            {ok, Type} = oauth2_response:token_type(Response),
+            {ok, Expires} =
+                oauth2_response:expires_in(Response),
+            {ok, Scope} = oauth2_response:scope(Response),
+            wiggle_oauth:access_token_response(
+              Token, Type, Expires, Scope, Req);
+        {error, Error} ->
+            wiggle_oauth:json_error_response(Error, Req)
+    end;
+do_client_credentials(_, Req) ->
+    wiggle_oauth:json_error_response(invalid_request, Req).
+
+
+do_refresh_token(#token_req{ refresh_token = RefreshToken, client_id = ClientId,
+                             client_secret = ClientSecret, scope = Scope}, Req)
+  when is_binary(ClientId),
+       is_binary(ClientSecret),
+       is_binary(RefreshToken) ->
+    case ls_oauth:refresh_access_token(ClientId, ClientSecret, RefreshToken,
+                                       Scope) of
+        {ok, {_AppContext, Response}} ->
+            {ok, AccessToken} =
+                oauth2_response:access_token(Response),
+            {ok, Type} =
+                oauth2_response:token_type(Response),
+            {ok, Expires} =
+                oauth2_response:expires_in(Response),
+            {ok, ResponseScope} =
+                oauth2_response:scope(Response),
+            wiggle_oauth:access_token_response(
+              AccessToken, Type, Expires, ResponseScope, Req);
+        {error, Error} ->
+            wiggle_oauth:json_error_response(Error, Req)
     end.
-
-
-access_refresh_token_response(AccessToken, Type, Expires, RefreshToken, Scope,
-                              Req) ->
-    JSON = [{<<"access_token">>, AccessToken},
-            {<<"token_type">>, Type},
-            {<<"expires_in">>, Expires},
-            {<<"refresh_token">>, RefreshToken},
-            {<<"scope">>, Scope}],
-    cowboy_req:reply(200, [], jsx:encode(JSON), Req).
