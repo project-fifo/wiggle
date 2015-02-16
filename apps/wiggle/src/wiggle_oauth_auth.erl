@@ -84,13 +84,10 @@ do_basic_auth(AuthReq, Req) ->
             update_scope(AuthReq, Req1)
     end.
 
-update_scope(AuthReq = #auth_req{scope = undefined}, Req) ->
-    do_request(AuthReq, Req);
-
 update_scope(AuthReq = #auth_req{scope = Scope}, Req) ->
-    ScopeS = binary_to_list(Scope),
-    Scope1 = [list_to_binary(X) || X <- string:tokens(ScopeS, " ")],
-    do_request(AuthReq#auth_req{scope = Scope1}, Req).
+    do_request(AuthReq#auth_req{
+                 scope = wiggle_oauth:list_to_scope(Scope)
+                }, Req).
 
 do_request(AuthReq = #auth_req{response_type = code, method = get}, Req) ->
     Params = build_params(AuthReq),
@@ -186,7 +183,7 @@ build_params_code1(R, Acc) ->
 
 build_params_code2(R = #auth_req{scope = Scope}, Acc)
   when Scope =/= undefined ->
-    build_params_code3(R, [{scope, Scope} | Acc]);
+    build_params_code3(R, [{scope, wiggle_oauth:scope_to_list(Scope)} | Acc]);
 build_params_code2(R, Acc) ->
     build_params_code3(R, Acc).
 

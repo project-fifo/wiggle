@@ -5,6 +5,8 @@
          redirected_access_token_response/7,
          redirected_error_response/4,
          json_error_response/2,
+         scope_to_list/1,
+         list_to_scope/1,
          decode_grant_type/1,
          decode_response_type/1,
          access_token_response/5,
@@ -154,3 +156,15 @@ decode_response_type(<<"token">>) ->
     token;
 decode_response_type(_) ->
     unknown_response_type.
+
+scope_to_list(undefined) ->
+    undefined;
+
+scope_to_list(Scope) ->
+    list_to_binary(string:join([binary_to_list(S) || S <- Scope], " ")).
+
+list_to_scope(undefined) ->
+    undefined;
+list_to_scope(Scope) ->
+    ScopeS = binary_to_list(Scope),
+    [list_to_binary(X) || X <- string:tokens(ScopeS, " ")].
