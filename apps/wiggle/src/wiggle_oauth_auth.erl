@@ -93,7 +93,7 @@ check_token(AuthReq = #auth_req{bearer = Bearer}, Req) ->
                 undefined ->
                     wiggle_oauth:json_error_response(access_denied, Req);
                 OwnerUUID ->
-                    {ok, User} = ls_user:lookup(OwnerUUID),
+                    {ok, User} = ls_user:get(OwnerUUID),
                     AuthReq1 = AuthReq#auth_req{user_name = ft_user:name(User)},
                     update_scope(AuthReq1, Req)
           end;
