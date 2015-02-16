@@ -56,14 +56,30 @@ get_token(Req) ->
         {undefined, ReqX} ->
             case cowboy_req:cookie(<<"x-snarl-token">>, ReqX) of
                 {undefined, ReqX1} ->
-                    case cowboy_req:header(<<"authorization">>, ReqX1) of
-                        {undefined, ReqX2} ->
-                            lager:warning("[auth] No authenticaiton req was: ~p.",
-                                          [Req]),
-                            {undefined, ReqX2};
-                        {AuthorizationHeader, ReqX2} ->
-                            Res = basic_auth(AuthorizationHeader),
-                            {Res, ReqX2}
+                    {ok, Auth, ReqX2} = cowboy_req:parse_header(<<"authorization">>, ReqX1),
+                    case Auth of
+                        {<<"basic">>, {Username, Password}} ->
+                            case libsnarl:auth(Username, Password) of
+                                {ok, UUID} ->
+                                    {UUID, ReqX2};
+                                _ ->
+                                    {undefined, ReqX2}
+                            end;
+                        {<<"bearer">>, Bearer} ->
+                            case ls_oauth:verify_access_token(Bearer) of
+                                {ok, Context} ->
+                                    case proplists:get_value(<<"resource_owner">>, Context) of
+                                        undefined ->
+                                            {undefined, ReqX2};
+                                        OwnerUUID ->
+                                            %% TODO: Take scope into account
+                                            {OwnerUUID, ReqX2}
+                                    end;
+                                _ ->
+                                    {undefined, ReqX2}
+                            end;
+                        _ ->
+                            {undefined, ReqX2}
                     end;
                 {TokenX, ReqX1} ->
                     {{token, TokenX}, ReqX1}
@@ -72,31 +88,6 @@ get_token(Req) ->
             ReqX1 = cowboy_req:set_resp_header(<<"x-snarl-token">>, TokenX, ReqX),
             {{token, TokenX}, ReqX1}
     end.
-
-
-basic_auth(AuthorizationHeader) ->
-    case binary:split(AuthorizationHeader, <<$ >>) of
-        [<<"Basic">>, EncodedCredentials] ->
-            decoded_credentials(EncodedCredentials);
-        _ ->
-            undefined
-    end.
-
-decoded_credentials(EncodedCredentials) ->
-    DecodedCredentials = base64:decode(EncodedCredentials),
-    case binary:split(DecodedCredentials, <<$:>>) of
-        [UUID, Password] ->
-            case libsnarl:auth(UUID, Password) of
-                {ok, UUID} ->
-                    UUID;
-                _ ->
-                    lager:warning("[auth] Basic auth failed."),
-                    undefined
-            end;
-        _ ->
-            undefined
-    end.
-
 
 full_list(Req) ->
     case cowboy_req:header(<<"x-full-list">>, Req) of
