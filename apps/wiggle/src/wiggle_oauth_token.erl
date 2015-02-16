@@ -130,10 +130,9 @@ do_password(#token_req{username = Username, password = Password,
             {ok, AccessToken} = oauth2_response:access_token(Response),
             {ok, Type} = oauth2_response:token_type(Response),
             {ok, Expires} = oauth2_response:expires_in(Response),
-            {ok, RefreshToken} = oauth2_response:refresh_token(Response),
             {ok, VerifiedScope} = oauth2_response:scope(Response),
-            wiggle_oauth:access_refresh_token_response(
-              AccessToken, Type, Expires, RefreshToken, VerifiedScope, Req);
+            wiggle_oauth:access_token_response(
+              AccessToken, Type, Expires, VerifiedScope, Req);
         {error, Error} ->
             wiggle_oauth:json_error_response(Error, Req)
     end;
