@@ -248,7 +248,7 @@ a:hover{
       <div class="outer-screen">
         <div class="inner-screen">
           <div class="form">
-            <form action="/api/0.1.0/auth/auth" method="post">
+            <form action="/api/0.1.0/oauth/auth" method="post">
               <input type="text" name="username" class="username" placeholder="Enter your email" />
               <input type="password" name="password" placeholder="Password" />
               <!-- Hidden values passed on fromt he server -->
