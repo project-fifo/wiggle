@@ -100,10 +100,9 @@ do_authorization_code(#token_req{code = Code, client_id = ClientId,
            Req) when is_binary(Code),
                      is_binary(ClientId),
                      is_binary(ClientSecret) ->
-    case ls_oauth:authorize_code_grant(ClientId, ClientSecret, Code, RedirectURI) of
-        {ok, {_AppContext, Authorization}} ->
-            {ok, {_AppContext, Response}} =
-                ls_oauth:issue_token_and_refresh(Authorization),
+    case ls_oauth:authorize_code_grant({ClientId, ClientSecret}, Code, RedirectURI) of
+        {ok, Authorization} ->
+            {ok, Response} = ls_oauth:issue_token_and_refresh(Authorization),
             {ok, AccessToken} = oauth2_response:access_token(Response),
             {ok, Type} = oauth2_response:token_type(Response),
             {ok, Expires} = oauth2_response:expires_in(Response),
@@ -123,10 +122,9 @@ do_password(#token_req{username = Username, password = Password,
                         scope = Scope}, Req)
   when is_binary(Username),
        is_binary(Password) ->
-    case ls_oauth:authorize_password(Username, Password, Scope) of
-        {ok, {_AppContext, Authorization}} ->
-            {ok, {_AppContext, Response}} =
-                ls_oauth:issue_token(Authorization),
+    case ls_oauth:authorize_password({Username, Password}, Scope) of
+        {ok, Authorization} ->
+            {ok, Response} = ls_oauth:issue_token(Authorization),
             {ok, AccessToken} = oauth2_response:access_token(Response),
             {ok, Type} = oauth2_response:token_type(Response),
             {ok, Expires} = oauth2_response:expires_in(Response),
@@ -145,15 +143,12 @@ do_client_credentials(#token_req{client_id = ClientId,
                                  scope = Scope}, Req)
   when is_binary(ClientId),
        is_binary(ClientSecret) ->
-    case ls_oauth:authorize_client_credentials(ClientId, ClientSecret, Scope) of
-        {ok, {_AppContext, Authorization}} ->
-            {ok, {_AppContext, Response}} =
-                ls_oauth:issue_token(Authorization),
-            {ok, Token} =
-                oauth2_response:access_token(Response),
+    case ls_oauth:authorize_client_credentials({ClientId, ClientSecret}, Scope) of
+        {ok, Authorization} ->
+            {ok, Response} = ls_oauth:issue_token(Authorization),
+            {ok, Token} = oauth2_response:access_token(Response),
             {ok, Type} = oauth2_response:token_type(Response),
-            {ok, Expires} =
-                oauth2_response:expires_in(Response),
+            {ok, Expires} = oauth2_response:expires_in(Response),
             {ok, Scope} = oauth2_response:scope(Response),
             wiggle_oauth:access_token_response(
               Token, Type, Expires, Scope, Req);
@@ -169,17 +164,13 @@ do_refresh_token(#token_req{ refresh_token = RefreshToken, client_id = ClientId,
   when is_binary(ClientId),
        is_binary(ClientSecret),
        is_binary(RefreshToken) ->
-    case ls_oauth:refresh_access_token(ClientId, ClientSecret, RefreshToken,
+    case ls_oauth:refresh_access_token({ClientId, ClientSecret}, RefreshToken,
                                        Scope) of
-        {ok, {_AppContext, Response}} ->
-            {ok, AccessToken} =
-                oauth2_response:access_token(Response),
-            {ok, Type} =
-                oauth2_response:token_type(Response),
-            {ok, Expires} =
-                oauth2_response:expires_in(Response),
-            {ok, ResponseScope} =
-                oauth2_response:scope(Response),
+        {ok, Response} ->
+            {ok, AccessToken} = oauth2_response:access_token(Response),
+            {ok, Type} = oauth2_response:token_type(Response),
+            {ok, Expires} = oauth2_response:expires_in(Response),
+            {ok, ResponseScope} = oauth2_response:scope(Response),
             wiggle_oauth:access_token_response(
               AccessToken, Type, Expires, ResponseScope, Req);
         {error, Error} ->

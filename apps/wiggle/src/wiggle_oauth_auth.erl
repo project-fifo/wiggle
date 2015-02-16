@@ -18,7 +18,7 @@
           password,
           state,
           method,
-          user_name,
+          user_uuid,
           bearer
          }).
 
@@ -88,13 +88,12 @@ do_basic_auth(AuthReq, Req) ->
 
 check_token(AuthReq = #auth_req{bearer = Bearer}, Req) ->
     case ls_oauth:verify_access_token(Bearer) of
-        {ok, {_, Context}} ->
+        {ok, Context} ->
             case proplists:get_value(<<"resource_owner">>, Context) of
                 undefined ->
                     wiggle_oauth:json_error_response(access_denied, Req);
                 OwnerUUID ->
-                    {ok, User} = ls_user:get(OwnerUUID),
-                    AuthReq1 = AuthReq#auth_req{user_name = ft_user:name(User)},
+                    AuthReq1 = AuthReq#auth_req{user_uuid = OwnerUUID},
                     update_scope(AuthReq1, Req)
           end;
         _ ->
@@ -133,9 +132,9 @@ do_code(#auth_req{
        is_binary(Password),
        is_binary(ClientID) ->
     case ls_oauth:authorize_code_request(
-           Username, Password, ClientID, URI, Scope) of
-        {ok, {_AppContext, Authorization}} ->
-            {ok, {_AppContext2, Response}} = ls_oauth:issue_code(Authorization),
+           {Username, Password}, ClientID, URI, Scope) of
+        {ok, Authorization} ->
+            {ok, Response} = ls_oauth:issue_code(Authorization),
             {ok, Code} = oauth2_response:access_code(Response),
             wiggle_oauth:redirected_authorization_code_response(URI, Code, State, Req);
         {error, unauthorized_client} ->
@@ -159,10 +158,9 @@ do_token(#auth_req{
        is_binary(Password),
        is_binary(ClientID) ->
     case
-        ls_oauth:authorize_password(Username, Password, ClientID, URI, Scope) of
-        {ok, {_AppContext, Authorization}} ->
-            {ok, {_AppContext, Response}} =
-                ls_oauth:issue_token(Authorization),
+        ls_oauth:authorize_password({Username, Password}, ClientID, URI, Scope) of
+        {ok, Authorization} ->
+            {ok, Response} = ls_oauth:issue_token(Authorization),
             {ok, AccessToken} = oauth2_response:access_token(Response),
             {ok, Type} = oauth2_response:token_type(Response),
             {ok, Expires} = oauth2_response:expires_in(Response),
@@ -206,9 +204,10 @@ build_params2(R = #auth_req{scope = Scope}, Acc)
 build_params2(R, Acc) ->
     build_params3(R, Acc).
 
-build_params3(R = #auth_req{user_name = Name}, Acc)
-  when Name =/= undefined ->
-    build_params4(R, [{user_name, Name} | Acc]);
+build_params3(R = #auth_req{user_uuid = OwnerUUID}, Acc)
+  when OwnerUUID =/= undefined ->
+    {ok, User} = ls_user:get(OwnerUUID),
+    build_params4(R, [{user_name, ft_user:name(User)} | Acc]);
 build_params3(R, Acc) ->
     build_params4(R, Acc).
 
