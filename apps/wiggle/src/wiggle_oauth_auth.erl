@@ -89,7 +89,7 @@ update_scope(AuthReq = #auth_req{scope = Scope}, Req) ->
                  scope = wiggle_oauth:list_to_scope(Scope)
                 }, Req).
 
-do_request(AuthReq = #auth_req{response_type = code, method = get}, Req) ->
+  do_request(AuthReq = #auth_req{method = get}, Req) ->
     Params = build_params(AuthReq),
     {ok, Reply}  = oauth_login_form_dtl:render(Params),
     cowboy_req:reply(200, [], Reply, Req);
@@ -165,33 +165,33 @@ do_token(#auth_req{redirect_uri = Uri, state = State}, Req) ->
     wiggle_oauth:redirected_error_response(Uri, invalid_request, State, Req).
 
 build_params(R = #auth_req{response_type = code}) ->
-    build_params_code(R, [{response_type, <<"code">>}]);
+    build_params(R, [{response_type, <<"code">>}]);
+
 build_params(R = #auth_req{response_type = token}) ->
-    build_params_token(R, [{response_type, <<"token">>}]).
+    build_params(R, [{response_type, <<"token">>}]).
 
-
-build_params_code(R = #auth_req{client_id = ClientID}, Acc)
+build_params(R = #auth_req{client_id = ClientID}, Acc)
   when ClientID =/= undefined ->
-    build_params_code1(R, [{client_id, ClientID} | Acc]).
+    build_params1(R, [{client_id, ClientID},
+                      {client_name, ClientID} | Acc]).
 
-build_params_code1(R = #auth_req{redirect_uri = RedirectURI}, Acc)
+build_params1(R = #auth_req{redirect_uri = RedirectURI}, Acc)
   when RedirectURI =/= undefined ->
-    build_params_code2(R, [{redirect_uri, RedirectURI} | Acc]);
-build_params_code1(R, Acc) ->
-    build_params_code2(R, Acc).
+    build_params2(R, [{redirect_uri, RedirectURI} | Acc]);
+build_params1(R, Acc) ->
+    build_params2(R, Acc).
 
 
-build_params_code2(R = #auth_req{scope = Scope}, Acc)
+build_params2(R = #auth_req{scope = Scope}, Acc)
   when Scope =/= undefined ->
-    build_params_code3(R, [{scope, wiggle_oauth:scope_to_list(Scope)} | Acc]);
-build_params_code2(R, Acc) ->
-    build_params_code3(R, Acc).
+    build_params3(R, [{scope, wiggle_oauth:scope_to_list(Scope)},
+                      {scope_list, Scope} | Acc]);
+build_params2(R, Acc) ->
+    build_params3(R, Acc).
 
-build_params_code3(#auth_req{state = State}, Acc)
+build_params3(#auth_req{state = State}, Acc)
   when State =/= undefined ->
     [{state, State} | Acc];
-build_params_code3(_R, Acc) ->
+build_params3(_R, Acc) ->
     Acc.
 
-build_params_token(_, Acc) ->
-    Acc.
