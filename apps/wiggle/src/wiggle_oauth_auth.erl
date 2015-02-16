@@ -88,7 +88,7 @@ do_basic_auth(AuthReq, Req) ->
 
 check_token(AuthReq = #auth_req{bearer = Bearer}, Req) ->
     case ls_oauth:verify_access_token(Bearer) of
-        {ok, Context} ->
+        {ok, {_, Context}} ->
             case proplists:get_value(<<"resource_owner">>, Context) of
                 undefined ->
                     wiggle_oauth:json_error_response(access_denied, Req);
