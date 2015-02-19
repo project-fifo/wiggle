@@ -245,6 +245,9 @@ a:hover{
   </head>
 
   <body>
+    {% if error %}
+    <h1> Error: {{error}}</h1>
+    {% else% }
     <h1>Wiggle - OAuth2</h1>
     <div class="stand">
       <div class="outer-screen">
@@ -282,5 +285,6 @@ a:hover{
         </div>
       </div>
     </div>
+    {% endif %}
   </body>
 </html>

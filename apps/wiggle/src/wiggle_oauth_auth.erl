@@ -229,13 +229,18 @@ build_params(R = #auth_req{response_type = code}) ->
     build_params(R, [{response_type, <<"code">>}]);
 
 build_params(R = #auth_req{response_type = token}) ->
-    build_params(R, [{response_type, <<"token">>}]).
+    build_params(R, [{response_type, <<"token">>}]);
+build_params(_) ->
+    [{error, <<"illegal request type">>}].
+
 
 build_params(R = #auth_req{client_id = ClientID}, Acc)
   when ClientID =/= undefined ->
     {ok, Client} = ls_client:lookup(ClientID),
     build_params1(R, [{client_id, ClientID},
-                      {client_name, ft_client:name(Client)} | Acc]).
+                      {client_name, ft_client:name(Client)} | Acc]);
+build_params(_, _) ->
+    [{error, <<"no_client_id">>}].
 
 build_params1(R = #auth_req{redirect_uri = RedirectURI}, Acc)
   when RedirectURI =/= undefined ->
