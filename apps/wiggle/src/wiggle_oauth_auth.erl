@@ -233,8 +233,9 @@ build_params(R = #auth_req{response_type = token}) ->
 
 build_params(R = #auth_req{client_id = ClientID}, Acc)
   when ClientID =/= undefined ->
+    {ok, Client} = ls_client:lookup(ClientID),
     build_params1(R, [{client_id, ClientID},
-                      {client_name, ClientID} | Acc]).
+                      {client_name, ft_client:name(Client)} | Acc]).
 
 build_params1(R = #auth_req{redirect_uri = RedirectURI}, Acc)
   when RedirectURI =/= undefined ->
@@ -246,7 +247,7 @@ build_params1(R, Acc) ->
 build_params2(R = #auth_req{scope = Scope}, Acc)
   when Scope =/= undefined ->
     build_params3(R, [{scope, wiggle_oauth:scope_to_list(Scope)},
-                      {scope_list, Scope} | Acc]);
+                      {scope_list, scope_desc(Scope)} | Acc]);
 build_params2(R, Acc) ->
     build_params3(R, Acc).
 
@@ -263,3 +264,18 @@ build_params4(#auth_req{state = State}, Acc)
 build_params4(_R, Acc) ->
     Acc.
 
+
+
+
+scope_desc(Scope) ->
+    AS = ls_oauth:scope(),
+    AS1 = [{oauth2_priv_set:new(S), Desc} || {S, Desc, _} <- AS],
+    scope_desc(Scope, AS1, []).
+
+scope_desc([], _, Acc) ->
+    lists:usort(Acc);
+scope_desc([Scope | R], AS, Acc) ->
+    Set = oauth2_priv_set:new(Scope),
+    Add = [Desc || {Master, Desc} <- AS,
+                   oauth2_priv_set:is_subset(Set, Master) =:= true],
+    scope_desc(R, AS, Acc ++ Add).
