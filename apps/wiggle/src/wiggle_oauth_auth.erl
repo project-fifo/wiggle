@@ -265,8 +265,6 @@ build_params4(_R, Acc) ->
     Acc.
 
 
-
-
 scope_desc(Scope) ->
     AS = ls_oauth:scope(),
     AS1 = [{oauth2_priv_set:new(S), Desc} || {S, Desc, _} <- AS],
