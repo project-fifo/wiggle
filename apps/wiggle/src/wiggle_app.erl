@@ -26,7 +26,11 @@ start(_StartType, _StartArgs) ->
     PluginDispatchs = eplugin:fold('wiggle:dispatchs', []),
 
     Dispatch = cowboy_router:compile(
-                 [{'_', [{<<"/api/:version/users/[...]">>,
+                 [{'_', [{<<"/api/:version/oauth/token">>,
+                          wiggle_oauth_token, []},
+                         {<<"/api/:version/oauth/auth">>,
+                          wiggle_oauth_auth, []},
+                         {<<"/api/:version/users/[...]">>,
                           wiggle_rest_handler, [wiggle_user_handler]},
                          {<<"/api/:version/sessions/[...]">>,
                           wiggle_rest_handler, [wiggle_session_handler]},

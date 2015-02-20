@@ -8,7 +8,7 @@ cp-hooks:
 	cp hooks/* .git/hooks
 
 quick-xref:
-	$(REBAR) xref skip_deps=true
+	$(REBAR) xref skip_deps=true -r
 
 quick-test:
 	$(REBAR) skip_deps=true eunit
@@ -33,7 +33,7 @@ distclean: clean devclean relclean
 	$(REBAR) delete-deps
 
 test: all
-	$(REBAR) skip_deps=true xref
+	$(REBAR) skip_deps=true xref -r
 	$(REBAR) skip_deps=true eunit
 
 rel: all zabbix
@@ -63,7 +63,7 @@ docs:
 ##
 
 xref: compile
-	@$(REBAR) xref skip_deps=true
+	@$(REBAR) xref skip_deps=true -r
 
 stage : rel
 	$(foreach dep,$(wildcard deps/* wildcard apps/*), rm -rf rel/wiggle/lib/$(shell basename $(dep))-* && ln -sf $(abspath $(dep)) rel/wiggle/lib;)

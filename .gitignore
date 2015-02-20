@@ -20,3 +20,4 @@ erl_crash.dump
 rel/wiggle
 rel/wiggle.tar.bz2
 manifest
+.rebar

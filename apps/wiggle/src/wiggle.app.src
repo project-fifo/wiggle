@@ -23,6 +23,7 @@
                   e2qc,
                   fifo_s3,
                   folsom_ddb,
+                  erlydtl,
                   cowboy
                  ]},
   {mod, { wiggle_app, []}},
