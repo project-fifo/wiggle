@@ -79,7 +79,7 @@ get_token(State, Req) ->
         {undefined, Req1} ->
             get_cookie(Req1, State);
         {Token, Req1} ->
-            {State#state{token = Token}, Req1}
+            {State#state{token = {token, Token}}, Req1}
     end.
 
 get_cookie(Req, State) ->
