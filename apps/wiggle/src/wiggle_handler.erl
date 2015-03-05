@@ -74,7 +74,7 @@ set_access_header(Req) ->
     cowboy_req:set_resp_header(
       <<"access-control-allow-credentials">>, <<"true">>, Req3).
 
-get_token(Req, State) ->
+get_token(State, Req) ->
     case cowboy_req:header(<<"x-snarl-token">>, Req) of
         {undefined, Req1} ->
             get_cookie(Req1, State);
