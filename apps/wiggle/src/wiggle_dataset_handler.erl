@@ -221,10 +221,18 @@ write(Req, State = #state{path = [?UUID(Dataset), <<"metadata">> | Path]}, [{K, 
     ?MSniffle(?P(State), Start),
     {true, Req, State};
 
-write(Req, State = #state{path = [?UUID(Dataset), <<"networks">>]},
-      [{<<"description">>, Desc}, {<<"name">>, Name}]) ->
+write(Req, State = #state{path = [?UUID(Dataset), <<"networks">>]}, Data) ->
     Start = now(),
-    ok = ls_dataset:add_network(Dataset, [{Name, Desc}]),
+    Nets =
+        ordsets:from_list(
+          [{Name, Desc} ||
+              [{<<"description">>, Desc}, {<<"name">>, Name}] <- Data]),
+    {ok, D} = ls_dataset:get(Dataset),
+    OldNets = ordsets:from_list(ft_dataset:networks(D)),
+    ToAdd = ordsets:subtract(Nets, OldNets),
+    ToDelete = ordsets:subtract(OldNets, Nets),
+    [ls_dataset:add_network(Dataset, Nic) || Nic <- ToAdd],
+    [ls_dataset:remove_network(Dataset, Nic) || Nic <- ToDelete],
     e2qc:evict(?CACHE, Dataset),
     e2qc:teardown(?FULL_CACHE),
     ?MSniffle(?P(State), Start),
