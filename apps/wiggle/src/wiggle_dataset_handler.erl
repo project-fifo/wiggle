@@ -44,6 +44,9 @@ allowed_methods(_Version, _Token, [?UUID(_Dataset), <<"dataset.gz">>]) ->
 allowed_methods(_Version, _Token, [?UUID(_Dataset), <<"dataset.bz2">>]) ->
     [<<"PUT">>, <<"GET">>];
 
+allowed_methods(_Version, _Token, [?UUID(_Dataset), <<"networks">>]) ->
+    [<<"PUT">>];
+
 allowed_methods(_Version, _Token, [?UUID(_Dataset), <<"metadata">>|_]) ->
     [<<"PUT">>, <<"DELETE">>].
 
@@ -93,6 +96,9 @@ permission_required(#state{method = <<"PUT">>, path = [?UUID(Dataset), <<"datase
 
 permission_required(#state{method = <<"DELETE">>, path = [?UUID(Dataset)]}) ->
     {ok, [<<"datasets">>, Dataset, <<"delete">>]};
+
+permission_required(#state{method = <<"PUT">>, path = [?UUID(Dataset), <<"networks">>]}) ->
+    {ok, [<<"datasets">>, Dataset, <<"edit">>]};
 
 permission_required(#state{method = <<"PUT">>, path = [?UUID(Dataset), <<"metadata">> | _]}) ->
     {ok, [<<"datasets">>, Dataset, <<"edit">>]};
@@ -215,6 +221,15 @@ write(Req, State = #state{path = [?UUID(Dataset), <<"metadata">> | Path]}, [{K, 
     ?MSniffle(?P(State), Start),
     {true, Req, State};
 
+write(Req, State = #state{path = [?UUID(Dataset), <<"networks">>]},
+      [{<<"description">>, Desc}, {<<"name">>, Name}]) ->
+    Start = now(),
+    ok = ls_dataset:add_network(Dataset, [{Name, Desc}]),
+    e2qc:evict(?CACHE, Dataset),
+    e2qc:teardown(?FULL_CACHE),
+    ?MSniffle(?P(State), Start),
+    {true, Req, State};
+
 write(Req, State = #state{path = [?UUID(_Dataset)]}, [{_K, _V}]) ->
     %%Start = now(),
     %% TODO: Cut this down in smaller pices.
@@ -298,9 +313,9 @@ import_manifest(UUID, D1) ->
       UUID,
       jsxd:get(<<"sha1">>,
                jsxd:get([<<"files">>, 0, <<"sha1">>], <<>>, D1), D1)),
-    ls_dataset:networks(
-      UUID,
-      jsxd:get([<<"requirements">>, <<"networks">>], [], D1)),
+    [ls_dataset:add_network(UUID, {Name, Desc})  ||
+        [{<<"description">>, Desc}, {<<"name">>, Name}] <-
+            jsxd:get([<<"requirements">>, <<"networks">>], [], D1)],
     case jsxd:get(<<"homepage">>, D1) of
         {ok, HomePage} ->
             ls_dataset:set_metadata(
