@@ -19,7 +19,7 @@
          allowed/2
         ]).
 
-allowed(Permission, State=#state{scope_perms = SP}) ->
+allowed(State=#state{scope_perms = SP}, Permission) ->
     Start = now(),
     R = libsnarlmatch:test_perms(Permission, SP)
         andalso allowed_tkn(Permission, State),
