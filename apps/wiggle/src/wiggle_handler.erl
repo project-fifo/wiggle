@@ -7,40 +7,64 @@
          provided/0,
          accepted/0,
          decode/1,
-         get_token/1,
+         get_token/2,
          set_access_header/1,
-         allowed/2,
          options/3,
          service_available/0,
          encode/2,
          get_persmissions/1,
          timeout_cache_with_invalid/6,
          timeout_cache/5,
-         list/9
+         list/9,
+         allowed/2
         ]).
+
+allowed(State=#state{scope_perms = SP}, Permission) ->
+    Start = now(),
+    R = libsnarlmatch:test_perms(Permission, SP)
+        andalso allowed_tkn(Permission, State),
+    ?MSnarl(?P(State), Start),
+    R.
+
+allowed_tkn(_Permission, #state{token = undefined}) ->
+    false;
+allowed_tkn(Perm, #state{token = Token}) ->
+    case get_persmissions(Token) of
+        not_found ->
+            lager:warning("[auth] unknown Token for allowed: ~p", [Token]),
+            true;
+        {ok, Ps} ->
+            not libsnarl:test(Perm, Ps)
+    end.
 
 initial_state(Req) ->
     {Method, Req0} = cowboy_req:method(Req),
     {Version, Req1} = cowboy_req:binding(version, Req0),
     {Path, Req2} = cowboy_req:path_info(Req1),
-    {Token, Req3} = get_token(Req2),
-    {PathB, Req4} = cowboy_req:path(Req3),
-    {FullList, Req5} = full_list(Req4),
-    {FullListFields, Req6} = full_list_fields(Req5),
+    {PathB, Req3} = cowboy_req:path(Req2),
+    {FullList, Req4} = full_list(Req3),
+    {FullListFields, Req5} = full_list_fields(Req4),
     State =  #state{
                 version = Version,
                 method = Method,
-                token = Token,
                 path = Path,
                 start = now(),
                 path_bin = PathB,
                 full_list = FullList,
                 full_list_fields = FullListFields
                },
-    {ok, set_access_header(Req6), State}.
+    {State1, Req6} = get_token(State, Req5),
+    Req7 = case State1 of
+               #state{token = {token, Tkn}} ->
+                   cowboy_req:set_resp_header(<<"x-snarl-token">>, Tkn, Req6);
+               _ ->
+                   Req6
+           end,
+    {ok, set_access_header(Req7), State1}.
 
 set_access_header(Req) ->
-    Req1 = cowboy_req:set_resp_header(<<"access-control-allow-origin">>, <<"*">>, Req),
+    Req1 = cowboy_req:set_resp_header(
+             <<"access-control-allow-origin">>, <<"*">>, Req),
     Req2 = cowboy_req:set_resp_header(
              <<"access-control-allow-headers">>,
              <<"Authorization, content-type, x-snarl-token, x-full-list, x-full-list-fields">>, Req1),
@@ -48,46 +72,56 @@ set_access_header(Req) ->
              <<"access-control-expose-headers">>,
              <<"x-snarl-token, x-full-list, x-full-list-fields">>, Req2),
     cowboy_req:set_resp_header(
-      <<"access-control-allow-credentials">>,
-      <<"true">>, Req3).
+      <<"access-control-allow-credentials">>, <<"true">>, Req3).
 
-get_token(Req) ->
+get_token(State, Req) ->
     case cowboy_req:header(<<"x-snarl-token">>, Req) of
-        {undefined, ReqX} ->
-            case cowboy_req:cookie(<<"x-snarl-token">>, ReqX) of
-                {undefined, ReqX1} ->
-                    {ok, Auth, ReqX2} = cowboy_req:parse_header(<<"authorization">>, ReqX1),
-                    case Auth of
-                        {<<"basic">>, {Username, Password}} ->
-                            case libsnarl:auth(Username, Password) of
-                                {ok, UUID} ->
-                                    {UUID, ReqX2};
-                                _ ->
-                                    {undefined, ReqX2}
-                            end;
-                        {<<"bearer">>, Bearer} ->
-                            case ls_oauth:verify_access_token(Bearer) of
-                                {ok, Context} ->
-                                    case proplists:get_value(<<"resource_owner">>, Context) of
-                                        undefined ->
-                                            {undefined, ReqX2};
-                                        OwnerUUID ->
-                                            %% TODO: Take scope into account
-                                            {OwnerUUID, ReqX2}
-                                    end;
-                                _ ->
-                                    {undefined, ReqX2}
-                            end;
-                        _ ->
-                            {undefined, ReqX2}
-                    end;
-                {TokenX, ReqX1} ->
-                    {{token, TokenX}, ReqX1}
-                end;
-        {TokenX, ReqX} ->
-            ReqX1 = cowboy_req:set_resp_header(<<"x-snarl-token">>, TokenX, ReqX),
-            {{token, TokenX}, ReqX1}
+        {undefined, Req1} ->
+            get_cookie(Req1, State);
+        {Token, Req1} ->
+            {State#state{token = {token, Token}}, Req1}
     end.
+
+get_cookie(Req, State) ->
+    case cowboy_req:cookie(<<"x-snarl-token">>, Req) of
+        {undefined, Req1} ->
+            get_header(Req1, State);
+        {Token, Req1} ->
+            {State#state{token = {token, Token}}, Req1}
+    end.
+
+get_header(Req, State) ->
+    {ok, Auth, Req1} = cowboy_req:parse_header(<<"authorization">>, Req),
+    case Auth of
+        {<<"basic">>, {Username, Password}} ->
+            case libsnarl:auth(Username, Password) of
+                {ok, UUID} ->
+                    {State#state{token = UUID}, Req1};
+                _ ->
+                    {State, Req1}
+            end;
+        {<<"bearer">>, Bearer} ->
+            case ls_oauth:verify_access_token(Bearer) of
+                {ok, Context} ->
+                    case {proplists:get_value(<<"resource_owner">>, Context),
+                          proplists:get_value(<<"scope">>, Context)} of
+                        {undefined, _} ->
+                            {State, Req1};
+                        {UUID, Scope} ->
+                            SPerms = scope_perms(ls_oauth:scope(Scope), []),
+                            {State#state{token = UUID, scope_perms = SPerms}, Req1}
+                    end;
+                _ ->
+                    {State, Req1}
+            end;
+        _ ->
+            {State, Req1}
+    end.
+
+scope_perms([], Acc) ->
+    lists:usort(Acc);
+scope_perms([{_, _, Perms} | R], Acc) ->
+    scope_perms(R, Acc ++ Perms).
 
 full_list(Req) ->
     case cowboy_req:header(<<"x-full-list">>, Req) of
@@ -163,17 +197,6 @@ options(Req, State, Methods) ->
                          [<<"HEAD">>, <<"OPTIONS">> | Methods]), ", "), Req),
     {ok, Req1, State}.
 
-allowed(State = #state{token = Token}, Perm) ->
-    Start = now(),
-    R = case get_persmissions(Token) of
-            not_found ->
-                lager:warning("[auth] unknown Token for allowed: ~p", [Token]),
-                true;
-            {ok, Ps} ->
-                not libsnarl:test(Perm, Ps)
-        end,
-    ?MSnarl(?P(State), Start),
-    R.
 
 service_available() ->
     case {libsniffle:servers(), libsnarl:servers()} of

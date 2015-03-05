@@ -204,7 +204,8 @@ do_token(#auth_req{
        is_binary(Password),
        is_binary(ClientID) ->
     case
-        ls_oauth:authorize_password({Username, Password}, ClientID, URI, Scope) of
+        ls_oauth:authorize_password({Username, Password}, ClientID, URI, Scope)
+    of
         {ok, Authorization} ->
             {ok, Response} = ls_oauth:issue_token(Authorization),
             {ok, AccessToken} = oauth2_response:access_token(Response),
@@ -271,14 +272,4 @@ build_params4(_R, Acc) ->
 
 
 scope_desc(Scope) ->
-    AS = ls_oauth:scope(),
-    AS1 = [{oauth2_priv_set:new(S), Desc} || {S, Desc, _} <- AS],
-    scope_desc(Scope, AS1, []).
-
-scope_desc([], _, Acc) ->
-    lists:usort(Acc);
-scope_desc([Scope | R], AS, Acc) ->
-    Set = oauth2_priv_set:new(Scope),
-    Add = [Desc || {Master, Desc} <- AS,
-                   oauth2_priv_set:is_subset(Set, Master) =:= true],
-    scope_desc(R, AS, Acc ++ Add).
+    [Desc || {_, Desc, _} <- ls_oauth:scope(Scope)].

@@ -2,6 +2,8 @@
 
 -behaviour(cowboy_websocket_handler).
 
+-include("wiggle.hrl").
+
 -export([init/3]).
 
 -export([websocket_init/3,
@@ -41,11 +43,16 @@ websocket_init(_Any, Req, []) ->
         _ ->
             {ID, Req1} = cowboy_req:binding(uuid, Req0),
             Req2 = wiggle_handler:set_access_header(Req1),
-            case wiggle_handler:get_token(Req2) of
-                {undefined, Req3} ->
+            {#state{token = Token, scope_perms = SPerms}, Req3} =
+                wiggle_handler:get_token(#state{}, Req2),
+
+            case Token of
+                undefined ->
                     e(401, Req3);
-                {Token, Req3} ->
-                    case libsnarl:allowed(Token, [<<"vms">>, ID, <<"console">>]) of
+                Token ->
+                    Permission = [<<"vms">>, ID, <<"console">>],
+                    case libsnarlmatch:test_perms(Permission, SPerms)
+                        andalso libsnarl:allowed(Token, Permission) of
                         true ->
                             case ls_vm:get(ID) of
                                 {ok, VM} ->
