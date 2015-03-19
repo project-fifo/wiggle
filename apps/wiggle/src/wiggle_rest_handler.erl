@@ -62,6 +62,7 @@
 -callback delete(Req :: term(), handler_state()) ->
     {term(), Req :: term(), handler_state()}.
 
+
 init(_Transport, _Req, _) ->
     {upgrade, protocol, cowboy_rest}.
 
@@ -214,18 +215,28 @@ write(Req, State = #state{module = M, body = undefined}) ->
     case RawFun(State) of
         true ->
             lager:info("This is a raw request"),
-            case cowboy_req:method(Req) of
-                {<<"POST">>, Req1} ->
-                    M:create(Req1, State, undefined);
-                {<<"PUT">>, Req1} ->
-                    M:write(Req1, State, undefined)
-            end;
+            write2(Req, State);
         false ->
             {ok, Data, Req1} = wiggle_handler:decode(Req),
-            write(Req1, State#state{body = Data})
-    end;
+            write1(Req1, State#state{body = Data})
+    end.
 
-write(Req, State = #state{module = M, body = Data}) ->
+write1(Req, State = #state{body = Data}) ->
+    case schema(State) of
+        none ->
+            write2(Req, State);
+        Schema ->
+            case jesse:validate(Schema, Data) of
+                {ok, _Data} ->
+                    write2(Req, State);
+                {error, E} ->
+                    lager:error("[schema:~s] Malformated data: ~p",
+                                [Schema, E]),
+                    {false, Req, State}
+            end
+    end.
+
+write2(Req, State = #state{module = M, body = Data}) ->
     case cowboy_req:method(Req) of
         {<<"POST">>, Req1} ->
             M:create(Req1, State, Data);
@@ -258,4 +269,12 @@ delete_resource(Req, State = #state{module = M}) ->
         {N, _, _} = R ->
             lager:info("Delete succeeded with ~p.", [N]),
             R
+    end.
+
+schema(State = #state{module = M}) ->
+    case erlang:function_exported(M, schema, 1) of
+        false ->
+            none;
+        true ->
+            M:schema(State)
     end.
