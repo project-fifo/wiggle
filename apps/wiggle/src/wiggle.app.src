@@ -13,6 +13,7 @@
                   libhowl,
                   libchunter,
                   jsx,
+                  jesse,
                   lager,
                   lager_watchdog,
                   mimetypes,
