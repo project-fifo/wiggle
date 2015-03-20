@@ -276,7 +276,7 @@ permission_required(_State) ->
 %% Schema
 %%--------------------------------------------------------------------
 
-schema(#state{method = <<"PUT">>, path = []}) ->
+schema(#state{method = <<"PUT">>, path = [?UUID(_Vm)]}) ->
     vm_update;
 
 schema(_State) ->

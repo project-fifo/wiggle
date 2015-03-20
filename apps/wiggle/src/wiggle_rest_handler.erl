@@ -226,6 +226,7 @@ write1(Req, State = #state{body = Data}) ->
         none ->
             write2(Req, State);
         Schema ->
+            lager:info("[schema:~s] Validating.", [Schema]),
             case jesse:validate(Schema, Data) of
                 {ok, _Data} ->
                     write2(Req, State);
