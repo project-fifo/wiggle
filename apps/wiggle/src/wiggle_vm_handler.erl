@@ -276,8 +276,26 @@ permission_required(_State) ->
 %% Schema
 %%--------------------------------------------------------------------
 
+schema(#state{method = <<"PUT">>, path = []}) ->
+    vm_create;
+
 schema(#state{method = <<"PUT">>, path = [?UUID(_Vm)]}) ->
     vm_update;
+
+schema(#state{method = <<"PUT">>, path = [?UUID(_Vm), <<"snapshots">>]}) ->
+    vm_snapshot;
+
+schema(#state{method = <<"PUT">>, path = [?UUID(_Vm), <<"fw_rules">>]}) ->
+    vm_fw_rule;
+
+schema(#state{method = <<"PUT">>, path = [?UUID(_Vm), <<"backups">>]}) ->
+    vm_backup;
+
+schema(#state{method = <<"POST">>, path = []}) ->
+    vm_create;
+
+schema(#state{method = <<"POST">>, path = [?UUID(_Vm), <<"services">>]}) ->
+    vm_service_change;
 
 schema(_State) ->
     none.
@@ -330,6 +348,7 @@ read(Req, State = #state{path = [?UUID(_Vm), <<"backups">>, SnapID], obj = Obj})
             {null, Req, State}
 
     end;
+
 read(Req, State = #state{path = [?UUID(_Vm), <<"services">>], obj = Obj}) ->
     {ft_vm:services(Obj), Req, State};
 
@@ -344,39 +363,32 @@ read(Req, State = #state{path = [?UUID(_Vm)], obj = Obj}) ->
 %%--------------------------------------------------------------------
 
 create(Req, State = #state{path = [], version = Version, token = Token}, Decoded) ->
+    {ok, Dataset} = jsxd:get(<<"dataset">>, Decoded),
+    {ok, Package} = jsxd:get(<<"package">>, Decoded),
+    {ok, Config} = jsxd:get(<<"config">>, Decoded),
+    %% If the creating user has advanced_create permissions they can pass
+    %% 'requirements' as part of the config, if they lack the permission
+    %% it simply gets removed.
+    Config1 = case libsnarl:allowed(
+                     Token,
+                     [<<"cloud">>, <<"vms">>, <<"advanced_create">>]) of
+                  true ->
+                      Config;
+                  _ ->
+                      jsxd:set(<<"requirements">>, [], Config)
+              end,
     try
-        {ok, Dataset} = jsxd:get(<<"dataset">>, Decoded),
-        {ok, Package} = jsxd:get(<<"package">>, Decoded),
-        {ok, Config} = jsxd:get(<<"config">>, Decoded),
-        %% If the creating user has advanced_create permissions they can pass
-        %% 'requirements' as part of the config, if they lack the permission
-        %% it simply gets removed.
-        Config1 = case libsnarl:allowed(
-                         Token,
-                         [<<"cloud">>, <<"vms">>, <<"advanced_create">>]) of
-                      true ->
-                          Config;
-                      _ ->
-                          jsxd:set(<<"requirements">>, [], Config)
-                  end,
-        try
-            Start = now(),
-            {ok, UUID} = ls_vm:create(Package, Dataset, jsxd:set(<<"owner">>, user(State), Config1)),
-            e2qc:teardown(?LIST_CACHE),
-            e2qc:teardown(?FULL_CACHE),
-            ?MSniffle(?P(State), Start),
-            {{true, <<"/api/", Version/binary, "/vms/", UUID/binary>>}, Req, State#state{body = Decoded}}
-        catch
-            G:E ->
-                lager:error("Error creating VM(~p): ~p / ~p", [Decoded, G, E]),
-                {ok, Req1} = cowboy_req:reply(500, Req),
-                {halt, Req1, State}
-        end
+        Start = now(),
+        {ok, UUID} = ls_vm:create(Package, Dataset, jsxd:set(<<"owner">>, user(State), Config1)),
+        e2qc:teardown(?LIST_CACHE),
+        e2qc:teardown(?FULL_CACHE),
+        ?MSniffle(?P(State), Start),
+        {{true, <<"/api/", Version/binary, "/vms/", UUID/binary>>}, Req, State#state{body = Decoded}}
     catch
-        G1:E1 ->
-            lager:error("Error creating VM(~p): ~p / ~p", [Decoded, G1, E1]),
-            {ok, Req2} = cowboy_req:reply(400, Req),
-            {halt, Req2, State}
+        G:E ->
+            lager:error("Error creating VM(~p): ~p / ~p", [Decoded, G, E]),
+            {ok, Req1} = cowboy_req:reply(500, Req),
+            {halt, Req1, State}
     end;
 
 create(Req, State = #state{path = [?UUID(Vm), <<"snapshots">>], version = Version}, Decoded) ->

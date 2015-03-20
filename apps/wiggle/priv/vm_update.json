@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-03/schema#",
+  "description": "Update an existing VM",
   "type": "object",
   "properties": {
     "package": {
