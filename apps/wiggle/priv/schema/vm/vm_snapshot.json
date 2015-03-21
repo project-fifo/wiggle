@@ -1,0 +1,11 @@
+{
+  "$schema": "http://json-schema.org/draft-03/schema#",
+  "description": "Creates a snapshot",
+  "type": "object",
+  "properties": {
+    "comment": {
+      "type": "string",
+      "required": true
+    }
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "$schema": "http://json-schema.org/draft-03/schema#",
+  "description": "Rolls back a snapshot",
+  "type": "object",
+  "properties": {
+    "action": {
+      "type": "string",
+      "enum": ["rollback"],
+      "required": true
+    }
+  }
+}

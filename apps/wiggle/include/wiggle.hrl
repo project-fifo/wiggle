@@ -31,3 +31,6 @@
 
 %-define(M(Path, Start), statman_histogram:record_value({Path, total}, Start)).
 %-define(M(Path, Start), statman_histogram:record_value({Path, total}, Start)).
+
+-define(V1, <<"0.1.0">>).
+-define(V2, <<"0.2.0">>).
