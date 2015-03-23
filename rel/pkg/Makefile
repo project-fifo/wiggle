@@ -1,7 +1,7 @@
 VERSION=0.6.2
 COMPONENT_INTERNAL=wiggle
 COMPONENT=fifo-wiggle
-DEPS="erlang>=16.1.2"
+DEPS="erlang>=16.1.2" "coreutils>=8.22nb1" "sudo>=1.7.10p9"
 
 include ../../deps/fifo_utils/priv/pkg.mk
 
