@@ -46,6 +46,15 @@ allowed_methods(_Version, _Token, []) ->
 allowed_methods(_Version, _Token, [?UUID(_Vm)]) ->
     [<<"GET">>, <<"PUT">>, <<"DELETE">>];
 
+allowed_methods(?V2, _Token, [?UUID(_Vm), <<"config">>]) ->
+    [<<"POST">>];
+
+allowed_methods(?V2, _Token, [?UUID(_Vm), <<"package">>]) ->
+    [<<"POST">>];
+
+allowed_methods(?V2, _Token, [?UUID(_Vm), <<"state">>]) ->
+    [<<"POST">>];
+
 allowed_methods(_Version, _Token, [<<"dry_run">>]) ->
     [<<"PUT">>];
 
@@ -229,13 +238,27 @@ permission_required(#state{method = <<"PUT">>, path = [?UUID(Vm), <<"owner">>], 
 permission_required(#state{method = <<"PUT">>, body = undefiend}) ->
     {error, needs_decode};
 
-permission_required(#state{method = <<"PUT">>, body = Decoded, path = [?UUID(Vm)]}) ->
+permission_required(#state{method = <<"PUT">>, body = Decoded, version = ?V1,
+                           path = [?UUID(Vm)]}) ->
     case Decoded of
         [{<<"action">>, Act}] ->
             {ok, [<<"vms">>, Vm, Act]};
         _ ->
             {ok, [<<"vms">>, Vm, <<"edit">>]}
     end;
+
+permission_required(#state{method = <<"POST">>, body = [{<<"action">>, Act}],
+                           version = ?V2, path = [?UUID(Vm), <<"state">>]}) ->
+    {ok, [<<"vms">>, Vm, Act]};
+
+
+permission_required(#state{method = <<"POST">>, version = ?V2,
+                           path = [?UUID(Vm), <<"config">>]}) ->
+    {ok, [<<"vms">>, Vm, <<"edit">>]};
+
+permission_required(#state{method = <<"POST">>, version = ?V2,
+                           path = [?UUID(Vm), <<"package">>]}) ->
+    {ok, [<<"vms">>, Vm, <<"edit">>]};
 
 permission_required(#state{method = <<"PUT">>, body = Decoded,
                            path = [?UUID(Vm), <<"snapshots">>, _Snap]}) ->
