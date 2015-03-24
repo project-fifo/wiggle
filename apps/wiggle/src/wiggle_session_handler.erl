@@ -28,9 +28,15 @@ allowed_methods(_Version, _Token, [_Session]) ->
     [<<"GET">>, <<"POST">>, <<"DELETE">>].
 
 
-get(State = #state{path = [Session]}) ->
+get(State = #state{path = [Session], version = ?V1}) ->
     Start = now(),
     R = ls_user:get({token, Session}),
+    ?MSnarl(?P(State), Start),
+    R;
+
+get(State = #state{path = [], version = ?V2, token = Token}) ->
+    Start = now(),
+    R = ls_user:get(Token),
     ?MSnarl(?P(State), Start),
     R;
 
