@@ -34,12 +34,6 @@ get(State = #state{path = [Session], version = ?V1}) ->
     ?MSnarl(?P(State), Start),
     R;
 
-get(State = #state{path = [], version = ?V2, token = Token}) ->
-    Start = now(),
-    R = ls_user:get(Token),
-    ?MSnarl(?P(State), Start),
-    R;
-
 get(_State) ->
     not_found.
 
@@ -50,7 +44,8 @@ permission_required(_State) ->
 %% GET
 %%--------------------------------------------------------------------
 
-read(Req, State = #state{path = [], obj = Obj, version = ?V2}) ->
+read(Req, State = #state{path = [], token = Token, version = ?V2}) ->
+    {ok, Obj} = ls_user:get(Token),
     {wiggle_user_handler:to_json(Obj), Req, State};
 
 read(Req, State = #state{path = [Session], obj = Obj, version = ?V1}) ->
