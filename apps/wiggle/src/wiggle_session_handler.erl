@@ -18,8 +18,11 @@
 
 -behaviour(wiggle_rest_handler).
 
-allowed_methods(_Version, _Token, []) ->
+allowed_methods(?V1, _Token, []) ->
     [<<"POST">>];
+
+allowed_methods(?V2, _Token, []) ->
+    [<<"GET">>];
 
 allowed_methods(_Version, _Token, [_Session]) ->
     [<<"GET">>, <<"POST">>, <<"DELETE">>].
@@ -41,10 +44,14 @@ permission_required(_State) ->
 %% GET
 %%--------------------------------------------------------------------
 
-read(Req, State = #state{path = [Session], obj = Obj}) ->
+read(Req, State = #state{path = [], obj = Obj, version = ?V2}) ->
+    {wiggle_user_handler:to_json(Obj), Req, State};
+
+read(Req, State = #state{path = [Session], obj = Obj, version = ?V1}) ->
     Obj1 = jsxd:thread([{set, <<"session">>, Session}],
                        wiggle_user_handler:to_json(Obj)),
     {Obj1, Req, State}.
+
 
 %%--------------------------------------------------------------------
 %% PUT

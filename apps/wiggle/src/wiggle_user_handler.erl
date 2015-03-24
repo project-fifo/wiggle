@@ -232,7 +232,7 @@ read(Req, State = #state{token = Token, path = [], full_list=FullList, full_list
     {Res, Req, State};
 
 read(Req, State = #state{path = [_User], obj = UserObj}) ->
-    UserObj2 = jsxd:delete(<<"password">>, to_json(UserObj)),
+    UserObj2 = to_json(UserObj),
     {UserObj2, Req, State};
 
 read(Req, State = #state{path = [_User, <<"permissions">>], obj = UserObj}) ->
