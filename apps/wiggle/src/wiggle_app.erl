@@ -99,9 +99,25 @@ start(_StartType, _StartArgs) ->
     end,
     R = wiggle_sup:start_link(),
     lager_watchdog_srv:set_version(?VERSION),
-
     wiggle_snmp_handler:start(),
+    Schemas = load_schemas(),
+    io:format("[schemas] Loaded schemas: ~p~n", [Schemas]),
+    lager:info("[schemas] Loaded schemas: ~p", [Schemas]),
     R.
 
 stop(_State) ->
     ok.
+
+load_schemas() ->
+    FileRegexp = ".*\.json$",
+    filelib:fold_files(
+      code:priv_dir(wiggle), FileRegexp, true,
+      fun(File, Acc) ->
+              io:format("Loading file: ~s~n", [File]),
+              BaseName = filename:basename(File),
+              Key = list_to_atom(filename:rootname(BaseName)),
+              {ok, Bin} = file:read_file(File),
+              JSX = jsx:decode(Bin),
+              ok = jesse:add_schema(Key, JSX),
+              [Key | Acc]
+      end, []).

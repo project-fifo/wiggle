@@ -77,14 +77,6 @@ set_access_header(Req) ->
 get_token(State, Req) ->
     case cowboy_req:header(<<"x-snarl-token">>, Req) of
         {undefined, Req1} ->
-            get_cookie(Req1, State);
-        {Token, Req1} ->
-            {State#state{token = {token, Token}}, Req1}
-    end.
-
-get_cookie(Req, State) ->
-    case cowboy_req:cookie(<<"x-snarl-token">>, Req) of
-        {undefined, Req1} ->
             get_header(Req1, State);
         {Token, Req1} ->
             {State#state{token = {token, Token}}, Req1}

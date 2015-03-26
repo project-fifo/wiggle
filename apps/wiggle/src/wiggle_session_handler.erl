@@ -18,14 +18,17 @@
 
 -behaviour(wiggle_rest_handler).
 
-allowed_methods(_Version, _Token, []) ->
+allowed_methods(?V1, _Token, []) ->
     [<<"POST">>];
+
+allowed_methods(?V2, _Token, []) ->
+    [<<"GET">>];
 
 allowed_methods(_Version, _Token, [_Session]) ->
     [<<"GET">>, <<"POST">>, <<"DELETE">>].
 
 
-get(State = #state{path = [Session]}) ->
+get(State = #state{path = [Session], version = ?V1}) ->
     Start = now(),
     R = ls_user:get({token, Session}),
     ?MSnarl(?P(State), Start),
@@ -41,16 +44,21 @@ permission_required(_State) ->
 %% GET
 %%--------------------------------------------------------------------
 
-read(Req, State = #state{path = [Session], obj = Obj}) ->
+read(Req, State = #state{path = [], token = Token, version = ?V2}) ->
+    {ok, Obj} = ls_user:get(Token),
+    {wiggle_user_handler:to_json(Obj), Req, State};
+
+read(Req, State = #state{path = [Session], obj = Obj, version = ?V1}) ->
     Obj1 = jsxd:thread([{set, <<"session">>, Session}],
                        wiggle_user_handler:to_json(Obj)),
     {Obj1, Req, State}.
+
 
 %%--------------------------------------------------------------------
 %% PUT
 %%--------------------------------------------------------------------
 
-create(Req, State = #state{path = [], version = Version}, Decoded) ->
+create(Req, State = #state{path = [], version = ?V1}, Decoded) ->
     case {jsxd:get(<<"user">>, Decoded), jsxd:get(<<"password">>, Decoded)} of
         {{ok, User}, {ok, Pass}} ->
             R = case jsxd:get(<<"otp">>, Decoded) of
@@ -61,11 +69,8 @@ create(Req, State = #state{path = [], version = Version}, Decoded) ->
                 end,
             case R of
                 {ok, {token, Session}} ->
-                    OneYear = 364*24*60*60,
-                    Req1 = cowboy_req:set_resp_cookie(<<"x-snarl-token">>, Session,
-                                                      [{max_age, OneYear}], Req),
-                    Req2 = cowboy_req:set_resp_header(<<"x-snarl-token">>, Session, Req1),
-                    {{true, <<"/api/", Version/binary, "/sessions/", Session/binary>>},
+                    Req2 = cowboy_req:set_resp_header(<<"x-snarl-token">>, Session, Req),
+                    {{true, <<"/api/0.1.0/sessions/", Session/binary>>},
                      Req2, State#state{body = Decoded}};
                 key_required ->
                     {ok, Req1} = cowboy_req:reply(449, [], <<"Retry with valid parameters: user, password, otp.">>, Req),
@@ -80,7 +85,7 @@ create(Req, State = #state{path = [], version = Version}, Decoded) ->
     end.
 
 write(Req, State, _) ->
-    {true, Req, State}.
+    {false, Req, State}.
 
 %%--------------------------------------------------------------------
 %% DEETE

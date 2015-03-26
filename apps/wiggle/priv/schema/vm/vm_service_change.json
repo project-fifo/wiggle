@@ -1,0 +1,16 @@
+{
+  "$schema": "http://json-schema.org/draft-03/schema#",
+  "description": "Canges service state",
+  "type": "object",
+  "properties": {
+    "action": {
+      "type": "string",
+      "enum": ["enable", "disable", "clear", "refresh", "restart"],
+      "required": true
+    },
+    "service": {
+      "type": "string",
+      "required": true
+    }
+  }
+}

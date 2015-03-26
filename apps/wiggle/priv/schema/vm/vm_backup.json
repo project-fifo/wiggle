@@ -1,0 +1,21 @@
+{
+  "$schema": "http://json-schema.org/draft-03/schema#",
+  "description": "Creates a snapshot",
+  "type": "object",
+  "properties": {
+    "comment": {
+      "type": "string",
+      "required": true
+    },
+    "xml": {
+      "type": "boolean"
+    },
+    "delete": {
+      "type": "boolean"
+    },
+    "parent": {
+      "type": "string",
+      "pattern": "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
+    }
+  }
+}

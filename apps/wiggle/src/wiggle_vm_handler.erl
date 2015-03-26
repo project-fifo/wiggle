@@ -12,7 +12,10 @@
          read/2,
          create/3,
          write/3,
-         delete/2]).
+         delete/2,
+         schema/1]).
+
+-ignore_xref([schema/1]).
 
 -behaviour(wiggle_rest_handler).
 
@@ -42,6 +45,15 @@ allowed_methods(_Version, _Token, []) ->
 
 allowed_methods(_Version, _Token, [?UUID(_Vm)]) ->
     [<<"GET">>, <<"PUT">>, <<"DELETE">>];
+
+allowed_methods(?V2, _Token, [?UUID(_Vm), <<"config">>]) ->
+    [<<"POST">>];
+
+allowed_methods(?V2, _Token, [?UUID(_Vm), <<"package">>]) ->
+    [<<"POST">>];
+
+allowed_methods(?V2, _Token, [?UUID(_Vm), <<"state">>]) ->
+    [<<"POST">>];
 
 allowed_methods(_Version, _Token, [<<"dry_run">>]) ->
     [<<"PUT">>];
@@ -226,13 +238,27 @@ permission_required(#state{method = <<"PUT">>, path = [?UUID(Vm), <<"owner">>], 
 permission_required(#state{method = <<"PUT">>, body = undefiend}) ->
     {error, needs_decode};
 
-permission_required(#state{method = <<"PUT">>, body = Decoded, path = [?UUID(Vm)]}) ->
+permission_required(#state{method = <<"PUT">>, body = Decoded, version = ?V1,
+                           path = [?UUID(Vm)]}) ->
     case Decoded of
         [{<<"action">>, Act}] ->
             {ok, [<<"vms">>, Vm, Act]};
         _ ->
             {ok, [<<"vms">>, Vm, <<"edit">>]}
     end;
+
+permission_required(#state{method = <<"POST">>, body = [{<<"action">>, Act}],
+                           version = ?V2, path = [?UUID(Vm), <<"state">>]}) ->
+    {ok, [<<"vms">>, Vm, Act]};
+
+
+permission_required(#state{method = <<"POST">>, version = ?V2,
+                           path = [?UUID(Vm), <<"config">>]}) ->
+    {ok, [<<"vms">>, Vm, <<"edit">>]};
+
+permission_required(#state{method = <<"POST">>, version = ?V2,
+                           path = [?UUID(Vm), <<"package">>]}) ->
+    {ok, [<<"vms">>, Vm, <<"edit">>]};
 
 permission_required(#state{method = <<"PUT">>, body = Decoded,
                            path = [?UUID(Vm), <<"snapshots">>, _Snap]}) ->
@@ -267,6 +293,68 @@ permission_required(#state{method = <<"DELETE">>, path = [?UUID(Vm), <<"metadata
 
 permission_required(_State) ->
     undefined.
+
+
+%%--------------------------------------------------------------------
+%% Schema
+%%--------------------------------------------------------------------
+
+%% Creates a VM
+schema(#state{method = <<"PUT">>, path = []}) ->
+    vm_create;
+
+%% Creates a snapshot
+schema(#state{method = <<"PUT">>, path = [?UUID(_Vm), <<"snapshots">>]}) ->
+    vm_snapshot;
+
+%% Adds a firewall rule
+schema(#state{method = <<"PUT">>, path = [?UUID(_Vm), <<"fw_rules">>]}) ->
+    vm_fw_rule;
+
+%% create a backup
+schema(#state{method = <<"PUT">>, path = [?UUID(_Vm), <<"backups">>]}) ->
+    vm_backup;
+
+%% adds a nice
+schema(#state{method = <<"PUT">>, path = [?UUID(_Vm), <<"nics">>]}) ->
+    vm_add_nic;
+
+%% Dry run
+schema(#state{method = <<"POST">>, path = []}) ->
+    vm_create;
+
+%% Changes a VM state
+schema(#state{method = <<"POST">>, path = [?UUID(_Vm), <<"state">>],
+              version = ?V2}) ->
+    vm_update_state;
+
+
+%% Updates a VM Config, we don't have validation that in the V! api
+schema(#state{method = <<"POST">>, path = [?UUID(_Vm), <<"config">>],
+              version = ?V2}) ->
+    vm_update_config;
+
+schema(#state{method = <<"POST">>, path = [?UUID(_Vm), <<"package">>],
+              version = ?V2}) ->
+    vm_update_package;
+
+%% Snapshots
+schema(#state{method = <<"POST">>,
+              path = [?UUID(_Vm), <<"snapshots">>, ?UUID(_Snap)]}) ->
+    vm_rollback_snapshot;
+
+%% Backups
+schema(#state{method = <<"POST">>,
+              path = [?UUID(_Vm), <<"backups">>, ?UUID(_Backup)]}) ->
+    vm_rollback_backup;
+
+
+%% Dry Run
+schema(#state{method = <<"POST">>, path = [?UUID(_Vm), <<"services">>]}) ->
+    vm_service_change;
+
+schema(_State) ->
+    none.
 
 %%--------------------------------------------------------------------
 %% GET
@@ -316,6 +404,7 @@ read(Req, State = #state{path = [?UUID(_Vm), <<"backups">>, SnapID], obj = Obj})
             {null, Req, State}
 
     end;
+
 read(Req, State = #state{path = [?UUID(_Vm), <<"services">>], obj = Obj}) ->
     {ft_vm:services(Obj), Req, State};
 
@@ -330,39 +419,32 @@ read(Req, State = #state{path = [?UUID(_Vm)], obj = Obj}) ->
 %%--------------------------------------------------------------------
 
 create(Req, State = #state{path = [], version = Version, token = Token}, Decoded) ->
+    {ok, Dataset} = jsxd:get(<<"dataset">>, Decoded),
+    {ok, Package} = jsxd:get(<<"package">>, Decoded),
+    {ok, Config} = jsxd:get(<<"config">>, Decoded),
+    %% If the creating user has advanced_create permissions they can pass
+    %% 'requirements' as part of the config, if they lack the permission
+    %% it simply gets removed.
+    Config1 = case libsnarl:allowed(
+                     Token,
+                     [<<"cloud">>, <<"vms">>, <<"advanced_create">>]) of
+                  true ->
+                      Config;
+                  _ ->
+                      jsxd:set(<<"requirements">>, [], Config)
+              end,
     try
-        {ok, Dataset} = jsxd:get(<<"dataset">>, Decoded),
-        {ok, Package} = jsxd:get(<<"package">>, Decoded),
-        {ok, Config} = jsxd:get(<<"config">>, Decoded),
-        %% If the creating user has advanced_create permissions they can pass
-        %% 'requirements' as part of the config, if they lack the permission
-        %% it simply gets removed.
-        Config1 = case libsnarl:allowed(
-                         Token,
-                         [<<"cloud">>, <<"vms">>, <<"advanced_create">>]) of
-                      true ->
-                          Config;
-                      _ ->
-                          jsxd:set(<<"requirements">>, [], Config)
-                  end,
-        try
-            Start = now(),
-            {ok, UUID} = ls_vm:create(Package, Dataset, jsxd:set(<<"owner">>, user(State), Config1)),
-            e2qc:teardown(?LIST_CACHE),
-            e2qc:teardown(?FULL_CACHE),
-            ?MSniffle(?P(State), Start),
-            {{true, <<"/api/", Version/binary, "/vms/", UUID/binary>>}, Req, State#state{body = Decoded}}
-        catch
-            G:E ->
-                lager:error("Error creating VM(~p): ~p / ~p", [Decoded, G, E]),
-                {ok, Req1} = cowboy_req:reply(500, Req),
-                {halt, Req1, State}
-        end
+        Start = now(),
+        {ok, UUID} = ls_vm:create(Package, Dataset, jsxd:set(<<"owner">>, user(State), Config1)),
+        e2qc:teardown(?LIST_CACHE),
+        e2qc:teardown(?FULL_CACHE),
+        ?MSniffle(?P(State), Start),
+        {{true, <<"/api/", Version/binary, "/vms/", UUID/binary>>}, Req, State#state{body = Decoded}}
     catch
-        G1:E1 ->
-            lager:error("Error creating VM(~p): ~p / ~p", [Decoded, G1, E1]),
-            {ok, Req2} = cowboy_req:reply(400, Req),
-            {halt, Req2, State}
+        G:E ->
+            lager:error("Error creating VM(~p): ~p / ~p", [Decoded, G, E]),
+            {ok, Req1} = cowboy_req:reply(500, Req),
+            {halt, Req1, State}
     end;
 
 create(Req, State = #state{path = [?UUID(Vm), <<"snapshots">>], version = Version}, Decoded) ->
@@ -435,6 +517,14 @@ create(Req, State = #state{path = [?UUID(Vm), <<"nics">>], version = Version}, D
             lager:error("Could not add nic: ~P"),
             {halt, Req1, State}
     end.
+
+
+%%--------------------------------------------------------------------
+%% POST
+%%--------------------------------------------------------------------
+-define(PWR1, State = #state{path = [?UUID(Vm)], version = ?V1}).
+-define(PWR2, State = #state{path = [?UUID(Vm), <<"state">>], version = ?V2}).
+-define(UPD1, State = #state{path = [?UUID(Vm)], version = ?V1}).
 
 write(Req, State = #state{path = [<<"dry_run">>], token = Token}, Decoded) ->
     lager:info("Starting dryrun."),
@@ -546,55 +636,98 @@ write(Req, State = #state{path = [?UUID(Vm), <<"metadata">> | Path]}, [{K, V}]) 
     ?LIB(ls_vm:set_metadata(Vm,  [{Path ++ [K],
                                    jsxd:from_list(V)}]));
 
+%%--------------------------------------------------------------------
+%% Power State Changes
+%%--------------------------------------------------------------------
 
-write(Req, State = #state{path = [?UUID(Vm)]}, [{<<"action">>, <<"start">>}]) ->
+%% 0.1.0
+write(Req, ?PWR1, [{<<"action">>, <<"start">>}]) ->
     e2qc:evict(?CACHE, Vm),
     e2qc:teardown(?FULL_CACHE),
     ?LIB(ls_vm:start(Vm));
 
-write(Req, State = #state{path = [?UUID(Vm)]}, [{<<"action">>, <<"stop">>}]) ->
+write(Req, ?PWR1, [{<<"action">>, <<"stop">>}]) ->
     e2qc:evict(?CACHE, Vm),
     e2qc:teardown(?FULL_CACHE),
     ?LIB(ls_vm:stop(Vm));
 
-write(Req, State = #state{path = [?UUID(Vm)]},
-      [{<<"action">>, <<"stop">>}, {<<"force">>, true}]) ->
+write(Req, ?PWR1, [{<<"action">>, <<"stop">>}, {<<"force">>, true}]) ->
     e2qc:evict(?CACHE, Vm),
     e2qc:teardown(?FULL_CACHE),
     ?LIB(ls_vm:stop(Vm, [force]));
 
-write(Req, State = #state{path = [?UUID(Vm)]}, [{<<"action">>, <<"reboot">>}]) ->
+write(Req, ?PWR1, [{<<"action">>, <<"reboot">>}]) ->
     e2qc:evict(?CACHE, Vm),
     e2qc:teardown(?FULL_CACHE),
     ?LIB(ls_vm:reboot(Vm));
 
-write(Req, State = #state{path = [?UUID(Vm)]},
-      [{<<"action">>, <<"reboot">>}, {<<"force">>, true}]) ->
+write(Req, ?PWR1, [{<<"action">>, <<"reboot">>}, {<<"force">>, true}]) ->
     e2qc:evict(?CACHE, Vm),
     e2qc:teardown(?FULL_CACHE),
     ?LIB(ls_vm:reboot(Vm, [force]));
 
-write(Req, State = #state{path = [?UUID(Vm)]}, [{<<"config">>, Config},
-                                                {<<"package">>, Package}]) ->
+%% 0.2.0
+write(Req, ?PWR2, [{<<"action">>, <<"start">>}]) ->
+    e2qc:evict(?CACHE, Vm),
+    e2qc:teardown(?FULL_CACHE),
+    ?LIB(ls_vm:start(Vm));
+
+write(Req, ?PWR2, [{<<"action">>, <<"stop">>}]) ->
+    e2qc:evict(?CACHE, Vm),
+    e2qc:teardown(?FULL_CACHE),
+    ?LIB(ls_vm:stop(Vm));
+
+write(Req, ?PWR2, [{<<"action">>, <<"stop">>}, {<<"force">>, true}]) ->
+    e2qc:evict(?CACHE, Vm),
+    e2qc:teardown(?FULL_CACHE),
+    ?LIB(ls_vm:stop(Vm, [force]));
+
+write(Req, ?PWR2, [{<<"action">>, <<"reboot">>}]) ->
+    e2qc:evict(?CACHE, Vm),
+    e2qc:teardown(?FULL_CACHE),
+    ?LIB(ls_vm:reboot(Vm));
+
+write(Req, ?PWR2, [{<<"action">>, <<"reboot">>}, {<<"force">>, true}]) ->
+    e2qc:evict(?CACHE, Vm),
+    e2qc:teardown(?FULL_CACHE),
+    ?LIB(ls_vm:reboot(Vm, [force]));
+
+%%--------------------------------------------------------------------
+%% VM Update
+%%--------------------------------------------------------------------
+
+%% 0.1.0
+write(Req, ?UPD1, [{<<"config">>, Config}, {<<"package">>, Package}]) ->
     e2qc:evict(?CACHE, Vm),
     e2qc:teardown(?FULL_CACHE),
     ?LIB(ls_vm:update(user(State), Vm, Package, Config));
 
-write(Req, State = #state{path = [?UUID(Vm)]}, [{<<"config">>, Config}]) ->
+write(Req, ?UPD1, [{<<"config">>, Config}]) ->
     e2qc:evict(?CACHE, Vm),
     e2qc:teardown(?FULL_CACHE),
     ?LIB(ls_vm:update(user(State), Vm, undefined, Config));
 
-write(Req, State = #state{path = [?UUID(Vm)]}, [{<<"package">>, Package}]) ->
+write(Req, ?UPD1, [{<<"package">>, Package}]) ->
     e2qc:evict(?CACHE, Vm),
     e2qc:teardown(?FULL_CACHE),
     ?LIB(ls_vm:update(user(State), Vm, Package, []));
 
-write(Req, State = #state{path = []}, _Body) ->
-    {true, Req, State};
+%% 0.2.0
+write(Req, State = #state{path = [?UUID(Vm), <<"config">>], version = ?V2},
+      [{<<"config">>, Config}]) ->
+    e2qc:evict(?CACHE, Vm),
+    e2qc:teardown(?FULL_CACHE),
+    ?LIB(ls_vm:update(user(State), Vm, undefined, Config));
 
-write(Req, State = #state{path = [?UUID(_Vm), <<"snapshots">>]}, _Body) ->
-    {true, Req, State};
+write(Req, State = #state{path = [?UUID(Vm), <<"package">>], version = ?V2},
+      [{<<"package">>, Package}]) ->
+    e2qc:evict(?CACHE, Vm),
+    e2qc:teardown(?FULL_CACHE),
+    ?LIB(ls_vm:update(user(State), Vm, Package, []));
+
+%%--------------------------------------------------------------------
+%% Snapshots
+%%--------------------------------------------------------------------
 
 write(Req, State = #state{path = [?UUID(Vm), <<"snapshots">>, UUID]},
       [{<<"action">>, <<"rollback">>}]) ->
@@ -602,9 +735,9 @@ write(Req, State = #state{path = [?UUID(Vm), <<"snapshots">>, UUID]},
     e2qc:teardown(?FULL_CACHE),
     ?LIB(ls_vm:rollback_snapshot(Vm, UUID));
 
-write(Req, State = #state{path = [?UUID(_Vm), <<"backups">>]}, _Body) ->
-    {true, Req, State};
-
+%%--------------------------------------------------------------------
+%% backups
+%%--------------------------------------------------------------------
 write(Req, State = #state{path = [?UUID(Vm), <<"backups">>, UUID]},
       [{<<"action">>, <<"rollback">>},
        {<<"hypervisor">>, Hypervisor}]) ->
