@@ -47,13 +47,13 @@ allowed_methods(_Version, _Token, [?UUID(_Vm)]) ->
     [<<"GET">>, <<"PUT">>, <<"DELETE">>];
 
 allowed_methods(?V2, _Token, [?UUID(_Vm), <<"config">>]) ->
-    [<<"POST">>];
+    [<<"PUT">>];
 
 allowed_methods(?V2, _Token, [?UUID(_Vm), <<"package">>]) ->
-    [<<"POST">>];
+    [<<"PUT">>];
 
 allowed_methods(?V2, _Token, [?UUID(_Vm), <<"state">>]) ->
-    [<<"POST">>];
+    [<<"PUT">>];
 
 allowed_methods(_Version, _Token, [<<"dry_run">>]) ->
     [<<"PUT">>];
@@ -241,22 +241,22 @@ permission_required(#state{method = <<"PUT">>, body = undefiend}) ->
 permission_required(#state{method = <<"PUT">>, body = Decoded, version = ?V1,
                            path = [?UUID(Vm)]}) ->
     case Decoded of
-        [{<<"action">>, Act}] ->
+        [{<<"action">>, Act} | _] ->
             {ok, [<<"vms">>, Vm, Act]};
         _ ->
             {ok, [<<"vms">>, Vm, <<"edit">>]}
     end;
 
-permission_required(#state{method = <<"POST">>, body = [{<<"action">>, Act}],
+permission_required(#state{method = <<"PUT">>, body = [{<<"action">>, Act} | _],
                            version = ?V2, path = [?UUID(Vm), <<"state">>]}) ->
     {ok, [<<"vms">>, Vm, Act]};
 
 
-permission_required(#state{method = <<"POST">>, version = ?V2,
+permission_required(#state{method = <<"PUT">>, version = ?V2,
                            path = [?UUID(Vm), <<"config">>]}) ->
     {ok, [<<"vms">>, Vm, <<"edit">>]};
 
-permission_required(#state{method = <<"POST">>, version = ?V2,
+permission_required(#state{method = <<"PUT">>, version = ?V2,
                            path = [?UUID(Vm), <<"package">>]}) ->
     {ok, [<<"vms">>, Vm, <<"edit">>]};
 
@@ -324,17 +324,17 @@ schema(#state{method = <<"POST">>, path = []}) ->
     vm_create;
 
 %% Changes a VM state
-schema(#state{method = <<"POST">>, path = [?UUID(_Vm), <<"state">>],
+schema(#state{method = <<"PUT">>, path = [?UUID(_Vm), <<"state">>],
               version = ?V2}) ->
     vm_update_state;
 
 
 %% Updates a VM Config, we don't have validation that in the V! api
-schema(#state{method = <<"POST">>, path = [?UUID(_Vm), <<"config">>],
+schema(#state{method = <<"PUT">>, path = [?UUID(_Vm), <<"config">>],
               version = ?V2}) ->
     vm_update_config;
 
-schema(#state{method = <<"POST">>, path = [?UUID(_Vm), <<"package">>],
+schema(#state{method = <<"PUT">>, path = [?UUID(_Vm), <<"package">>],
               version = ?V2}) ->
     vm_update_package;
 
