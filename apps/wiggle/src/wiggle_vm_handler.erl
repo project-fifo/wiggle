@@ -46,6 +46,9 @@ allowed_methods(_Version, _Token, []) ->
 allowed_methods(_Version, _Token, [?UUID(_Vm)]) ->
     [<<"GET">>, <<"PUT">>, <<"DELETE">>];
 
+allowed_methods(?V2, _Token, [?UUID(_Vm), <<"metrics">>| _]) ->
+    [<<"GET">>];
+
 allowed_methods(?V2, _Token, [?UUID(_Vm), <<"config">>]) ->
     [<<"PUT">>];
 
@@ -172,6 +175,10 @@ permission_required(#state{method = <<"POST">>, path = []}) ->
     {ok, [<<"cloud">>, <<"vms">>, <<"create">>]};
 
 permission_required(#state{method = <<"GET">>, path = [?UUID(Vm)]}) ->
+    {ok, [<<"vms">>, Vm, <<"get">>]};
+
+permission_required(#state{version = ?V2, method = <<"GET">>,
+                           path = [?UUID(Vm), <<"metrics">> | _]}) ->
     {ok, [<<"vms">>, Vm, <<"get">>]};
 
 permission_required(#state{method = <<"DELETE">>, path = [?UUID(Vm)]}) ->
@@ -402,7 +409,6 @@ read(Req, State = #state{path = [?UUID(_Vm), <<"backups">>, SnapID], obj = Obj})
             {jsxd:set(<<"uuid">>, SnapID, SnapObj), Req, State};
         _ ->
             {null, Req, State}
-
     end;
 
 read(Req, State = #state{path = [?UUID(_Vm), <<"services">>], obj = Obj}) ->
@@ -412,7 +418,17 @@ read(Req, State = #state{path = [?UUID(_Vm), <<"services">>, Service], obj = Obj
     {jsxd:get([Service], [{}], ft_vm:services(Obj)), Req, State};
 
 read(Req, State = #state{path = [?UUID(_Vm)], obj = Obj}) ->
-    {to_json(Obj), Req, State}.
+    {to_json(Obj), Req, State};
+
+read(Req, State = #state{path = [?UUID(Vm), <<"metrics">>]}) ->
+    Q = perf(Vm),
+    {ok, Res} = dqe:run(Q),
+    JSON = [[{<<"n">>, Name},
+             {<<"r">>, Resolution},
+             {<<"v">>, mmath_bin:to_list(Data)}]
+            || {Name, Data, Resolution} <- Res],
+    {JSON, Req, State}.
+
 
 %%--------------------------------------------------------------------
 %% PUT
@@ -859,4 +875,59 @@ find_rule(ID, VM) ->
         _ ->
             {error, oh_shit}
     end.
+
+%%--------------------------------------------------------------------
+%% Internal
+%%--------------------------------------------------------------------
+
+
+perf(UUID) ->
+    Zone = perf_zone_id(UUID),
+    Elems = perf_cpu(Zone) ++ perf_mem(Zone) ++ perf_swap(Zone) 
+        ++ perf_net(Zone, <<"net0">>) ++ perf_zfs(Zone),
+    apply_query(Elems, "LAST 1m").
+
+perf_zone_id(<<Z:40/binary, _>>) ->
+    Z.
+
+perf_cpu(Zone) ->
+    [{[$', Zone | "'.'cpu'.'usage' BUCKET zone"], "cpu-usage"},
+     {[$', Zone | "'.'cpu'.'effective' BUCKET zone"], "cpu-effective"},
+     {[$', Zone | "'.'cpu'.'nwait' BUCKET zone"], "cpu-nwait"}].
+
+
+perf_mem(Zone) ->
+    [{[$', Zone | "'.'mem'.'usage' BUCKET zone"], "memory-usage"},
+     {[$', Zone | "'.'mem'.'value' BUCKET zone"], "memory-value"}].
+
+
+perf_swap(Zone) ->
+    [{[$', Zone | "'.'swap'.'usage' BUCKET zone"], "swapory-usage"},
+     {[$', Zone | "'.'swap'.'value' BUCKET zone"], "swapory-value"}].
+
+
+perf_net(Nic, Zone) ->
+    [{["derivate('", Zone, "'.'net'.'", Nic, "'.'opackets64' BUCKET zone)"],
+      ["net-send-ops-", Nic]},
+     {["derivate('", Zone, "'.'net'.'", Nic, "'.'ipackets64' BUCKET zone)"],
+      ["net-recv-ops-", Nic]},
+     {["divide(derivate('", Zone, "'.'net'.'", Nic, "'.'obytes64' BUCKET zone), 1024)"],
+      ["net-send-kb-", Nic]},
+     {["divide(derivate('", Zone, "'.'net'.'", Nic, "'.'rbytes64' BUCKET zone), 1024)"],
+      ["net-recv-kb-", Nic]}].
+
+perf_zfs(Zone) ->
+    [{["divide(derivate('", Zone, "'.'zfs'.'nread' BUCKET zone), 1024)"], "zfs-read-kb"},
+     {["divide(derivate('", Zone, "'.'zfs'.'nwritten' BUCKET zone), 1024)"], "zfs-write-kb"},
+     {["derivate('", Zone, "'.'zfs'.'reads' BUCKET zone)"], "zfs-read-ops"},
+     {["derivate('", Zone, "'.'zfs'.'writes' BUCKET zone)"], "zfs-write-ops"}].
+
+%% apply_aggr(Aggr, Res, Elements) ->
+%%     [{[Aggr, $(, Qry, ", ", Res, $)], Alias} ||
+%%         {Qry, Alias} <- Elements].
+
+
+apply_query(Elements, Range) ->
+    Elements1 = [[Qry, " AS '", Alias] || {Qry, Alias} <- Elements],
+    iolist_to_binary(["SELECT ", string:join(Elements1, ", "), " ", Range]).
 
