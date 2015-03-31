@@ -527,5 +527,5 @@
 
 {mapping, "folsom_ddb.prefix", "folsom_ddb.prefix", [
     merge,
-    {default, "sniffle"}
+    {default, "wiggle"}
 ]}.
