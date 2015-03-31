@@ -900,7 +900,7 @@ perf(UUID, QS) ->
     case lists:keytake(<<"aggr">>, 1, QS) of
         false ->
             perf1(Elems, QS);
-        {value, {<<"resolution">>, Res}, QS1} ->
+        {value, {<<"aggr">>, Res}, QS1} ->
             case valid_time(Res) of
                 true ->
                     Elems1 = apply_aggr("avg", Res, Elems),
@@ -961,7 +961,7 @@ perf_swap(Zone) ->
      {[$', Zone | "'.'swap'.'value' BUCKET zone"], "swapory-value"}].
 
 
-perf_net(Nic, Zone) ->
+perf_net(Zone, Nic) ->
     [{["derivate('", Zone, "'.'net'.'", Nic, "'.'opackets64' BUCKET zone)"],
       ["net-send-ops-", Nic]},
      {["derivate('", Zone, "'.'net'.'", Nic, "'.'ipackets64' BUCKET zone)"],
