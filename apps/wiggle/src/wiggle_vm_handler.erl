@@ -887,7 +887,7 @@ perf(UUID) ->
         ++ perf_net(Zone, <<"net0">>) ++ perf_zfs(Zone),
     apply_query(Elems, "LAST 1m").
 
-perf_zone_id(<<Z:40/binary, _/binary>>) ->
+perf_zone_id(<<Z:30/binary, _/binary>>) ->
     Z.
 
 perf_cpu(Zone) ->
