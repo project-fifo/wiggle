@@ -422,7 +422,9 @@ read(Req, State = #state{path = [?UUID(_Vm)], obj = Obj}) ->
 
 read(Req, State = #state{path = [?UUID(Vm), <<"metrics">>]}) ->
     Q = perf(Vm),
-    {ok, Res} = dqe:run(Q),
+    lager:debug("[metrics] Running query ~s", [Q]),
+    {T, {ok, Res}} = timer:tc(dqe, run, [Q]),
+    lager:debug("[metrics] The query took ~pus", [T]),
     JSON = [[{<<"n">>, Name},
              {<<"r">>, Resolution},
              {<<"v">>, mmath_bin:to_list(Data)}]
