@@ -148,6 +148,9 @@ get(State = #state{path = [?UUID(Vm), <<"fw_rules">>, IDB]}) ->
             E
     end;
 
+get(#state{path = [?UUID(_Vm), <<"metrics">>]}) ->
+    {ok, now()};
+
 get(State = #state{path = [?UUID(Vm) | _]}) ->
     Start = now(),
     R = case application:get_env(wiggle, vm_ttl) of
@@ -421,7 +424,8 @@ read(Req, State = #state{path = [?UUID(_Vm)], obj = Obj}) ->
     {to_json(Obj), Req, State};
 
 read(Req, State = #state{path = [?UUID(Vm), <<"metrics">>]}) ->
-    Q = perf(Vm),
+    {QS, Req1} = cowboy_req:qs_vals(Req),
+    {ok, Q} = perf(Vm, lists:sort(QS)),
     lager:debug("[metrics] Running query ~s", [Q]),
     {T, {ok, Res}} = timer:tc(dqe, run, [Q]),
     lager:debug("[metrics] The query took ~pus", [T]),
@@ -429,7 +433,8 @@ read(Req, State = #state{path = [?UUID(Vm), <<"metrics">>]}) ->
              {<<"r">>, Resolution},
              {<<"v">>, mmath_bin:to_list(Data)}]
             || {Name, Data, Resolution} <- Res],
-    {JSON, Req, State}.
+
+    {JSON, Req1, State}.
 
 
 %%--------------------------------------------------------------------
@@ -882,12 +887,60 @@ find_rule(ID, VM) ->
 %% Internal
 %%--------------------------------------------------------------------
 
+valid_time(_Time) ->
+    true. %% TODO!
 
-perf(UUID) ->
+valid_pit(_PIT) ->
+    true. %% TODO
+
+perf(UUID, QS) ->
     Zone = perf_zone_id(UUID),
     Elems = perf_cpu(Zone) ++ perf_mem(Zone) ++ perf_swap(Zone) 
         ++ perf_net(Zone, <<"net0">>) ++ perf_zfs(Zone),
-    apply_query(Elems, "LAST 1m").
+    case lists:keytake(<<"aggr">>, 1, QS) of
+        false ->
+            perf1(Elems, QS);
+        {value, {<<"resolution">>, Res}, QS1} ->
+            case valid_time(Res) of
+                true ->
+                    Elems1 = apply_aggr("avg", Res, Elems),
+                    perf1(Elems1, QS1);
+                false ->
+                    {error, bad_resolution}
+            end
+    end.
+
+perf1(Elems, [{<<"last">>, Last}]) ->
+    case valid_time(Last) of
+        true ->
+            {ok, apply_query(Elems, ["LAST ", Last])};
+        false ->
+            {error, bad_last}
+    end;
+
+
+perf1(Elems, [{<<"after">>, After}, {<<"for">>, For}]) ->
+    case valid_pit(After) andalso valid_time(For) of
+        true ->
+            {ok, apply_query(Elems, ["AFTER ", After, " FOR ", For])};
+        false ->
+            {error, bad_after}
+    end;
+
+perf1(Elems, [{<<"before">>, Before}, {<<"for">>, For}]) ->
+    case valid_pit(Before) andalso valid_time(For) of
+        true ->
+            {ok, apply_query(Elems, ["BEFORE ", Before, " FOR ", For])};
+        false ->
+            {error, bad_before}
+    end;
+
+
+perf1(Elems, []) ->
+    {ok, apply_query(Elems, "LAST 1m")};
+
+perf1(_Elems, _) ->
+    {error, bad_qs}.
 
 perf_zone_id(<<Z:30/binary, _/binary>>) ->
     Z.
@@ -924,9 +977,9 @@ perf_zfs(Zone) ->
      {["derivate('", Zone, "'.'zfs'.'reads' BUCKET zone)"], "zfs-read-ops"},
      {["derivate('", Zone, "'.'zfs'.'writes' BUCKET zone)"], "zfs-write-ops"}].
 
-%% apply_aggr(Aggr, Res, Elements) ->
-%%     [{[Aggr, $(, Qry, ", ", Res, $)], Alias} ||
-%%         {Qry, Alias} <- Elements].
+apply_aggr(Aggr, Res, Elements) ->
+     [{[Aggr, $(, Qry, ", ", Res, $)], Alias} ||
+         {Qry, Alias} <- Elements].
 
 
 apply_query(Elements, Range) ->
