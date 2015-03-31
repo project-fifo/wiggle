@@ -928,6 +928,6 @@ perf_zfs(Zone) ->
 
 
 apply_query(Elements, Range) ->
-    Elements1 = [[Qry, " AS '", Alias] || {Qry, Alias} <- Elements],
+    Elements1 = [[Qry, " AS '", Alias, "'"] || {Qry, Alias} <- Elements],
     iolist_to_binary(["SELECT ", string:join(Elements1, ", "), " ", Range]).
 
