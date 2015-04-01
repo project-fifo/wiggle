@@ -46,14 +46,17 @@ allowed_methods(_Version, _Token, []) ->
 allowed_methods(_Version, _Token, [?UUID(_Vm)]) ->
     [<<"GET">>, <<"PUT">>, <<"DELETE">>];
 
+allowed_methods(?V2, _Token, [?UUID(_Vm), <<"metrics">>| _]) ->
+    [<<"GET">>];
+
 allowed_methods(?V2, _Token, [?UUID(_Vm), <<"config">>]) ->
-    [<<"POST">>];
+    [<<"PUT">>];
 
 allowed_methods(?V2, _Token, [?UUID(_Vm), <<"package">>]) ->
-    [<<"POST">>];
+    [<<"PUT">>];
 
 allowed_methods(?V2, _Token, [?UUID(_Vm), <<"state">>]) ->
-    [<<"POST">>];
+    [<<"PUT">>];
 
 allowed_methods(_Version, _Token, [<<"dry_run">>]) ->
     [<<"PUT">>];
@@ -145,6 +148,9 @@ get(State = #state{path = [?UUID(Vm), <<"fw_rules">>, IDB]}) ->
             E
     end;
 
+get(#state{path = [?UUID(_Vm), <<"metrics">>]}) ->
+    {ok, now()};
+
 get(State = #state{path = [?UUID(Vm) | _]}) ->
     Start = now(),
     R = case application:get_env(wiggle, vm_ttl) of
@@ -172,6 +178,10 @@ permission_required(#state{method = <<"POST">>, path = []}) ->
     {ok, [<<"cloud">>, <<"vms">>, <<"create">>]};
 
 permission_required(#state{method = <<"GET">>, path = [?UUID(Vm)]}) ->
+    {ok, [<<"vms">>, Vm, <<"get">>]};
+
+permission_required(#state{version = ?V2, method = <<"GET">>,
+                           path = [?UUID(Vm), <<"metrics">> | _]}) ->
     {ok, [<<"vms">>, Vm, <<"get">>]};
 
 permission_required(#state{method = <<"DELETE">>, path = [?UUID(Vm)]}) ->
@@ -241,22 +251,22 @@ permission_required(#state{method = <<"PUT">>, body = undefiend}) ->
 permission_required(#state{method = <<"PUT">>, body = Decoded, version = ?V1,
                            path = [?UUID(Vm)]}) ->
     case Decoded of
-        [{<<"action">>, Act}] ->
+        [{<<"action">>, Act} | _] ->
             {ok, [<<"vms">>, Vm, Act]};
         _ ->
             {ok, [<<"vms">>, Vm, <<"edit">>]}
     end;
 
-permission_required(#state{method = <<"POST">>, body = [{<<"action">>, Act}],
+permission_required(#state{method = <<"PUT">>, body = [{<<"action">>, Act} | _],
                            version = ?V2, path = [?UUID(Vm), <<"state">>]}) ->
     {ok, [<<"vms">>, Vm, Act]};
 
 
-permission_required(#state{method = <<"POST">>, version = ?V2,
+permission_required(#state{method = <<"PUT">>, version = ?V2,
                            path = [?UUID(Vm), <<"config">>]}) ->
     {ok, [<<"vms">>, Vm, <<"edit">>]};
 
-permission_required(#state{method = <<"POST">>, version = ?V2,
+permission_required(#state{method = <<"PUT">>, version = ?V2,
                            path = [?UUID(Vm), <<"package">>]}) ->
     {ok, [<<"vms">>, Vm, <<"edit">>]};
 
@@ -324,17 +334,17 @@ schema(#state{method = <<"POST">>, path = []}) ->
     vm_create;
 
 %% Changes a VM state
-schema(#state{method = <<"POST">>, path = [?UUID(_Vm), <<"state">>],
+schema(#state{method = <<"PUT">>, path = [?UUID(_Vm), <<"state">>],
               version = ?V2}) ->
     vm_update_state;
 
 
 %% Updates a VM Config, we don't have validation that in the V! api
-schema(#state{method = <<"POST">>, path = [?UUID(_Vm), <<"config">>],
+schema(#state{method = <<"PUT">>, path = [?UUID(_Vm), <<"config">>],
               version = ?V2}) ->
     vm_update_config;
 
-schema(#state{method = <<"POST">>, path = [?UUID(_Vm), <<"package">>],
+schema(#state{method = <<"PUT">>, path = [?UUID(_Vm), <<"package">>],
               version = ?V2}) ->
     vm_update_package;
 
@@ -402,7 +412,6 @@ read(Req, State = #state{path = [?UUID(_Vm), <<"backups">>, SnapID], obj = Obj})
             {jsxd:set(<<"uuid">>, SnapID, SnapObj), Req, State};
         _ ->
             {null, Req, State}
-
     end;
 
 read(Req, State = #state{path = [?UUID(_Vm), <<"services">>], obj = Obj}) ->
@@ -412,7 +421,21 @@ read(Req, State = #state{path = [?UUID(_Vm), <<"services">>, Service], obj = Obj
     {jsxd:get([Service], [{}], ft_vm:services(Obj)), Req, State};
 
 read(Req, State = #state{path = [?UUID(_Vm)], obj = Obj}) ->
-    {to_json(Obj), Req, State}.
+    {to_json(Obj), Req, State};
+
+read(Req, State = #state{path = [?UUID(Vm), <<"metrics">>]}) ->
+    {QS, Req1} = cowboy_req:qs_vals(Req),
+    {ok, Q} = perf(Vm, lists:sort(QS)),
+    lager:debug("[metrics] Running query ~s", [Q]),
+    {T, {ok, Res}} = timer:tc(dqe, run, [Q]),
+    lager:debug("[metrics] The query took ~pus", [T]),
+    JSON = [[{<<"n">>, Name},
+             {<<"r">>, Resolution},
+             {<<"v">>, mmath_bin:to_list(Data)}]
+            || {Name, Data, Resolution} <- Res],
+
+    {JSON, Req1, State}.
+
 
 %%--------------------------------------------------------------------
 %% PUT
@@ -859,4 +882,107 @@ find_rule(ID, VM) ->
         _ ->
             {error, oh_shit}
     end.
+
+%%--------------------------------------------------------------------
+%% Internal
+%%--------------------------------------------------------------------
+
+valid_time(_Time) ->
+    true. %% TODO!
+
+valid_pit(_PIT) ->
+    true. %% TODO
+
+perf(UUID, QS) ->
+    Zone = perf_zone_id(UUID),
+    Elems = perf_cpu(Zone) ++ perf_mem(Zone) ++ perf_swap(Zone) 
+        ++ perf_net(Zone, <<"net0">>) ++ perf_zfs(Zone),
+    case lists:keytake(<<"aggr">>, 1, QS) of
+        false ->
+            perf1(Elems, QS);
+        {value, {<<"aggr">>, Res}, QS1} ->
+            case valid_time(Res) of
+                true ->
+                    Elems1 = apply_aggr("avg", Res, Elems),
+                    perf1(Elems1, QS1);
+                false ->
+                    {error, bad_resolution}
+            end
+    end.
+
+perf1(Elems, [{<<"last">>, Last}]) ->
+    case valid_time(Last) of
+        true ->
+            {ok, apply_query(Elems, ["LAST ", Last])};
+        false ->
+            {error, bad_last}
+    end;
+
+
+perf1(Elems, [{<<"after">>, After}, {<<"for">>, For}]) ->
+    case valid_pit(After) andalso valid_time(For) of
+        true ->
+            {ok, apply_query(Elems, ["AFTER ", After, " FOR ", For])};
+        false ->
+            {error, bad_after}
+    end;
+
+perf1(Elems, [{<<"before">>, Before}, {<<"for">>, For}]) ->
+    case valid_pit(Before) andalso valid_time(For) of
+        true ->
+            {ok, apply_query(Elems, ["BEFORE ", Before, " FOR ", For])};
+        false ->
+            {error, bad_before}
+    end;
+
+
+perf1(Elems, []) ->
+    {ok, apply_query(Elems, "LAST 1m")};
+
+perf1(_Elems, _) ->
+    {error, bad_qs}.
+
+perf_zone_id(<<Z:30/binary, _/binary>>) ->
+    Z.
+
+perf_cpu(Zone) ->
+    [{[$', Zone | "'.'cpu'.'usage' BUCKET zone"], "cpu-usage"},
+     {[$', Zone | "'.'cpu'.'effective' BUCKET zone"], "cpu-effective"},
+     {[$', Zone | "'.'cpu'.'nwait' BUCKET zone"], "cpu-nwait"}].
+
+
+perf_mem(Zone) ->
+    [{[$', Zone | "'.'mem'.'usage' BUCKET zone"], "memory-usage"},
+     {[$', Zone | "'.'mem'.'value' BUCKET zone"], "memory-value"}].
+
+
+perf_swap(Zone) ->
+    [{[$', Zone | "'.'swap'.'usage' BUCKET zone"], "swapory-usage"},
+     {[$', Zone | "'.'swap'.'value' BUCKET zone"], "swapory-value"}].
+
+
+perf_net(Zone, Nic) ->
+    [{["derivate('", Zone, "'.'net'.'", Nic, "'.'opackets64' BUCKET zone)"],
+      ["net-send-ops-", Nic]},
+     {["derivate('", Zone, "'.'net'.'", Nic, "'.'ipackets64' BUCKET zone)"],
+      ["net-recv-ops-", Nic]},
+     {["divide(derivate('", Zone, "'.'net'.'", Nic, "'.'obytes64' BUCKET zone), 1024)"],
+      ["net-send-kb-", Nic]},
+     {["divide(derivate('", Zone, "'.'net'.'", Nic, "'.'rbytes64' BUCKET zone), 1024)"],
+      ["net-recv-kb-", Nic]}].
+
+perf_zfs(Zone) ->
+    [{["divide(derivate('", Zone, "'.'zfs'.'nread' BUCKET zone), 1024)"], "zfs-read-kb"},
+     {["divide(derivate('", Zone, "'.'zfs'.'nwritten' BUCKET zone), 1024)"], "zfs-write-kb"},
+     {["derivate('", Zone, "'.'zfs'.'reads' BUCKET zone)"], "zfs-read-ops"},
+     {["derivate('", Zone, "'.'zfs'.'writes' BUCKET zone)"], "zfs-write-ops"}].
+
+apply_aggr(Aggr, Res, Elements) ->
+     [{[Aggr, $(, Qry, ", ", Res, $)], Alias} ||
+         {Qry, Alias} <- Elements].
+
+
+apply_query(Elements, Range) ->
+    Elements1 = [[Qry, " AS '", Alias, "'"] || {Qry, Alias} <- Elements],
+    iolist_to_binary(["SELECT ", string:join(Elements1, ", "), " ", Range]).
 

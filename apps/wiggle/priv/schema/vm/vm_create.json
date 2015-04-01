@@ -27,8 +27,7 @@
         },
         "alias": {
           "type": "string",
-          "required": "true",
-          "pattern": "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\-]*[A-Za-z0-9])$"
+          "required": "true"
         },
         "routes": {
           "type": "array",
@@ -60,8 +59,7 @@
         },
         "grouping": {
           "type": "string",
-          "pattern": "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
-          "required": true
+          "pattern": "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
         },
         "requirements": {
           "type": "array",
@@ -93,15 +91,12 @@
           }
         },
         "networks": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "patternProperties": {
-              "net\\d+": {
-                "type": "string",
-                "pattern": "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
-                "required": true
-              }
+          "type": "object",
+          "patternProperties": {
+            "net\\d+": {
+              "type": "string",
+              "pattern": "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
+              "required": true
             }
           }
         }

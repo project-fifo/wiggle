@@ -24,6 +24,7 @@
                   e2qc,
                   fifo_s3,
                   folsom_ddb,
+                  dqe,
                   erlydtl,
                   cowboy
                  ]},
