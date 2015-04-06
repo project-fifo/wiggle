@@ -255,7 +255,12 @@ permission_required(#state{method = <<"PUT">>, body = Decoded, version = ?V1,
             {ok, [<<"vms">>, Vm, Act]};
         _ ->
             {ok, [<<"vms">>, Vm, <<"edit">>]}
+
     end;
+
+permission_required(#state{method = <<"PUT">>, body = undefined,
+                           version = ?V2, path = [?UUID(_Vm), <<"state">>]}) ->
+    {error, needs_decode};
 
 permission_required(#state{method = <<"PUT">>, body = [{<<"action">>, Act} | _],
                            version = ?V2, path = [?UUID(Vm), <<"state">>]}) ->
