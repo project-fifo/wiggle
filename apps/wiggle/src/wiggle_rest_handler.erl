@@ -219,7 +219,10 @@ write(Req, State = #state{module = M, body = undefined}) ->
         false ->
             {ok, Data, Req1} = wiggle_handler:decode(Req),
             write1(Req1, State#state{body = Data})
-    end.
+    end;
+
+write(Req, State) ->
+    write1(Req, State).
 
 write1(Req, State = #state{body = Data}) ->
     case schema(State) of
