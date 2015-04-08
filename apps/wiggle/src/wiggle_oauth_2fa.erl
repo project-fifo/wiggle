@@ -71,10 +71,15 @@ do_vals(AuthReq, Vals, Req) ->
 do_resolve_token(AuthReq = #mfa_req{method = get}, Req) ->
     do_request(AuthReq, Req);
 
-do_resolve_token(AuthReq = #mfa_req{method = post, otp_token = OTPToken}, Req) ->
-    {ok, TokenData} = ls_token:get(OTPToken),
-    ls_token:delete(OTPToken),
-    do_request(AuthReq#mfa_req{token_data = TokenData}, Req).
+do_resolve_token(AuthReq = #mfa_req{method = post, otp_token = OTPToken,
+                                    redirect_uri = URI, state = State}, Req) ->
+    case ls_token:get(OTPToken) of
+        {ok, TokenData} ->
+            ls_token:delete(OTPToken),
+            do_request(AuthReq#mfa_req{token_data = TokenData}, Req);
+        _ ->
+            wiggle_oauth:redirected_error_response(URI, invalid_request, State, Req)
+    end.
 
 do_request(AuthReq = #mfa_req{method = get}, Req) ->
     Params = build_params(AuthReq),
