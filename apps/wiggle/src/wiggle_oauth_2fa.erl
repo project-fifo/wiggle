@@ -14,10 +14,11 @@
 -record(mfa_req, {
           method,
           redirect_uri,
-          response_type,
           otp_token,
+          response_type,
           otp,
-          state
+          state,
+          token_data
          }).
 
 
@@ -65,7 +66,15 @@ do_vals(AuthReq, Vals, Req) ->
                  otp = OTP,
                  otp_token = OTPToken,
                  state = State},
-    do_request(AuthReq1, Req).
+    do_resolve_token(AuthReq1, Req).
+
+do_resolve_token(AuthReq = #mfa_req{method = get}, Req) ->
+    do_request(AuthReq, Req);
+
+do_resolve_token(AuthReq = #mfa_req{method = post, otp_token = OTPToken}, Req) ->
+    {ok, TokenData} = ls_token:get(OTPToken),
+    ls_token:delete(OTPToken),
+    do_request(AuthReq#mfa_req{token_data = TokenData}, Req).
 
 do_request(AuthReq = #mfa_req{method = get}, Req) ->
     Params = build_params(AuthReq),
@@ -80,29 +89,21 @@ do_request(AuthReq = #mfa_req{response_type = token}, Req) ->
 
 do_request(#mfa_req{}, Req) ->
     wiggle_oauth:json_error_response(unsupported_response_type, Req).
-
-
 %% 4.1.1
 
 do_code(#mfa_req{
            otp = OTP,
-           otp_token = OTPToken,
            redirect_uri = URI,
-           state = State}, Req)
-  when is_binary(OTP),
-       is_binary(OTPToken) ->
-    case ls_token:get(OTPToken) of
-        {ok, {<<"code">>, UUID, Authorization, URI}} ->
-            case ls_user:yubikey_check(UUID, OTP) of
-                {ok, _UUID} ->
-                    {ok, Response} = ls_oauth:issue_code(Authorization),
-                    {ok, Code} = oauth2_response:access_code(Response),
-                    wiggle_oauth:redirected_authorization_code_response(URI, Code, State, Req);
-                _ ->
-                    wiggle_oauth:redirected_error_response(URI, access_denied, State, Req)
-            end;
-        {error, Error} ->
-            wiggle_oauth:redirected_error_response(URI, Error, State, Req)
+           state = State,
+           token_data = {<<"code">>, UUID, Authorization, URI}}, Req)
+  when is_binary(OTP) ->
+    case ls_user:yubikey_check(UUID, OTP) of
+        {ok, _UUID} ->
+            {ok, Response} = ls_oauth:issue_code(Authorization),
+            {ok, Code} = oauth2_response:access_code(Response),
+            wiggle_oauth:redirected_authorization_code_response(URI, Code, State, Req);
+        _ ->
+            wiggle_oauth:redirected_error_response(URI, access_denied, State, Req)
     end;
 
 
@@ -112,26 +113,20 @@ do_code(#mfa_req{redirect_uri = Uri, state = State}, Req) ->
 do_token(#mfa_req{
             redirect_uri = URI,
             otp = OTP,
-            otp_token = OTPToken,
-            state = State}, Req)
-  when is_binary(OTP),
-       is_binary(OTPToken) ->
-    case ls_token:get(OTPToken) of
-        {ok, {<<"token">>, UUID, Authorization, URI}} ->
-            case ls_user:yubikey_check(UUID, OTP) of
-                {ok, _UUID} ->
-                    {ok, Response} = ls_oauth:issue_token(Authorization),
-                    {ok, AccessToken} = oauth2_response:access_token(Response),
-                    {ok, Type} = oauth2_response:token_type(Response),
-                    {ok, Expires} = oauth2_response:expires_in(Response),
-                    {ok, VerifiedScope} = oauth2_response:scope(Response),
-                    wiggle_oauth:redirected_access_token_response(
-                      URI, AccessToken, Type, Expires, VerifiedScope, State, Req);
-                _ ->
-                    wiggle_oauth:redirected_error_response(URI, access_denied, State, Req)
-            end;
-        {error, Error} ->
-            wiggle_oauth:redirected_error_response(URI, Error, State, Req)
+            state = State,
+            token_data = {<<"token">>, UUID, Authorization, URI}}, Req)
+  when is_binary(OTP) ->
+    case ls_user:yubikey_check(UUID, OTP) of
+        {ok, _UUID} ->
+            {ok, Response} = ls_oauth:issue_token(Authorization),
+            {ok, AccessToken} = oauth2_response:access_token(Response),
+            {ok, Type} = oauth2_response:token_type(Response),
+            {ok, Expires} = oauth2_response:expires_in(Response),
+            {ok, VerifiedScope} = oauth2_response:scope(Response),
+            wiggle_oauth:redirected_access_token_response(
+              URI, AccessToken, Type, Expires, VerifiedScope, State, Req);
+        _ ->
+            wiggle_oauth:redirected_error_response(URI, access_denied, State, Req)
     end;
 
 do_token(#mfa_req{redirect_uri = Uri, state = State}, Req) ->
