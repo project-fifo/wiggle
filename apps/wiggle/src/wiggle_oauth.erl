@@ -19,7 +19,6 @@
 -define(TOKEN_LIFETIME, 120). %% two minutes
 
 redirected_2fa_request(Type, UUID, Authorization, State, URI, Req) ->
-    Code = oauth2_token:generate('x-snarl-2fa'),
     {ok, Code} = ls_token:add(?TOKEN_LIFETIME, {Type, UUID, Authorization, URI}),
     Params = [{<<"response_type">>, Type}, {<<"fifo_otp_token">>, Code},
               {<<"state">>, State}, {<<"redirect_uri">>, URI}],

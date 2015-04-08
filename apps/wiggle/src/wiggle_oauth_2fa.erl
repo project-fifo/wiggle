@@ -125,13 +125,8 @@ do_token(#mfa_req{
                     {ok, Type} = oauth2_response:token_type(Response),
                     {ok, Expires} = oauth2_response:expires_in(Response),
                     {ok, VerifiedScope} = oauth2_response:scope(Response),
-                    wiggle_oauth:redirected_access_token_response(URI,
-                                                                  AccessToken,
-                                                                  Type,
-                                                                  Expires,
-                                                                  VerifiedScope,
-                                                                  State,
-                                                                  Req);
+                    wiggle_oauth:redirected_access_token_response(
+                      URI, AccessToken, Type, Expires, VerifiedScope, State, Req);
                 _ ->
                     wiggle_oauth:redirected_error_response(URI, access_denied, State, Req)
             end;
