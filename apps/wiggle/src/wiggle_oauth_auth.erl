@@ -1,5 +1,7 @@
 -module(wiggle_oauth_auth).
 
+-include("wiggle_oauth.hrl").
+
 -export([init/3]).
 -export([handle/2]).
 -export([terminate/3]).
@@ -129,17 +131,7 @@ do_code(#auth_req{
            state = State}, Req)
   when is_binary(UserUUID),
        is_binary(ClientID) ->
-    case ls_oauth:authorize_code_request({UserUUID}, ClientID, URI, Scope) of
-        {ok, Authorization} ->
-            {ok, Response} = ls_oauth:issue_code(Authorization),
-            {ok, Code} = oauth2_response:access_code(Response),
-            wiggle_oauth:redirected_authorization_code_response(URI, Code, State, Req);
-        {error, unauthorized_client} ->
-            %% cliend_id is not registered or redirection_uri is not valid
-            wiggle_oauth:json_error_response(unauthorized_client, Req);
-        {error, Error} ->
-            wiggle_oauth:redirected_error_response(URI, Error, State, Req)
-    end;
+    do_code({UserUUID}, ClientID, URI, Scope, State, Req);
 
 do_code(#auth_req{
            client_id = ClientID,
@@ -151,21 +143,30 @@ do_code(#auth_req{
   when is_binary(Username),
        is_binary(Password),
        is_binary(ClientID) ->
-    case ls_oauth:authorize_code_request(
-           {Username, Password}, ClientID, URI, Scope) of
-        {ok, Authorization} ->
-            {ok, Response} = ls_oauth:issue_code(Authorization),
-            {ok, Code} = oauth2_response:access_code(Response),
-            wiggle_oauth:redirected_authorization_code_response(URI, Code, State, Req);
+    do_code({Username, Password}, ClientID, URI, Scope, State, Req);
+
+do_code(#auth_req{redirect_uri = Uri, state = State}, Req) ->
+    wiggle_oauth:redirected_error_response(Uri, invalid_request, State, Req).
+
+do_code(User, ClientID, URI, Scope, State, Req) ->
+    case ls_oauth:authorize_code_request(User, ClientID, URI, Scope) of
+        {ok, Authorization = #a{resowner = UUID}} ->
+            case ls_user:yubikeys(UUID) of
+                {ok, []} ->
+                    {ok, Response} = ls_oauth:issue_code(Authorization),
+                    {ok, Code} = oauth2_response:access_code(Response),
+                    wiggle_oauth:redirected_authorization_code_response(URI, Code, State, Req);
+                {ok, _} ->
+                    %%TODO
+                    wiggle_oauth:redirected_2fa_request(
+                      <<"code">>, UUID, Authorization, State, URI, Req)
+            end;
         {error, unauthorized_client} ->
             %% cliend_id is not registered or redirection_uri is not valid
             wiggle_oauth:json_error_response(unauthorized_client, Req);
         {error, Error} ->
             wiggle_oauth:redirected_error_response(URI, Error, State, Req)
-    end;
-
-do_code(#auth_req{redirect_uri = Uri, state = State}, Req) ->
-    wiggle_oauth:redirected_error_response(Uri, invalid_request, State, Req).
+    end.
 
 do_token(#auth_req{
             client_id = ClientID,
@@ -175,24 +176,8 @@ do_token(#auth_req{
             state = State}, Req)
   when is_binary(UserUUID),
        is_binary(ClientID) ->
-    case
-        ls_oauth:authorize_password({UserUUID}, ClientID, URI, Scope) of
-        {ok, Authorization} ->
-            {ok, Response} = ls_oauth:issue_token(Authorization),
-            {ok, AccessToken} = oauth2_response:access_token(Response),
-            {ok, Type} = oauth2_response:token_type(Response),
-            {ok, Expires} = oauth2_response:expires_in(Response),
-            {ok, VerifiedScope} = oauth2_response:scope(Response),
-            wiggle_oauth:redirected_access_token_response(URI,
-                                                          AccessToken,
-                                                          Type,
-                                                          Expires,
-                                                          VerifiedScope,
-                                                          State,
-                                                          Req);
-        {error, Error} ->
-            wiggle_oauth:redirected_error_response(URI, Error, State, Req)
-    end;
+    do_token({UserUUID}, ClientID, URI, Scope, State, Req);
+
 do_token(#auth_req{
             client_id = ClientID,
             redirect_uri = URI,
@@ -203,28 +188,36 @@ do_token(#auth_req{
   when is_binary(Username),
        is_binary(Password),
        is_binary(ClientID) ->
-    case
-        ls_oauth:authorize_password({Username, Password}, ClientID, URI, Scope)
-    of
-        {ok, Authorization} ->
-            {ok, Response} = ls_oauth:issue_token(Authorization),
-            {ok, AccessToken} = oauth2_response:access_token(Response),
-            {ok, Type} = oauth2_response:token_type(Response),
-            {ok, Expires} = oauth2_response:expires_in(Response),
-            {ok, VerifiedScope} = oauth2_response:scope(Response),
-            wiggle_oauth:redirected_access_token_response(URI,
-                                                          AccessToken,
-                                                          Type,
-                                                          Expires,
-                                                          VerifiedScope,
-                                                          State,
-                                                          Req);
-        {error, Error} ->
-            wiggle_oauth:redirected_error_response(URI, Error, State, Req)
-    end;
+    do_token({Username, Password}, ClientID, URI, Scope, State, Req);
 
 do_token(#auth_req{redirect_uri = Uri, state = State}, Req) ->
     wiggle_oauth:redirected_error_response(Uri, invalid_request, State, Req).
+
+do_token({UserUUID}, ClientID, URI, Scope, State, Req) ->
+    case ls_oauth:authorize_password({UserUUID}, ClientID, URI, Scope) of
+        {ok, Authorization = #a{resowner = UUID}} ->
+            case ls_user:yubikeys(UUID) of
+                {ok, []} ->
+
+                    {ok, Response} = ls_oauth:issue_token(Authorization),
+                    {ok, AccessToken} = oauth2_response:access_token(Response),
+                    {ok, Type} = oauth2_response:token_type(Response),
+                    {ok, Expires} = oauth2_response:expires_in(Response),
+                    {ok, VerifiedScope} = oauth2_response:scope(Response),
+                    wiggle_oauth:redirected_access_token_response(URI,
+                                                                  AccessToken,
+                                                                  Type,
+                                                                  Expires,
+                                                                  VerifiedScope,
+                                                                  State,
+                                                                  Req);
+                {ok, _} ->
+                    wiggle_oauth:redirected_2fa_request(
+                      <<"token">>, UUID, Authorization, State, URI, Req)
+            end;
+        {error, Error} ->
+            wiggle_oauth:redirected_error_response(URI, Error, State, Req)
+    end.
 
 build_params(R = #auth_req{response_type = code}) ->
     build_params(R, [{response_type, <<"code">>}]);
@@ -269,7 +262,6 @@ build_params4(#auth_req{state = State}, Acc)
     [{state, State} | Acc];
 build_params4(_R, Acc) ->
     Acc.
-
 
 scope_desc(Scope) ->
     [Desc || {_, Desc, _} <- ls_oauth:scope(Scope)].

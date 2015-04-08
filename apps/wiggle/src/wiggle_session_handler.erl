@@ -65,9 +65,24 @@ create(Req, State = #state{path = [], version = ?V1}, Decoded) ->
                     {ok, OTP} ->
                         libsnarl:auth(User, Pass, OTP);
                     _ ->
-                        libsnarl:auth(User, Pass)
+                        case libsnarl:auth(User, Pass) of
+                            {ok, UUID} ->
+                                case ls_user:yubikeys(UUID) of
+                                    {ok, []} ->
+                                        {ok, UUID};
+                                    _ ->
+                                        key_required
+                                end
+                        end
                 end,
-            case R of
+            R2 = case R of
+                     {ok, UUID1} ->
+                         {ok, Tkn} = ls_user:make_token(UUID1),
+                         {ok, {token, Tkn}};
+                     E ->
+                         E
+                 end,
+            case R2 of
                 {ok, {token, Session}} ->
                     Req2 = cowboy_req:set_resp_header(<<"x-snarl-token">>, Session, Req),
                     {{true, <<"/api/0.1.0/sessions/", Session/binary>>},
@@ -92,5 +107,5 @@ write(Req, State, _) ->
 %%--------------------------------------------------------------------
 
 delete(Req, State = #state{path = [Session]}) ->
-    libsnarl:token_delete(Session),
+    ls_token:delete(Session),
     {true, Req, State}.

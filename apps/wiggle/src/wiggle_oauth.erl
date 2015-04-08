@@ -1,5 +1,8 @@
 -module(wiggle_oauth).
 
+-include("wiggle_oauth.hrl").
+-include("wiggle.hrl").
+
 -export([
          redirected_authorization_code_response/4,
          redirected_access_token_response/7,
@@ -10,14 +13,23 @@
          decode_grant_type/1,
          decode_response_type/1,
          access_token_response/5,
-         access_refresh_token_response/6
+         access_refresh_token_response/6,
+         redirected_2fa_request/6
          ]).
+-define(TOKEN_LIFETIME, 120). %% two minutes
+
+redirected_2fa_request(Type, UUID, Authorization, State, URI, Req) ->
+    Code = oauth2_token:generate('x-snarl-2fa'),
+    {ok, Code} = ls_token:add(?TOKEN_LIFETIME, {Type, UUID, Authorization, URI}),
+    Params = [{<<"response_type">>, Type}, {<<"fifo_otp_token">>, Code},
+              {<<"state">>, State}, {<<"redirect_uri">>, URI}],
+    Location = <<"/api/", ?V2/binary, "/oauth/2fa?", (cow_qs:qs(Params))/binary>>,
+    cowboy_req:reply(302, [{<<"location">>, Location}], <<>>, Req).
 
 redirected_authorization_code_response(Uri, Code, State, Req) ->
     Params = [{<<"code">>, Code}, {<<"state">>, State}],
     Location = <<Uri/binary, "?", (cow_qs:qs(Params))/binary>>,
     cowboy_req:reply(302, [{<<"location">>, Location}], <<>>, Req).
-
 
 json_error_response(Error, Req) ->
     H = [{<<"content-type">>, <<"application/json">>}],
