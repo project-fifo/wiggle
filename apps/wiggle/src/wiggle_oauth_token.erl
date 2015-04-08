@@ -16,6 +16,7 @@
           redirect_uri,
           username,
           password,
+          otp,
           refresh_token,
           scope,
           payload
@@ -50,6 +51,7 @@ do_vals(Vals, Req) ->
     %% Those are only used for the 4.3.2 Password grand
     Username = proplists:get_value(<<"username">>, Vals),
     Password = proplists:get_value(<<"password">>, Vals),
+    OTP = proplists:get_value(<<"fifo_otp">>, Vals),
     Scope = proplists:get_value(<<"scope">>, Vals),
     %% Used for 6 - refresh access tokens
     RefreshToken = proplists:get_value(<<"refresh_token">>, Vals),
@@ -61,6 +63,7 @@ do_vals(Vals, Req) ->
                   client_secret = ClientSecret,
                   username = Username,
                   password = Password,
+                  otp = OTP,
                   scope = Scope,
                   refresh_token = RefreshToken
                  },
@@ -118,11 +121,25 @@ do_authorization_code(_, Req) ->
     wiggle_oauth:json_error_response(invalid_request, Req).
 
 %% 4.3.2
-do_password(#token_req{username = Username, password = Password,
-                        scope = Scope}, Req)
+do_password(#token_req{username = Username, password = Password, scope = Scope,
+                       otp = OTP},
+            Req)
+  when is_binary(Username),
+       is_binary(Password),
+       is_binary(OTP) ->
+    do_password({Username, Password, OTP}, Scope, Req);
+
+do_password(#token_req{username = Username, password = Password, scope = Scope},
+            Req)
   when is_binary(Username),
        is_binary(Password) ->
-    case ls_oauth:authorize_password({Username, Password}, Scope) of
+    do_password({Username, Password}, Scope, Req);
+
+do_password(_, Req) ->
+    wiggle_oauth:json_error_response(invalid_request, Req).
+
+do_password(User, Scope, Req) ->
+    case ls_oauth:authorize_password(User, Scope) of
         {ok, Authorization} ->
             {ok, Response} = ls_oauth:issue_token(Authorization),
             {ok, AccessToken} = oauth2_response:access_token(Response),
@@ -133,10 +150,7 @@ do_password(#token_req{username = Username, password = Password,
               AccessToken, Type, Expires, VerifiedScope, Req);
         {error, Error} ->
             wiggle_oauth:json_error_response(Error, Req)
-    end;
-
-do_password(_, Req) ->
-    wiggle_oauth:json_error_response(invalid_request, Req).
+    end.
 
 do_client_credentials(#token_req{client_id = ClientId,
                                  client_secret = ClientSecret,

@@ -30,6 +30,8 @@ start(_StartType, _StartArgs) ->
                           wiggle_oauth_token, []},
                          {<<"/api/:version/oauth/auth">>,
                           wiggle_oauth_auth, []},
+                         {<<"/api/:version/oauth/2fa">>,
+                          wiggle_oauth_2fa, []},
                          {<<"/api/:version/users/[...]">>,
                           wiggle_rest_handler, [wiggle_user_handler]},
                          {<<"/api/:version/sessions/[...]">>,
