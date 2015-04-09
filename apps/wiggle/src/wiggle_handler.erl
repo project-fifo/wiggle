@@ -15,6 +15,7 @@
          get_persmissions/1,
          timeout_cache_with_invalid/6,
          timeout_cache/5,
+         scope_perms/2,
          list/9,
          allowed/2
         ]).
