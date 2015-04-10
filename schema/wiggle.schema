@@ -23,6 +23,17 @@
 %%   anew.
 
 
+
+%% @doc Selects wich portion of the API to expose.
+%%
+%% * all - expose the entire API.
+%% * snarl - exposes the Snarl related API (Sniffle is needed).
+%% * oauth2 - exposes only the OAuth2 endpoints no usermanagement or other
+%%   portions.
+{mapping, "api", "wiggle.api",
+ [{default, all},
+  {datatype, {enum, [all, snarl, oauth2]}}]}.
+
 %% @doc Enable or disable caching in global.
 {mapping, "caching", "wiggle.caching",
  [{default, off},

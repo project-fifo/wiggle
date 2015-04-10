@@ -192,10 +192,11 @@ options(Req, State, Methods) ->
 
 
 service_available() ->
-    case {libsniffle:servers(), libsnarl:servers()} of
-        {[], _} ->
+    case {libsniffle:servers(), libsnarl:servers(),
+          application:get_env(wiggle, api, all)} of
+        {_, [], _} ->
             false;
-        {_, []} ->
+        {[], _, all} ->
             false;
         _ ->
             true
