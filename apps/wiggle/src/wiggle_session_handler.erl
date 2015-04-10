@@ -24,9 +24,17 @@ allowed_methods(?V1, _Token, []) ->
 allowed_methods(?V2, _Token, []) ->
     [<<"GET">>];
 
-allowed_methods(_Version, _Token, [_Session]) ->
-    [<<"GET">>, <<"POST">>, <<"DELETE">>].
+allowed_methods(?V2, _Token, [<<"one_time_token">>]) ->
+    [<<"GET">>];
 
+allowed_methods(?V1, _Token, [_Session]) ->
+    [<<"GET">>, <<"DELETE">>];
+
+allowed_methods(?V2, _Token, [_Session]) ->
+    [<<"DELETE">>].
+
+get(#state{path = [<<"one_time_token">>], version = ?V2}) ->
+    {ok, oauth2_token:generate('x-snarl-one-time-token')};
 
 get(State = #state{path = [Session], version = ?V1}) ->
     Start = now(),
@@ -43,6 +51,11 @@ permission_required(_State) ->
 %%--------------------------------------------------------------------
 %% GET
 %%--------------------------------------------------------------------
+
+read(Req, State = #state{path = [<<"one_time_token">>],
+                         token = Token, obj = OTT, version = ?V2}) ->
+    {ok, OTT} = ls_token:add(OTT, 30, Token),
+    {[{<<"expiery">>, 30}, {<<"token">>, OTT}], Req, State};
 
 read(Req, State = #state{path = [], token = Token, version = ?V2}) ->
     {ok, Obj} = ls_user:get(Token),
