@@ -24,49 +24,62 @@ start(_StartType, _StartArgs) ->
         ok -> ok
     end,
     PluginDispatchs = eplugin:fold('wiggle:dispatchs', []),
-
-    Dispatch = cowboy_router:compile(
-                 [{'_', [{<<"/api/:version/oauth/token">>,
-                          wiggle_oauth_token, []},
-                         {<<"/api/:version/oauth/auth">>,
-                          wiggle_oauth_auth, []},
-                         {<<"/api/:version/oauth/2fa">>,
-                          wiggle_oauth_2fa, []},
-                         {<<"/api/:version/users/[...]">>,
-                          wiggle_rest_handler, [wiggle_user_handler]},
-                         {<<"/api/:version/sessions/[...]">>,
-                          wiggle_rest_handler, [wiggle_session_handler]},
-                         {<<"/api/:version/roles/[...]">>,
-                          wiggle_rest_handler, [wiggle_role_handler]},
-                         {<<"/api/:version/orgs/[...]">>,
-                          wiggle_rest_handler, [wiggle_org_handler]},
-                         {<<"/api/:version/cloud/[...]">>,
-                          wiggle_rest_handler, [wiggle_cloud_handler]},
-                         {<<"/api/:version/hypervisors/[...]">>,
-                          wiggle_rest_handler, [wiggle_hypervisor_handler]},
-                         {<<"/api/:version/dtrace/:uuid/stream">>,
-                          wiggle_dtrace_stream, []},
-                         {<<"/api/:version/dtrace/[...]">>,
-                          wiggle_rest_handler, [wiggle_dtrace_handler]},
-                         {<<"/api/:version/vms/:uuid/console">>,
-                          wiggle_console_handler, []},
-                         {<<"/api/:version/vms/:uuid/vnc">>,
-                          wiggle_vnc_handler, []},
-                         {<<"/api/:version/vms/[...]">>,
-                          wiggle_rest_handler, [wiggle_vm_handler]},
-                         {<<"/api/:version/ipranges/[...]">>,
-                          wiggle_rest_handler, [wiggle_iprange_handler]},
-                         {<<"/api/:version/networks/[...]">>,
-                          wiggle_rest_handler, [wiggle_network_handler]},
-                         {<<"/api/:version/groupings/[...]">>,
-                          wiggle_rest_handler, [wiggle_grouping_handler]},
-                         {<<"/api/:version/datasets/[...]">>,
-                          wiggle_rest_handler, [wiggle_dataset_handler]},
-                         {<<"/api/:version/packages/[...]">>,
-                          wiggle_rest_handler, [wiggle_package_handler]}] ++
-                       PluginDispatchs
-                  }]
-                ),
+    DPRules =
+        %% OAuth related rules
+        [{<<"/api/:version/oauth/token">>,
+          wiggle_oauth_token, []},
+         {<<"/api/:version/oauth/auth">>,
+          wiggle_oauth_auth, []},
+         {<<"/api/:version/oauth/2fa">>,
+          wiggle_oauth_2fa, []},
+         {<<"/api/:version/sessions/[...]">>,
+          wiggle_rest_handler, [wiggle_session_handler]}] ++
+        %% Snarl related rules (we only exclude them if oauth is selected)
+        case application:get_env(wiggle, api, all) of
+            oauth2 ->
+                [];
+            _ ->
+                [{<<"/api/:version/users/[...]">>,
+                  wiggle_rest_handler, [wiggle_user_handler]},
+                 {<<"/api/:version/roles/[...]">>,
+                  wiggle_rest_handler, [wiggle_role_handler]},
+                 %% {<<"/api/:version/clients/[...]">>,
+                 %%  wiggle_rest_handler, [wiggle_client_handler]},
+                 {<<"/api/:version/orgs/[...]">>,
+                  wiggle_rest_handler, [wiggle_org_handler]}]
+        end ++
+        %% Sniffle realted rules (we only use them if all is selected)
+        case application:get_env(wiggle, api, all) of
+            all ->
+                [{<<"/api/:version/cloud/[...]">>,
+                  wiggle_rest_handler, [wiggle_cloud_handler]},
+                 {<<"/api/:version/hypervisors/[...]">>,
+                  wiggle_rest_handler, [wiggle_hypervisor_handler]},
+                 {<<"/api/:version/dtrace/:uuid/stream">>,
+                  wiggle_dtrace_stream, []},
+                 {<<"/api/:version/dtrace/[...]">>,
+                  wiggle_rest_handler, [wiggle_dtrace_handler]},
+                 {<<"/api/:version/vms/:uuid/console">>,
+                  wiggle_console_handler, []},
+                 {<<"/api/:version/vms/:uuid/vnc">>,
+                  wiggle_vnc_handler, []},
+                 {<<"/api/:version/vms/[...]">>,
+                  wiggle_rest_handler, [wiggle_vm_handler]},
+                 {<<"/api/:version/ipranges/[...]">>,
+                  wiggle_rest_handler, [wiggle_iprange_handler]},
+                 {<<"/api/:version/networks/[...]">>,
+                  wiggle_rest_handler, [wiggle_network_handler]},
+                 {<<"/api/:version/groupings/[...]">>,
+                  wiggle_rest_handler, [wiggle_grouping_handler]},
+                 {<<"/api/:version/datasets/[...]">>,
+                  wiggle_rest_handler, [wiggle_dataset_handler]},
+                 {<<"/api/:version/packages/[...]">>,
+                  wiggle_rest_handler, [wiggle_package_handler]}];
+            _ ->
+                []
+        end ++
+        PluginDispatchs,
+    Dispatch = cowboy_router:compile([{'_', DPRules}]),
 
     {ok, _} = cowboy:start_http(http, Acceptors, [{port, Port}],
                                 [{compress, Compression},

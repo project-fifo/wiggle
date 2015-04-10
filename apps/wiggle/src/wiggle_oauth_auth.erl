@@ -87,7 +87,6 @@ do_basic_auth(AuthReq, Req) ->
             update_scope(AuthReq, Req1)
     end.
 
-
 check_token(AuthReq = #auth_req{bearer = Bearer}, Req) ->
     case ls_oauth:verify_access_token(Bearer) of
         {ok, Context} ->

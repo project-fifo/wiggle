@@ -15,6 +15,7 @@
          get_persmissions/1,
          timeout_cache_with_invalid/6,
          timeout_cache/5,
+         scope_perms/2,
          list/9,
          allowed/2
         ]).
@@ -191,10 +192,11 @@ options(Req, State, Methods) ->
 
 
 service_available() ->
-    case {libsniffle:servers(), libsnarl:servers()} of
-        {[], _} ->
+    case {libsniffle:servers(), libsnarl:servers(),
+          application:get_env(wiggle, api, all)} of
+        {_, [], _} ->
             false;
-        {_, []} ->
+        {[], _, all} ->
             false;
         _ ->
             true
