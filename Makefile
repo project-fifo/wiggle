@@ -27,6 +27,7 @@ deps:
 
 clean:
 	$(REBAR) clean
+	[ -d apps/wiggle/ebin] && rm -r apps/wiggle/ebin || true
 	make -C rel/pkg clean
 
 distclean: clean devclean relclean
