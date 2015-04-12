@@ -102,7 +102,8 @@ get_header(Req, State) ->
                             {State, Req1};
                         {UUID, Scope} ->
                             SPerms = scope_perms(ls_oauth:scope(Scope), []),
-                            {State#state{token = UUID, scope_perms = SPerms}, Req1}
+                            {State#state{token = UUID, scope_perms = SPerms,
+                                         bearer = Bearer}, Req1}
                     end;
                 _ ->
                     {State, Req1}

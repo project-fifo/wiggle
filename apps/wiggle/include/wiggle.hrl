@@ -1,4 +1,5 @@
 -record(state, {
+          %% The callback module responsible for the REST interactions
           module,
           %% The path of the reqest
           path,
