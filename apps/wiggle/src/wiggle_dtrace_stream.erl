@@ -56,15 +56,23 @@ websocket_init(_Any, Req, []) ->
                                                 jsxd:from_list(jsx:decode(D))
                                         end, text}
                                end,
-    {ok, Req2, #dstate{id = ID, encoder = Encoder, decoder = Decoder,
-                       type = Type}}.
+    case wiggle_handler:get_token(#state{}, Req2) of
+        {#state{ token = undefined}, Req3} ->
+            {ok, Req3, #dstate{id = ID, encoder = Encoder, decoder = Decoder,
+                               type = Type}};
+        {#state{token = Token, scope_perms = SPerms}, Req3} ->
+            State = #dstate{id = ID, encoder = Encoder, decoder = Decoder,
+                            type = Type, token = Token, scope_perms = SPerms,
+                            state = authenticated},
+            init(State, Req3)
+    end.
 
 websocket_handle({Type, M}, Req,
                  State = #dstate{state = connected, type = Type,
                                  encoder = Enc, decoder = Dec}) ->
     case auth(Dec(M), State) of
         {ok, S1} ->
-            init(Req, S1#dstate{state = authenticated});
+            init(S1#dstate{state = authenticated}, Req);
         {error, S1} ->
             {reply, {Type, Enc([{<<"error">>, <<"denied">>}])}, Req, S1}
     end;
@@ -120,7 +128,7 @@ auth([{<<"token">>, Token}], State) ->
     State1 = State#dstate{token = {token, Token}},
     {ok, State1}.
 
-init(Req, State = #dstate{id = ID}) ->
+init(State = #dstate{id = ID}, Req) ->
     Permission = [<<"dtrace">>, ID, <<"stream">>],
     case allowed(Permission, State) of
         true ->

@@ -75,15 +75,21 @@ set_access_header(Req) ->
     cowboy_req:set_resp_header(
       <<"access-control-allow-credentials">>, <<"true">>, Req3).
 
-get_token(State, Req) ->
+
+%% We only support the x-snarl-token in the V1 API.
+get_token(State = #state{version = ?V1}, Req) ->
     case cowboy_req:header(<<"x-snarl-token">>, Req) of
         {undefined, Req1} ->
-            get_header(Req1, State);
+            get_header(State, Req1);
         {Token, Req1} ->
             {State#state{token = {token, Token}}, Req1}
-    end.
+    end;
 
-get_header(Req, State) ->
+get_token(State, Req) ->
+    get_header(State, Req).
+
+%% We only allow basic auth in the V1 API
+get_header(State = #state{version = ?V1}, Req) ->
     {ok, Auth, Req1} = cowboy_req:parse_header(<<"authorization">>, Req),
     case Auth of
         {<<"basic">>, {Username, Password}} ->
@@ -94,22 +100,60 @@ get_header(Req, State) ->
                     {State, Req1}
             end;
         {<<"bearer">>, Bearer} ->
-            case ls_oauth:verify_access_token(Bearer) of
-                {ok, Context} ->
-                    case {proplists:get_value(<<"resource_owner">>, Context),
-                          proplists:get_value(<<"scope">>, Context)} of
-                        {undefined, _} ->
-                            {State, Req1};
-                        {UUID, Scope} ->
-                            SPerms = scope_perms(ls_oauth:scope(Scope), []),
-                            {State#state{token = UUID, scope_perms = SPerms,
-                                         bearer = Bearer}, Req1}
-                    end;
+            resolve_bearer(State#state{bearer = Bearer}, Req1);
+        _ ->
+            get_qs(State, Req1)
+    end;
+
+get_header(State, Req) ->
+    case cowboy_req:parse_header(<<"authorization">>, Req) of
+        {ok, {<<"bearer">>, Bearer}, Req1} ->
+            resolve_bearer(State#state{bearer = Bearer}, Req1);
+        {ok, _, Req1} ->
+            get_qs(State, Req1)
+    end.
+
+%%Handle fifo_ott (One time token) query strings, resolve the OTT to a
+%%bearer token and delete it.
+get_qs(State, Req) ->
+    case cowboy_req:qs_val(<<"fifo_ott">>, Req) of
+        {undefined, Req1} ->
+            get_cookie(State, Req1);
+        {OTT, Req1} ->
+            case ls_token:get(OTT) of
+                {ok, Bearer} ->
+                    ls_token:delete(OTT),
+                    resolve_bearer(State#state{bearer = Bearer}, Req1);
                 _ ->
-                    {State, Req1}
+                    get_cookie(State, Req1)
+            end
+    end.
+
+%% We only use cookies in the V1 API
+get_cookie(State = #state{version = ?V1}, Req) ->
+    case cowboy_req:cookie(<<"x-snarl-token">>, Req) of
+        {undefined, Req1} ->
+            {State, Req1};
+        {Token, Req1} ->
+            {State#state{token = {token, Token}}, Req1}
+    end;
+get_cookie(State, Req) ->
+    {State, Req}.
+
+
+resolve_bearer(State = #state{bearer = Bearer}, Req) ->
+    case ls_oauth:verify_access_token(Bearer) of
+        {ok, Context} ->
+            case {proplists:get_value(<<"resource_owner">>, Context),
+                  proplists:get_value(<<"scope">>, Context)} of
+                {undefined, _} ->
+                    {State, Req};
+                {UUID, Scope} ->
+                    SPerms = scope_perms(ls_oauth:scope(Scope), []),
+                    {State#state{token = UUID, scope_perms = SPerms}, Req}
             end;
         _ ->
-            {State, Req1}
+            {State, Req}
     end.
 
 scope_perms([], Acc) ->
