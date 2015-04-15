@@ -216,7 +216,9 @@ write(Req, State = #state{module = M, body = undefined}) ->
             lager:info("This is a raw request"),
             case cowboy_req:method(Req) of
                 {<<"POST">>, Req1} ->
-                    M:create(Req1, State, undefined);
+                    R = M:create(Req1, State, undefined),
+                    wiggle_handler:clear_permissions(State),
+                    R;
                 {<<"PUT">>, Req1} ->
                     M:write(Req1, State, undefined)
             end;
@@ -228,7 +230,9 @@ write(Req, State = #state{module = M, body = undefined}) ->
 write(Req, State = #state{module = M, body = Data}) ->
     case cowboy_req:method(Req) of
         {<<"POST">>, Req1} ->
-            M:create(Req1, State, Data);
+            R = M:create(Req1, State, Data),
+            wiggle_handler:clear_permissions(State),
+            R;
         {<<"PUT">>, Req1} ->
             M:write(Req1, State, Data)
     end.

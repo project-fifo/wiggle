@@ -14,10 +14,14 @@
          service_available/0,
          encode/2,
          get_persmissions/1,
+         clear_permissions/1,
          timeout_cache_with_invalid/6,
          timeout_cache/5,
          list/9
         ]).
+
+clear_permissions(#state{token = Token}) ->
+        e2qc:evict(permissions, Token).
 
 initial_state(Req) ->
     {Method, Req0} = cowboy_req:method(Req),
