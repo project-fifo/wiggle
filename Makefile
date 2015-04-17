@@ -10,6 +10,9 @@ cp-hooks:
 version: deps compile
 	cp deps/wiggle/wiggle.version .
 
+version_header:
+	true
+
 deps:
 	$(REBAR) get-deps
 
