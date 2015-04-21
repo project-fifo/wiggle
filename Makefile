@@ -37,3 +37,6 @@ package: rel
 
 zabbix:
 	sh generate_zabbix_template.sh
+
+test:
+	true
