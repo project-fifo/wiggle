@@ -12,6 +12,8 @@ ERL_CRASH_DUMP={{log_path}}
 PIPE_DIR=/tmp/{{run_user}}/
 RUNNER_USER={{run_user}}
 
+ulimit -n 1024
+
 # Make sure this script is running as the appropriate user
 if [ ! -z "$RUNNER_USER" ] && [ `whoami` != "$RUNNER_USER" ]; then
     exec sudo -u $RUNNER_USER $0 $@
